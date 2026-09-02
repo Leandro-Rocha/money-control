@@ -348,6 +348,11 @@ export default function CreditCardColumn({
                                 <span title="Transferência vinculada" className="flex items-center shrink-0"><ArrowRightLeft className="w-3.5 h-3.5 text-blue-400" /></span>
                               )}
                               <span className="truncate">{tx.description}</span>
+                              {tx.purchaseDate && (
+                                <span className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-[10px] text-slate-400 rounded" title={`Data da compra: ${tx.purchaseDate}`}>
+                                  {tx.purchaseDate}
+                                </span>
+                              )}
                             </span>
                           )}
                         </TableCell>

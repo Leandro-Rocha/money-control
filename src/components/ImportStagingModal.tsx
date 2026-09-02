@@ -31,6 +31,7 @@ interface ParsedRow {
   isDuplicate: boolean;
   ignored: boolean;
   isPastMonth: boolean;
+  purchaseDate?: string;
 }
 
 export function ImportStagingModal({
@@ -55,9 +56,9 @@ export function ImportStagingModal({
     const [y, m] = month.split("-");
     const targetMonth = `${m}/${y}`;
     
-    return `Vou colar um extrato ou fatura. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 7 colunas:
+    return `Vou colar um extrato ou fatura. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 8 colunas:
 
-Data	Nome Original	Nome Limpo	Valor	Categoria	Parcela Atual	Total Parcelas
+Data	Nome Original	Nome Limpo	Valor	Categoria	Parcela Atual	Total Parcelas	Data Compra
 
 Regras:
 1. Data: Extraia a data no formato em que aparece, preferencialmente DD/MM (ex: 02/10).
@@ -66,8 +67,11 @@ Regras:
 4. Valor: Numérico, sem 'R$'. Saídas/Gastos devem ser negativos.
 5. Categoria: Categorize usando ESTRITAMENTE uma destas categorias: [${catNames}]. Se não souber, deixe em branco.
 6. Parcela Atual e Total: Se o nome original indicar parcelamento (ex: 02/05, PARC 2/5), extraia o número da parcela atual para a Coluna 6 e o total para a Coluna 7. Se não houver, deixe ambas em branco.
-7. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos cobrados, independentemente da data da compra original.
-8. Ordem: Retorne as linhas ordenadas por Dia (do menor para o maior).`;
+7. O que ignorar: IGNORE seções como "Pagamentos efetuados" (pagamento da fatura) e "Compras parceladas - próximas faturas".
+8. O que incluir: INCLUA tarifas de serviço, IOF, compras internacionais e lançamentos do mês atual.
+9. Data Compra: A data exata da compra no formato DD/MM/YYYY na Coluna 8. Se omitir o ano, deduza do contexto da fatura. Se não aplicável, deixe em branco.
+10. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos cobrados, respeitando a regra 7 e 8.
+11. Ordem: Retorne as linhas ordenadas por Dia (do menor para o maior).`;
   }, [categories, month]);
 
   useEffect(() => {
@@ -183,6 +187,9 @@ Regras:
         const parsed = parseInt(parts[6].trim().replace(/\D/g, ""), 10);
         if (!isNaN(parsed)) instTot = parsed;
       }
+      
+      let purchaseDate: string | undefined = parts[7]?.trim();
+      if (!purchaseDate) purchaseDate = undefined;
 
       rows.push({
         id: `temp-${idx}`,
@@ -199,6 +206,7 @@ Regras:
         rulePattern: originalDescription,
         installmentCurrent: instCur,
         installmentTotal: instTot,
+        purchaseDate,
       });
     });
 
@@ -239,6 +247,7 @@ Regras:
       categoryId: r.categoryId,
       installmentCurrent: r.installmentCurrent,
       installmentTotal: r.installmentTotal,
+      purchaseDate: r.purchaseDate,
     }));
 
     if (toInsert.length === 0) {

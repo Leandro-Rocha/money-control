@@ -1,0 +1,1 @@
+ALTER TABLE `transactions` ADD `purchase_date` text;

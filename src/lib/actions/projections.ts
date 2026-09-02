@@ -64,27 +64,22 @@ export async function buildProjectedMonthData(
     if (acc.type === "credit_card" && acc.defaultPaymentAccountId && acc.dueDay) {
       if (isDismissed("credit_card_bill", acc.id, acc.defaultPaymentAccountId)) continue;
 
-      const prevMonth = addMonths(targetMonth, -1);
-      
-      // 1. Get real transactions for prevMonth
-      const prevMonthTx = await db
+      // 1. Get real transactions for targetMonth
+      const targetMonthTx = await db
         .select()
         .from(transactions)
         .where(
           and(
             eq(transactions.accountId, acc.id),
-            eq(transactions.month, prevMonth)
+            eq(transactions.month, targetMonth)
           )
         );
       
-      let rawNetAmount = prevMonthTx.reduce((sum, t) => sum + t.amount, 0);
+      let rawNetAmount = targetMonthTx.reduce((sum, t) => sum + t.amount, 0);
 
-      // 2. Get projected transactions for prevMonth (if it's a future month)
-      if (isFutureMonth(prevMonth)) {
-        const { projectedTxByAccount: prevProjected } = await buildProjectedMonthData(prevMonth, accList, categoryMap, accountMap);
-        const prevAccProjected = prevProjected.get(acc.id) ?? [];
-        rawNetAmount += prevAccProjected.reduce((sum, t) => sum + t.amount, 0);
-      }
+      // 2. Add projected transactions for targetMonth that we already collected
+      const targetAccProjected = projectedTxByAccount.get(acc.id) ?? [];
+      rawNetAmount += targetAccProjected.reduce((sum, t) => sum + t.amount, 0);
 
       const netAmount = Math.round(rawNetAmount * 100) / 100;
       

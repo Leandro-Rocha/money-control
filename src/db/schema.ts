@@ -33,6 +33,7 @@ export const transactions = sqliteTable("transactions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   accountId: integer("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   month: text("month").notNull(), // Format: "YYYY-MM"
+  purchaseDate: text("purchase_date"), // Format: "DD/MM/YYYY" (optional, mainly for credit cards)
   day: integer("day").notNull(),
   description: text("description").notNull(),
   originalDescription: text("original_description"),

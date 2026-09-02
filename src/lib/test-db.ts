@@ -42,6 +42,7 @@ export function createTestDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       month TEXT NOT NULL,
+      purchase_date TEXT,
       day INTEGER NOT NULL,
       description TEXT NOT NULL,
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,

@@ -188,12 +188,14 @@ export async function createMultipleTransactions(dataArray: {
   amount: number;
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
+  purchaseDate?: string | null;
 }[], newRules?: { pattern: string; targetDescription: string; categoryId: number | null }[]) {
   if (dataArray.length === 0) return { success: true };
   
   await db.insert(transactions).values(dataArray.map(data => ({
     accountId: data.accountId,
     month: data.month,
+    purchaseDate: data.purchaseDate ?? null,
     day: data.day,
     description: data.description.trim(),
     originalDescription: data.originalDescription ?? null,

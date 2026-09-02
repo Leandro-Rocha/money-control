@@ -11,6 +11,7 @@ export interface Transaction {
   accountId: number;
   month: string;
   day: number;
+  purchaseDate?: string | null;
   description: string;
   categoryId: number | null;
   amount: number;

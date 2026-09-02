@@ -401,6 +401,11 @@ export default function BankAccountColumn({
                               </span>
                             )}
                             <span className="truncate">{tx.description}</span>
+                            {tx.purchaseDate && (
+                              <span className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-[10px] text-slate-400 rounded" title={`Data da compra: ${tx.purchaseDate}`}>
+                                {tx.purchaseDate}
+                              </span>
+                            )}
                             {isProjected && tx.projectedInstallmentCurrent && (
                               <span className="ml-1 text-sm text-slate-400 not-italic">
                                 {tx.projectedInstallmentCurrent}/{tx.projectedInstallmentTotal}
