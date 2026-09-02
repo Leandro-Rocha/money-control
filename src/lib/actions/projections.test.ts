@@ -49,8 +49,8 @@ describe('projections actions', () => {
     it('should return empty projections when no recurring or installments exist', async () => {
       const accList = await testDb.select().from(accounts);
       const catList = await testDb.select().from(categories);
-      const catMap = new Map(catList.map((c: any) => [c.id, c]));
-      const accMap = new Map(accList.map((a: any) => [a.id, a.name]));
+      const catMap = new Map<number, any>(catList.map((c: any) => [c.id, c]));
+      const accMap = new Map<number, string>(accList.map((a: any) => [a.id, a.name]));
 
       const result = await projections.buildProjectedMonthData('2024-05', accList, catMap, accMap);
       
@@ -71,8 +71,8 @@ describe('projections actions', () => {
       
       const accList = await testDb.select().from(accounts);
       const catList = await testDb.select().from(categories);
-      const catMap = new Map(catList.map((c: any) => [c.id, c]));
-      const accMap = new Map(accList.map((a: any) => [a.id, a.name]));
+      const catMap = new Map<number, any>(catList.map((c: any) => [c.id, c]));
+      const accMap = new Map<number, string>(accList.map((a: any) => [a.id, a.name]));
 
       const result = await projections.buildProjectedMonthData('2024-05', accList, catMap, accMap);
       
