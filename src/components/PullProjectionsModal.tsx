@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { X, ListPlus, Check, Loader2 } from "lucide-react";
-import { getPendingProjections, confirmMultipleProjectedRows } from "@/lib/actions";
+import { getPendingProjections, confirmMultipleProjectedRows } from "@/lib/actions/projections";
 
 interface PullProjectionsModalProps {
   month: string;

@@ -4,7 +4,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Category, TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { X, Copy, Check, AlertTriangle, ArrowRight, UploadCloud } from "lucide-react";
-import { createMultipleTransactions, getTransactionRules } from "@/lib/actions";
+import { createMultipleTransactions } from "@/lib/actions/transactions";
+import { getTransactionRules } from "@/lib/actions/transaction-rules";
 
 interface ImportStagingModalProps {
   month: string;

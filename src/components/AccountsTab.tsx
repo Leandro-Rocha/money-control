@@ -5,7 +5,7 @@ import { Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Building, CreditCard, TrendingUp, Pencil, Check, X } from "lucide-react";
-import { createAccount, deleteAccount, updateAccount } from "@/lib/actions";
+import { createAccount, deleteAccount, updateAccount } from "@/lib/actions/accounts";
 
 interface AccountsTabProps {
   accounts: Account[];

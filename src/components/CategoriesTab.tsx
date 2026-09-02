@@ -5,7 +5,7 @@ import { Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Tags, Pencil, Check, X, Eye, EyeOff } from "lucide-react";
-import { createCategory, deleteCategory, updateCategory } from "@/lib/actions";
+import { createCategory, deleteCategory, updateCategory } from "@/lib/actions/categories";
 
 interface CategoriesTabProps {
   categories: Category[];

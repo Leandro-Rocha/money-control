@@ -5,7 +5,7 @@ import { Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Edit2, Loader2, Save, X } from "lucide-react";
-import { getTransactionRules, createTransactionRule, updateTransactionRule, deleteTransactionRule } from "@/lib/actions";
+import { getTransactionRules, createTransactionRule, updateTransactionRule, deleteTransactionRule } from "@/lib/actions/transaction-rules";
 
 interface RulesTabProps {
   categories: Category[];

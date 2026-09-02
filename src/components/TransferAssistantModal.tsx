@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { findTransferCandidates, linkTransfersBatch } from "@/lib/actions";
+import { findTransferCandidates, linkTransfersBatch } from "@/lib/actions/transactions";
 import { Account } from "@/lib/types";
 import { ArrowRightLeft, X, Check, Loader2 } from "lucide-react";
 

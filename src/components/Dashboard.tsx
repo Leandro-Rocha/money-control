@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { MonthData } from "@/lib/types";
-import { getMonthData } from "@/lib/actions";
+import { getMonthData } from "@/lib/actions/transactions";
 import MonthHeader from "./MonthHeader";
 import BankAccountColumn from "./BankAccountColumn";
 import CreditCardColumn from "./CreditCardColumn";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Settings, Search, Filter } from "lucide-react";
-import { getRecurringEntries } from "@/lib/actions";
+import { getRecurringEntries } from "@/lib/actions/recurring";
 import { RecurringEntryUI } from "@/lib/types";
 import { useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

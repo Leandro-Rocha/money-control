@@ -5,7 +5,7 @@ import { useState } from "react";
 import { CategorySummaryGroup } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import { ChevronRight, ChevronDown, PieChart, Plus, Tag } from "lucide-react";
-import { createCategory } from "@/lib/actions";
+import { createCategory } from "@/lib/actions/categories";
 
 interface CategorySummaryPanelProps {
   summaries: CategorySummaryGroup[];

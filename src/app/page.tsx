@@ -1,4 +1,4 @@
-import { getMonthData } from "@/lib/actions";
+import { getMonthData } from "@/lib/actions/transactions";
 import { seedDatabase } from "@/db/seed";
 import Dashboard from "@/components/Dashboard";
 

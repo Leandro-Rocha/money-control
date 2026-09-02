@@ -5,7 +5,7 @@ import { RecurringEntryUI, Account, Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Pencil, Check, X } from "lucide-react";
-import { createRecurringEntry, deleteRecurringEntry, updateRecurringEntry } from "@/lib/actions";
+import { createRecurringEntry, deleteRecurringEntry, updateRecurringEntry } from "@/lib/actions/recurring";
 import { formatCurrency } from "@/lib/format";
 
 interface RecurringTabProps {

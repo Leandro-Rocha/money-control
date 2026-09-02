@@ -1,4 +1,4 @@
-import { getMonthData } from "./lib/actions";
+import { getMonthData } from "./lib/actions/transactions";
 
 async function run() {
   console.log("--- TESTANDO INTEGRIDADE DOS DADOS ---");

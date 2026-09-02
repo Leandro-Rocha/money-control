@@ -10,7 +10,8 @@ import { useState, useEffect } from "react";
 import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
 import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, ArrowRightLeft } from "lucide-react";
-import { createTransaction, deleteTransaction, updateTransaction, confirmProjectedRow, dismissProjection } from "@/lib/actions";
+import { createTransaction, deleteTransaction, updateTransaction } from "@/lib/actions/transactions";
+import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 
 interface CreditCardColumnProps {
   data: AccountData;
