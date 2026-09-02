@@ -7,6 +7,8 @@ import { ProjectionState, TransactionWithCategory } from "../types";
 import { revalidatePath } from "next/cache";
 import { addMonths, currentMonth, isFutureMonth, monthDiff } from "../date-helpers";
 
+import { getProjectedInstallments, getProjectedRecurring } from "../repositories/projections";
+
 export async function buildProjectedMonthData(
   targetMonth: string,
   accList: any[],
@@ -19,37 +21,27 @@ export async function buildProjectedMonthData(
   const projectedTxByAccount = new Map<number, TransactionWithCategory[]>();
   for (const acc of accList) projectedTxByAccount.set(acc.id, []);
 
-  // 1. Scan last 24 months for installment transactions
+  // 1. Fetch projected installments and recurring via repository queries
   const scanStart = addMonths(targetMonth, -24);
-  const allInstallmentTx = await db
-    .select()
-    .from(transactions)
-    .where(
-      and(
-        gte(transactions.month, scanStart),
-        lte(transactions.month, addMonths(targetMonth, -1))
-      )
-    );
+  const scanEnd = addMonths(targetMonth, -1);
+  const projectedInstallments = await getProjectedInstallments(targetMonth, scanStart, scanEnd);
+  const projectedRecurring = await getProjectedRecurring(targetMonth);
 
-  // Filter to only installment-bearing
-  const rawInstallments = allInstallmentTx.filter(
-    (t) => t.installmentCurrent != null && t.installmentTotal != null
-  );
-
-  // Deduplicate installment chains: group by accountId + description + originMonth
-  // Keep only the transaction with the highest installmentCurrent
-  const dedupMap = new Map<string, any>();
-  for (const t of rawInstallments) {
-    const originMonth = addMonths(t.month, -(t.installmentCurrent! - 1));
-    const key = `${t.accountId}-${t.description.trim().toLowerCase()}-${originMonth}`;
-    const existing = dedupMap.get(key);
-    if (!existing || t.installmentCurrent! > existing.installmentCurrent!) {
-      dedupMap.set(key, t);
-    }
+  // 2. Inject installments
+  for (const row of projectedInstallments) {
+    const existing = projectedTxByAccount.get(row.accountId) ?? [];
+    existing.push(row);
+    projectedTxByAccount.set(row.accountId, existing);
   }
-  const installmentTx = Array.from(dedupMap.values());
 
-  // 2. Fetch dismissed projections for this month
+  // 3. Inject recurring entries
+  for (const row of projectedRecurring) {
+    const existing = projectedTxByAccount.get(row.accountId) ?? [];
+    existing.push(row);
+    projectedTxByAccount.set(row.accountId, existing);
+  }
+
+  // Fetch dismissed list to support credit card bill logic
   const dismissedList = await db
     .select()
     .from(dismissedProjections)
@@ -61,83 +53,11 @@ export async function buildProjectedMonthData(
     );
   };
 
-  // 3. Fetch real transactions already confirmed for this month (so we can detect partial state)
+  // 4. Fetch real transactions already confirmed for this month (so we can detect partial state)
   const realTxForMonth = await db
     .select()
     .from(transactions)
     .where(eq(transactions.month, targetMonth));
-
-  // 4. Project installments
-  for (const tx of installmentTx) {
-    if (!tx.installmentCurrent || !tx.installmentTotal) continue;
-
-    // Compute origin month
-    const originMonth = addMonths(tx.month, -(tx.installmentCurrent - 1));
-    const offset = monthDiff(originMonth, targetMonth);
-    const projectedCurrent = 1 + offset;
-
-    if (projectedCurrent <= tx.installmentCurrent) continue; // already confirmed
-    if (projectedCurrent > tx.installmentTotal) continue; // expired
-    if (isDismissed("installment", tx.id, tx.accountId)) continue;
-
-    const cat = tx.categoryId ? categoryMap.get(tx.categoryId) : undefined;
-    const projectedRow: TransactionWithCategory = {
-      id: -(tx.id * 1000 + projectedCurrent), // synthetic negative id for projected rows
-      accountId: tx.accountId,
-      month: targetMonth,
-      day: tx.day,
-      description: tx.description,
-      categoryId: tx.categoryId,
-      amount: tx.amount,
-      installmentCurrent: null, // Real tx saved without installment fields per design decision L=2
-      installmentTotal: null,
-      notes: null,
-      categoryName: cat?.name,
-      categoryColor: cat?.color,
-      isProjected: true,
-      projectionSourceType: "installment",
-      projectionSourceId: tx.id,
-      projectedInstallmentCurrent: projectedCurrent,
-      projectedInstallmentTotal: tx.installmentTotal,
-    };
-
-    const existing = projectedTxByAccount.get(tx.accountId) ?? [];
-    existing.push(projectedRow);
-    projectedTxByAccount.set(tx.accountId, existing);
-  }
-
-  // 5. Fetch and inject recurring entries
-  const allRecurring = await db
-    .select()
-    .from(recurringEntries)
-    .where(eq(recurringEntries.active, 1));
-
-  for (const re of allRecurring) {
-    if (isDismissed("recurring", re.id, re.accountId)) continue;
-
-    const cat = re.categoryId ? categoryMap.get(re.categoryId) : undefined;
-    const projectedRow: TransactionWithCategory = {
-      id: -(re.id * 100000 + 99999), // synthetic negative id for recurring projected rows
-      accountId: re.accountId,
-      month: targetMonth,
-      day: re.day,
-      description: re.description,
-      categoryId: re.categoryId,
-      amount: re.amount,
-      installmentCurrent: null,
-      installmentTotal: null,
-      notes: null,
-      categoryName: cat?.name,
-      categoryColor: cat?.color,
-      isProjected: true,
-      projectionSourceType: "recurring",
-      projectionSourceId: re.id,
-    };
-
-    const existing = projectedTxByAccount.get(re.accountId) ?? [];
-    existing.push(projectedRow);
-    projectedTxByAccount.set(re.accountId, existing);
-  }
 
   // 5.5 Fetch and inject credit card bills from previous month
   for (const acc of accList) {
