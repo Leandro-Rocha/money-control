@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
-import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, ArrowRightLeft, Building } from "lucide-react";
-import { createTransaction, deleteTransaction, updateTransaction, convertToTransfer } from "@/lib/actions/transactions";
+import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, ArrowRightLeft, Building, Repeat } from "lucide-react";
+import { createTransaction, deleteTransaction, updateTransaction, convertToTransfer, transformToRecurring } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 
 interface BankAccountColumnProps {
@@ -601,6 +601,17 @@ export default function BankAccountColumn({
                   onClick={() => setTransferTxId(contextMenu.tx.id)}
                 >
                   <ArrowRightLeft className="w-4 h-4" /> Transformar em Transferência
+                </button>
+              )}
+              {!contextMenu.tx.linkedTransactionId && (
+                <button 
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-purple-600"
+                  onClick={async () => {
+                    await transformToRecurring(contextMenu.tx.id);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Repeat className="w-4 h-4" /> Transformar em Recorrente
                 </button>
               )}
               <button 

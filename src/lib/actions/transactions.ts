@@ -381,3 +381,39 @@ export async function linkTransfersBatch(pairs: { tx1Id: number, tx2Id: number }
   revalidatePath("/");
   return { success: true };
 }
+
+export async function transformToRecurring(txId: number) {
+  const tx = await db.select().from(transactions).where(eq(transactions.id, txId)).then(r => r[0]);
+  if (!tx) return { success: false, error: "Transação não encontrada" };
+
+  // 1. Create recurring entry
+  const [newRec] = await db.insert(recurringEntries).values({
+    accountId: tx.accountId,
+    categoryId: tx.categoryId,
+    description: tx.description,
+    day: tx.day,
+    amount: tx.amount,
+    active: 1,
+  }).returning({ id: recurringEntries.id });
+
+  // 2. Link transaction to this recurring entry
+  await db.update(transactions).set({
+    sourceType: "recurring",
+    sourceId: newRec.id
+  }).where(eq(transactions.id, txId));
+
+  // 3. Dismiss projection for THIS month so it doesn't double count
+  try {
+    await db.insert(dismissedProjections).values({
+      accountId: tx.accountId,
+      month: tx.month,
+      sourceType: "recurring",
+      sourceId: newRec.id
+    });
+  } catch {
+    // Unique constraint violation if it somehow already exists
+  }
+
+  revalidatePath("/");
+  return { success: true };
+}

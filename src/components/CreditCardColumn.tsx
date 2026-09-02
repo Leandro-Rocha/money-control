@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
-import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, ArrowRightLeft } from "lucide-react";
-import { createTransaction, deleteTransaction, updateTransaction } from "@/lib/actions/transactions";
+import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, ArrowRightLeft, Repeat } from "lucide-react";
+import { createTransaction, deleteTransaction, updateTransaction, transformToRecurring } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 
 interface CreditCardColumnProps {
@@ -557,12 +557,23 @@ export default function CreditCardColumn({
               </button>
             </>
           ) : (
-            <button 
-              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-rose-600"
-              onClick={() => handleDelete(contextMenu.tx.id)}
-            >
-              <Trash2 className="w-4 h-4" /> Excluir lançamento
-            </button>
+            <>
+              <button 
+                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-purple-600"
+                onClick={async () => {
+                  await transformToRecurring(contextMenu.tx.id);
+                  setContextMenu(null);
+                }}
+              >
+                <Repeat className="w-4 h-4" /> Transformar em Recorrente
+              </button>
+              <button 
+                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-rose-600"
+                onClick={() => handleDelete(contextMenu.tx.id)}
+              >
+                <Trash2 className="w-4 h-4" /> Excluir lançamento
+              </button>
+            </>
           )}
         </div>
       )}
