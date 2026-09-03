@@ -135,7 +135,7 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
                     type="checkbox"
                     checked={selectedIndices.has(idx)}
                     onChange={() => toggleSelection(idx)}
-                    className="w-5 h-5 rounded border-slate-300 accent-blue-600 cursor-pointer shrink-0"
+                    className="w-4 h-4 rounded border-slate-300 accent-primary cursor-pointer shrink-0"
                   />
                   <div className="flex-1 cursor-pointer grid grid-cols-[1fr_auto_1fr] gap-4 items-center" onClick={() => toggleSelection(idx)}>
                     <div className="flex flex-col gap-1">
