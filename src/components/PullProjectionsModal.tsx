@@ -5,6 +5,7 @@ import { TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { X, ListPlus, Check, Loader2 } from "lucide-react";
 import { getPendingProjections, confirmMultipleProjectedRows } from "@/lib/actions/projections";
+import { formatCurrency } from "@/lib/format";
 
 interface PullProjectionsModalProps {
   month: string;
@@ -67,9 +68,6 @@ export function PullProjectionsModal({
     onClose();
   };
 
-  const formatCurrency = (val: number) => {
-    return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  };
 
   const getAccountName = (accId: number) => accounts.find(a => a.id === accId)?.name || "Conta";
 

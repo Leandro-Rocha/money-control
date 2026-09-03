@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { CategorySummaryGroup } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { X, PieChart, TrendingDown, TrendingUp, ChevronDown, ChevronRight, Wallet } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface InsightsModalProps {
   monthLabel: string;
@@ -58,9 +59,6 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
     };
   }, [summaries]);
 
-  const formatCurrency = (val: number) => {
-    return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  };
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
