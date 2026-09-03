@@ -493,7 +493,13 @@ export default function BankAccountColumn({
                         ) : (
                           <span
                             onClick={() => onCellClick("amount")}
-                            className={`inline-flex items-center justify-end h-9 px-3 border border-transparent ${isInstallmentShadow ? "text-slate-500 cursor-default" : "cursor-pointer"} ${isInstallmentShadow ? "" : isPositive ? "text-emerald-600" : "text-rose-600"}`}
+                            className={`inline-flex items-center justify-end h-9 px-3 border ${
+                              isInstallmentShadow
+                                ? "border-transparent text-slate-500 cursor-default"
+                                : visuallyProjected
+                                ? "border-amber-500/50 text-amber-600 font-medium hover:bg-amber-50 cursor-pointer"
+                                : `border-transparent cursor-pointer ${isPositive ? "text-emerald-600" : "text-rose-600"}`
+                            }`}
                             title={isInstallmentShadow ? "Lançamento automático" : visuallyProjected ? "Projeção — clique para confirmar com edição" : "Clique para editar o valor"}
                           >
                             {formatCurrency(tx.amount)}
