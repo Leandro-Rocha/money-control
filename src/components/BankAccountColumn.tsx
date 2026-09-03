@@ -265,7 +265,7 @@ export default function BankAccountColumn({
                   <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
                   <span className="text-rose-600 dark:text-rose-400">{formatCurrency(data.totalExpense)}</span>
                 </div>
-                <div className={`flex items-center gap-1 font-medium ${data.netBalance >= 0 ? "text-emerald-600" : "text-rose-600"}`} title="Balanço do Mês">
+                <div className={`flex items-center gap-1 font-medium ${data.netBalance >= 0 ? "text-indigo-600" : "text-rose-600"}`} title="Balanço do Mês">
                   <span className="text-slate-300 mx-0.5">|</span>
                   {data.netBalance >= 0 ? "+" : ""}{formatCurrency(data.netBalance)}
                 </div>

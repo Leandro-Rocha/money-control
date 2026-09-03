@@ -91,7 +91,7 @@ export default function MonthHeader({
             <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
             <span className="text-rose-600 dark:text-rose-400">{formatCurrency(globalExpense)}</span>
           </div>
-          <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${globalBalance >= 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"}`} title="Balanço do Mês">
+          <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${globalBalance >= 0 ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300" : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"}`} title="Balanço do Mês">
             Balanço: {globalBalance >= 0 ? "+" : ""}{formatCurrency(globalBalance)}
           </div>
         </div>
