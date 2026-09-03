@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Category, TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { X, Copy, Check, AlertTriangle, ArrowRight, UploadCloud } from "lucide-react";
+import { Copy, Check, AlertTriangle, ArrowRight, UploadCloud } from "lucide-react";
+import { ModalShell } from "./ModalShell";
 import { createMultipleTransactions } from "@/lib/actions/transactions";
 import { getTransactionRules } from "@/lib/actions/transaction-rules";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -273,121 +274,125 @@ Regras:
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b flex items-center justify-between bg-card shrink-0">
-          <div>
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <UploadCloud className="w-5 h-5 text-primary" />
-              Importar Transações via IA
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {step === 1 ? "Passo 1: Gere os dados estruturados no Gemini e cole aqui." : "Passo 2: Revise os dados e identifique duplicatas antes de salvar."}
-            </p>
+    <ModalShell
+      onClose={onClose}
+      maxWidth="max-w-4xl"
+      title="Importar Transações via IA"
+      subtitle={step === 1 ? "Passo 1: Gere os dados estruturados no Gemini e cole aqui." : "Passo 2: Revise os dados e identifique duplicatas antes de salvar."}
+      icon={<UploadCloud className="w-5 h-5 text-primary" />}
+      escapeCloses={false}
+      footer={
+        step === 1 ? (
+          <>
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button onClick={handleParse} disabled={!pastedText.trim()}>
+              Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="ghost" onClick={() => setStep(1)} disabled={isSubmitting}>Voltar</Button>
+            <Button onClick={handleCommit} disabled={isSubmitting || parsedRows.filter(r => !r.ignored).length === 0} className="bg-primary text-primary-foreground">
+              {isSubmitting ? "Salvando..." : `Salvar ${parsedRows.filter(r => !r.ignored).length} Transações`}
+            </Button>
+          </>
+        )
+      }
+    >
+      {step === 1 ? (
+        <div className="space-y-6">
+          <div className="bg-muted/50 p-4 rounded-lg border border-border">
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <h3 className="font-semibold text-sm">Instruções para a IA</h3>
+              <Button size="sm" variant="outline" onClick={handleCopyPrompt} className="shrink-0 h-8 text-xs">
+                {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                {copied ? "Copiado!" : "Copiar Prompt"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Copie o prompt abaixo e cole no Gemini ou ChatGPT junto com o seu PDF/Extrato. Ele vai gerar os dados formatados exatamente com as suas categorias.</p>
+            <div className="bg-background p-3 rounded text-xs font-mono text-slate-700 whitespace-pre-wrap border">
+              {promptText}
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {step === 1 ? (
-            <div className="space-y-6">
-              <div className="bg-muted/50 p-4 rounded-lg border border-border">
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <h3 className="font-semibold text-sm">Instruções para a IA</h3>
-                  <Button size="sm" variant="outline" onClick={handleCopyPrompt} className="shrink-0 h-8 text-xs">
-                    {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-                    {copied ? "Copiado!" : "Copiar Prompt"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">Copie o prompt abaixo e cole no Gemini ou ChatGPT junto com o seu PDF/Extrato. Ele vai gerar os dados formatados exatamente com as suas categorias.</p>
-                <div className="bg-background p-3 rounded text-xs font-mono text-slate-700 whitespace-pre-wrap border">
-                  {promptText}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">Conta de Destino</label>
-                  <select 
-                    value={accountId} 
-                    onChange={e => setAccountId(Number(e.target.value))}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">Mês de Destino</label>
-                  <div className="h-10 rounded-md border border-input bg-muted px-3 flex items-center text-sm font-semibold">
-                    {month}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-1.5 flex items-center justify-between">
-                  <span>Cole o TSV gerado aqui</span>
-                </label>
-                <textarea 
-                  value={pastedText}
-                  onChange={e => setPastedText(e.target.value)}
-                  className="w-full h-48 rounded-md border border-input bg-background p-3 text-sm font-mono placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  placeholder={`12\tPGTO *MERCADO EXTRA\tMercado Extra\t-150.00\tMercado\n15\tTED SALARIO\tSalário\t5000.00\tReceita`}
-                />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Conta de Destino</label>
+              <select
+                value={accountId}
+                onChange={e => setAccountId(Number(e.target.value))}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Mês de Destino</label>
+              <div className="h-10 rounded-md border border-input bg-muted px-3 flex items-center text-sm font-semibold">
+                {month}
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <p className="font-semibold">Atenção a duplicatas!</p>
-                  <p>Linhas amarelas indicam transações que já parecem existir neste mês (mesmo dia e valor). Elas foram marcadas para ser ignoradas por padrão, mas você pode desmarcá-las se forem legítimas.</p>
-                </div>
-              </div>
+          </div>
 
-              <div className="flex justify-between items-center px-1">
-                <span className="text-sm font-semibold text-slate-700">Transações extraídas ({parsedRows.length})</span>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleSelectAll} className="h-7 text-xs">Selecionar Todas</Button>
-                  <Button variant="outline" size="sm" onClick={handleSelectNone} className="h-7 text-xs">Nenhuma</Button>
-                </div>
-              </div>
-              <div className="border rounded-lg overflow-hidden bg-card">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted/50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 w-10 text-center"><Check className="w-4 h-4 mx-auto text-slate-500" /></th>
-                      <th className="px-4 py-2 font-semibold">Dia</th>
-                      <th className="px-4 py-2 font-semibold">Descrição</th>
-                      <th className="px-4 py-2 font-semibold text-right">Valor</th>
-                      <th className="px-4 py-2 font-semibold">Categoria</th>
-                      <th className="px-4 py-2 font-semibold w-24">Parcela</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    
-                    {[
-                      { title: "Transações do Mês Alvo", rows: parsedRows.filter(r => !r.isPastMonth) },
-                      { title: "Parcelas e Compras Anteriores", rows: parsedRows.filter(r => r.isPastMonth) }
-                    ].filter(g => g.rows.length > 0).map((group, groupIdx, arr) => (
-                      <React.Fragment key={groupIdx}>
-                        {arr.length > 1 && (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-2 bg-slate-100 font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                              {group.title}
-                            </td>
-                          </tr>
-                        )}
-                        {group.rows.map(row => (
+          <div>
+            <label className="text-sm font-medium mb-1.5 flex items-center justify-between">
+              <span>Cole o TSV gerado aqui</span>
+            </label>
+            <textarea
+              value={pastedText}
+              onChange={e => setPastedText(e.target.value)}
+              className="w-full h-48 rounded-md border border-input bg-background p-3 text-sm font-mono placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder={`12\tPGTO *MERCADO EXTRA\tMercado Extra\t-150.00\tMercado\n15\tTED SALARIO\tSalário\t5000.00\tReceita`}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-800">
+              <p className="font-semibold">Atenção a duplicatas!</p>
+              <p>Linhas amarelas indicam transações que já parecem existir neste mês (mesmo dia e valor). Elas foram marcadas para ser ignoradas por padrão, mas você pode desmarcá-las se forem legítimas.</p>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center px-1">
+            <span className="text-sm font-semibold text-slate-700">Transações extraídas ({parsedRows.length})</span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSelectAll} className="h-7 text-xs">Selecionar Todas</Button>
+              <Button variant="outline" size="sm" onClick={handleSelectNone} className="h-7 text-xs">Nenhuma</Button>
+            </div>
+          </div>
+          <div className="border rounded-lg overflow-hidden bg-card">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="px-4 py-2 w-10 text-center"><Check className="w-4 h-4 mx-auto text-slate-500" /></th>
+                  <th className="px-4 py-2 font-semibold">Dia</th>
+                  <th className="px-4 py-2 font-semibold">Descrição</th>
+                  <th className="px-4 py-2 font-semibold text-right">Valor</th>
+                  <th className="px-4 py-2 font-semibold">Categoria</th>
+                  <th className="px-4 py-2 font-semibold w-24">Parcela</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {[
+                  { title: "Transações do Mês Alvo", rows: parsedRows.filter(r => !r.isPastMonth) },
+                  { title: "Parcelas e Compras Anteriores", rows: parsedRows.filter(r => r.isPastMonth) }
+                ].filter(g => g.rows.length > 0).map((group, groupIdx, arr) => (
+                  <React.Fragment key={groupIdx}>
+                    {arr.length > 1 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-2 bg-slate-100 font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                          {group.title}
+                        </td>
+                      </tr>
+                    )}
+                    {group.rows.map(row => (
                       <tr key={row.id} className={`${row.ignored ? 'opacity-50 bg-slate-50' : row.isDuplicate ? 'bg-amber-50/50' : 'hover:bg-slate-50'}`}>
                         <td className="px-4 py-2 text-center align-middle">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={!row.ignored}
                             onChange={() => toggleIgnore(row.id)}
                             className="w-4 h-4 rounded border-slate-300 accent-primary cursor-pointer"
@@ -395,7 +400,7 @@ Regras:
                         </td>
                         <td className="px-4 py-2 align-middle font-medium text-slate-700">{row.day}</td>
                         <td className="px-4 py-2 align-middle">
-                          <input 
+                          <input
                             type="text"
                             value={row.description}
                             onChange={e => updateRowDescription(row.id, e.target.value)}
@@ -406,8 +411,8 @@ Regras:
                             <span>{row.originalDescription}</span>
                             {!row.ignored && (
                               <label className="flex items-center gap-1 cursor-pointer hover:text-indigo-500 transition-colors">
-                                <input 
-                                  type="checkbox" 
+                                <input
+                                  type="checkbox"
                                   className="w-3 h-3 rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                   checked={row.createRule}
                                   onChange={e => {
@@ -421,7 +426,7 @@ Regras:
                           {row.createRule && (
                             <div className="mt-1 flex items-center gap-2">
                               <span className="text-[10px] font-bold uppercase text-indigo-400">Match:</span>
-                              <input 
+                              <input
                                 type="text"
                                 value={row.rulePattern}
                                 onChange={e => {
@@ -463,39 +468,18 @@ Regras:
                         </td>
                       </tr>
                     ))}
-                      </React.Fragment>
-                    ))}
-                    {parsedRows.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Nenhuma transação extraída.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+                  </React.Fragment>
+                ))}
+                {parsedRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Nenhuma transação extraída.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t bg-muted/30 flex items-center justify-between shrink-0">
-          {step === 1 ? (
-            <>
-              <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-              <Button onClick={handleParse} disabled={!pastedText.trim()}>
-                Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" onClick={() => setStep(1)} disabled={isSubmitting}>Voltar</Button>
-              <Button onClick={handleCommit} disabled={isSubmitting || parsedRows.filter(r => !r.ignored).length === 0} className="bg-primary text-primary-foreground">
-                {isSubmitting ? "Salvando..." : `Salvar ${parsedRows.filter(r => !r.ignored).length} Transações`}
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+      )}
+    </ModalShell>
   );
 }
