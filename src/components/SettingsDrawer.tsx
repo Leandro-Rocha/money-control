@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, CreditCard, Tags, Repeat, Wand2 } from "lucide-react";
+import { Settings, CreditCard, Tags, Repeat, Wand2, X } from "lucide-react";
 import { Account, Category, RecurringEntryUI } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 import { AccountsTab } from "./AccountsTab";
 import { RecurringTab } from "./RecurringTab";
@@ -52,9 +53,9 @@ export function SettingsDrawer({
                     <Settings className="w-5 h-5 text-muted-foreground" />
                     <h2 className="text-lg font-semibold tracking-tight">Configurações</h2>
                   </div>
-                  <button onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-slate-100 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                  </button>
+                  <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full">
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Gerencie suas contas, categorias e despesas recorrentes.
