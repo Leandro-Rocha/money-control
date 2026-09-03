@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { X, Copy, Check, AlertTriangle, ArrowRight, UploadCloud } from "lucide-react";
 import { createMultipleTransactions } from "@/lib/actions/transactions";
 import { getTransactionRules } from "@/lib/actions/transaction-rules";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface ImportStagingModalProps {
   month: string;
@@ -95,10 +96,12 @@ Regras:
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, pastedText, step]);
 
-  const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(promptText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyPrompt = async () => {
+    const success = await copyToClipboard(promptText);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   // -- TSV Parser & Deduplication

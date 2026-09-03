@@ -5,12 +5,14 @@ import * as schema from "./schema";
 import path from "path";
 import fs from "fs";
 
+const isTest = process.env.NODE_ENV === "test" || process.env.VITEST !== undefined;
+
 const dbDir = path.join(process.cwd(), "data");
-if (!fs.existsSync(dbDir)) {
+if (!isTest && !fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const dbPath = path.join(dbDir, "money_control.db");
+const dbPath = isTest ? ":memory:" : path.join(dbDir, "money_control.db");
 const sqlite = new Database(dbPath);
 
 sqlite.pragma("journal_mode = WAL");

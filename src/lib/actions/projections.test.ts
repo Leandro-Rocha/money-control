@@ -63,7 +63,7 @@ describe('projections actions', () => {
         id: 1,
         accountId: 1,
         categoryId: 1,
-        description: 'Netflix',
+        description: 'Assinatura Teste',
         day: 15,
         amount: 50,
         active: 1,
@@ -80,7 +80,7 @@ describe('projections actions', () => {
       const txs = result.projectedTxByAccount.get(1);
       expect(txs).toBeDefined();
       expect(txs?.length).toBe(1);
-      expect(txs?.[0].description).toBe('Netflix');
+      expect(txs?.[0].description).toBe('Assinatura Teste');
       expect(txs?.[0].amount).toBe(50);
       expect(txs?.[0].isProjected).toBe(true);
     });

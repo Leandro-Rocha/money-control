@@ -6,7 +6,7 @@ import { eq, and, asc, inArray, isNull } from "drizzle-orm";
 import { AccountData, CategorySummaryGroup, MonthData, ProjectionState, TransactionWithCategory } from "../types";
 import { formatMonthLabel } from "../format";
 import { revalidatePath } from "next/cache";
-import { isFutureMonth } from "../date-helpers";
+import { isFutureMonth, addMonths } from "../date-helpers";
 import { buildProjectedMonthData, getCarryForwardBalance } from "./projections";
 
 export async function getMonthData(month: string): Promise<MonthData> {
@@ -322,46 +322,117 @@ export async function convertToTransfer(transactionId: number, targetAccountId: 
 }
 
 export async function findTransferCandidates(month: string) {
-  const accs = db.select({ id: accounts.id }).from(accounts).where(inArray(accounts.type, ["bank_account", "investment"])).all();
-  const accIds = accs.map(a => a.id);
-  
+  const accs = db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(inArray(accounts.type, ["bank_account", "investment"]))
+    .all();
+  const accIds = accs.map((a) => a.id);
+
   if (accIds.length === 0) return [];
 
-  const txs = db.select({
-    id: transactions.id,
-    accountId: transactions.accountId,
-    day: transactions.day,
-    amount: transactions.amount,
-    description: transactions.description,
-  })
-  .from(transactions)
-  .where(
-    and(
-      eq(transactions.month, month),
-      isNull(transactions.linkedTransactionId),
-      inArray(transactions.accountId, accIds)
+  const prevMonth = addMonths(month, -1);
+  const nextMonth = addMonths(month, 1);
+
+  const txs = db
+    .select({
+      id: transactions.id,
+      accountId: transactions.accountId,
+      month: transactions.month,
+      day: transactions.day,
+      amount: transactions.amount,
+      description: transactions.description,
+    })
+    .from(transactions)
+    .where(
+      and(
+        inArray(transactions.month, [prevMonth, month, nextMonth]),
+        isNull(transactions.linkedTransactionId),
+        inArray(transactions.accountId, accIds)
+      )
     )
-  ).all();
+    .all();
 
-  const pairs: { tx1: typeof txs[0], tx2: typeof txs[0] }[] = [];
-  const usedIds = new Set<number>();
+  const outflows = txs.filter((t) => t.amount < 0);
+  const inflows = txs.filter((t) => t.amount > 0);
 
-  for (let i = 0; i < txs.length; i++) {
-    if (usedIds.has(txs[i].id)) continue;
-    for (let j = i + 1; j < txs.length; j++) {
-      if (usedIds.has(txs[j].id)) continue;
-      const t1 = txs[i];
-      const t2 = txs[j];
-      if (t1.day === t2.day && t1.accountId !== t2.accountId && t1.amount === -t2.amount) {
-        pairs.push({ tx1: t1, tx2: t2 });
-        usedIds.add(t1.id);
-        usedIds.add(t2.id);
-        break;
+  type CandidatePair = {
+    tx1: (typeof txs)[0];
+    tx2: (typeof txs)[0];
+    dayDiff: number;
+    preferredDirection: boolean;
+  };
+
+  const candidatePairs: CandidatePair[] = [];
+
+  for (const outTx of outflows) {
+    for (const inTx of inflows) {
+      if (outTx.accountId === inTx.accountId) continue;
+
+      // At least one transaction must belong to the current target month
+      if (outTx.month !== month && inTx.month !== month) continue;
+
+      // Values must match with opposite signs
+      if (Math.abs(outTx.amount + inTx.amount) < 0.01) {
+        const [y1, m1] = outTx.month.split("-").map(Number);
+        const [y2, m2] = inTx.month.split("-").map(Number);
+        const d1 = new Date(y1, m1 - 1, outTx.day);
+        const d2 = new Date(y2, m2 - 1, inTx.day);
+
+        const diffMs = Math.abs(d2.getTime() - d1.getTime());
+        const dayDiff = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        // For cross-month transfers, require dayDiff <= 7
+        if (outTx.month !== inTx.month && dayDiff > 7) continue;
+
+        // Preferred direction: money arrives on the same day or shortly after leaving
+        const preferredDirection = d2 >= d1;
+
+        candidatePairs.push({
+          tx1: outTx,
+          tx2: inTx,
+          dayDiff,
+          preferredDirection,
+        });
       }
     }
   }
-  
-  return pairs;
+
+  // Sort candidate pairs:
+  // 1. Smallest day difference first (same day / next day win)
+  // 2. Preferred direction (arrival on or after departure)
+  // 3. Chronological
+  // 4. Deterministic ID tie-breaker
+  candidatePairs.sort((a, b) => {
+    if (a.dayDiff !== b.dayDiff) return a.dayDiff - b.dayDiff;
+    if (a.preferredDirection !== b.preferredDirection) return a.preferredDirection ? -1 : 1;
+    if (a.tx1.month !== b.tx1.month) return a.tx1.month.localeCompare(b.tx1.month);
+    if (a.tx1.day !== b.tx1.day) return a.tx1.day - b.tx1.day;
+    return a.tx1.id - b.tx1.id;
+  });
+
+  const finalPairs: { tx1: (typeof txs)[0]; tx2: (typeof txs)[0]; dayDiff: number }[] = [];
+  const usedIds = new Set<number>();
+
+  for (const cand of candidatePairs) {
+    if (usedIds.has(cand.tx1.id) || usedIds.has(cand.tx2.id)) continue;
+    usedIds.add(cand.tx1.id);
+    usedIds.add(cand.tx2.id);
+    finalPairs.push({
+      tx1: cand.tx1,
+      tx2: cand.tx2,
+      dayDiff: cand.dayDiff,
+    });
+  }
+
+  // Order final pairs chronologically
+  finalPairs.sort((a, b) => {
+    if (a.tx1.month !== b.tx1.month) return a.tx1.month.localeCompare(b.tx1.month);
+    if (a.tx1.day !== b.tx1.day) return a.tx1.day - b.tx1.day;
+    return a.dayDiff - b.dayDiff;
+  });
+
+  return finalPairs;
 }
 
 export async function linkTransfersBatch(pairs: { tx1Id: number, tx2Id: number }[]) {

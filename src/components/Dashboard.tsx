@@ -58,7 +58,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
 
   const loadMonth = (monthStr: string) => {
     setCurrentMonth(monthStr);
-    window.history.pushState(null, "", `?month=${monthStr}`);
+    window.history.replaceState(null, "", `?month=${monthStr}`);
     startTransition(async () => {
       const refreshed = await getMonthData(monthStr);
       setData(refreshed);

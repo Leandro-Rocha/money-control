@@ -63,6 +63,18 @@ export default function BankAccountColumn({
     return () => window.removeEventListener("click", handleGlobalClick);
   }, []);
 
+  useEffect(() => {
+    if (!transferTxId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setTransferTxId(null);
+        setTransferTargetId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [transferTxId]);
+
 
   const handleStartCellEdit = (
     tx: TransactionWithCategory,

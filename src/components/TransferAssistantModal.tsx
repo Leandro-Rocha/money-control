@@ -31,12 +31,26 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
     }
   }, [open, month]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) onOpenChange(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onOpenChange]);
+
   const loadCandidates = async () => {
     setLoading(true);
     try {
       const pairs = await findTransferCandidates(month);
       setCandidates(pairs);
-      setSelectedIndices(new Set(pairs.map((_, i) => i)));
+      const autoSelected = new Set<number>();
+      pairs.forEach((p: any, i: number) => {
+        if ((p.dayDiff ?? 0) <= 5) {
+          autoSelected.add(i);
+        }
+      });
+      setSelectedIndices(autoSelected);
     } catch (e) {
       console.error(e);
     } finally {
@@ -88,7 +102,7 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
               Assistente de Transferências
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Identificamos transações órfãs do mesmo dia e valor em contas diferentes.
+              Identificamos transações órfãs com mesmo valor em contas diferentes.
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full">
@@ -126,7 +140,12 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
                   <div className="flex-1 cursor-pointer grid grid-cols-[1fr_auto_1fr] gap-4 items-center" onClick={() => toggleSelection(idx)}>
                     <div className="flex flex-col gap-1">
                       <span className="font-semibold text-slate-800 line-clamp-1" title={pair.tx1.description}>{pair.tx1.description}</span>
-                      <div className="flex gap-2"><span className="text-xs font-medium text-slate-500 bg-slate-100 self-start px-1.5 py-0.5 rounded">Dia {pair.tx1.day}</span><span className="text-xs font-medium text-blue-600 bg-blue-50 self-start px-1.5 py-0.5 rounded">{getAccountName(pair.tx1.accountId)}</span></div>
+                      <div className="flex gap-2">
+                        <span className="text-xs font-medium text-slate-500 bg-slate-100 self-start px-1.5 py-0.5 rounded">
+                          {pair.tx1.month && pair.tx1.month !== month ? `${pair.tx1.day}/${pair.tx1.month.split("-")[1]}` : `Dia ${pair.tx1.day}`}
+                        </span>
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 self-start px-1.5 py-0.5 rounded">{getAccountName(pair.tx1.accountId)}</span>
+                      </div>
                     </div>
                     
                     <div className="flex flex-col items-center px-4">
@@ -137,11 +156,31 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
                         <div className="h-px w-8 bg-blue-200"></div>
                       </div>
                       <span className="font-bold text-slate-700 mt-1">{formatCurrency(Math.abs(pair.tx1.amount))}</span>
+                      {pair.dayDiff === 0 ? (
+                        <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full mt-1">
+                          Mesmo dia
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1 border ${
+                          pair.dayDiff <= 3 
+                            ? "text-blue-700 bg-blue-50 border-blue-200" 
+                            : pair.dayDiff <= 5
+                            ? "text-indigo-700 bg-indigo-50 border-indigo-200"
+                            : "text-amber-700 bg-amber-50 border-amber-200"
+                        }`}>
+                          {pair.dayDiff} {pair.dayDiff === 1 ? "dia" : "dias"} de dif.
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-1 items-end text-right">
                       <span className="font-semibold text-slate-800 line-clamp-1" title={pair.tx2.description}>{pair.tx2.description}</span>
-                      <div className="flex gap-2 justify-end"><span className="text-xs font-medium text-slate-500 bg-slate-100 self-end px-1.5 py-0.5 rounded">Dia {pair.tx2.day}</span><span className="text-xs font-medium text-blue-600 bg-blue-50 self-end px-1.5 py-0.5 rounded">{getAccountName(pair.tx2.accountId)}</span></div>
+                      <div className="flex gap-2 justify-end">
+                        <span className="text-xs font-medium text-slate-500 bg-slate-100 self-end px-1.5 py-0.5 rounded">
+                          {pair.tx2.month && pair.tx2.month !== month ? `${pair.tx2.day}/${pair.tx2.month.split("-")[1]}` : `Dia ${pair.tx2.day}`}
+                        </span>
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 self-end px-1.5 py-0.5 rounded">{getAccountName(pair.tx2.accountId)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
