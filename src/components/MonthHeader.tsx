@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Calendar, RefreshCw, UploadCloud, PieChart, 
 import { formatCurrency } from "@/lib/format";
 import { ProjectionState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface MonthHeaderProps {
   currentMonth: string; // YYYY-MM
@@ -21,16 +20,16 @@ interface MonthHeaderProps {
   onOpenTransfers: () => void;
 }
 
-const PROJECTION_BADGE: Record<ProjectionState, { label: string; classes: string } | null> = {
+const PROJECTION_INFO: Record<ProjectionState, { label: string; dotClass: string } | null> = {
   none: null,
   confirmed: null,
   projected: {
-    label: "🔮 Projeção",
-    classes: "bg-amber-100 text-amber-800 border border-amber-300 shadow-sm",
+    label: "Projeção",
+    dotClass: "bg-orange-400",
   },
   partial: {
-    label: "⚡ Projeção Parcial",
-    classes: "bg-orange-100 text-orange-800 border border-orange-300 shadow-sm",
+    label: "Projeção Parcial",
+    dotClass: "bg-orange-300",
   },
 };
 
@@ -69,17 +68,18 @@ export default function MonthHeader({
     onMonthChange(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
   };
 
-  const badge = PROJECTION_BADGE[projectionState];
+  const projInfo = PROJECTION_INFO[projectionState];
 
   return (
     <header className="bg-card text-card-foreground border-b border-border px-6 py-3 rounded-lg shadow-md flex items-center justify-between">
       <div className="flex-1 flex flex-col gap-1 justify-center">
         <div className="flex items-center gap-3">
           <span className="font-bold tracking-tight text-lg">Money Control</span>
-          {badge && (
-            <Badge variant="outline" className={`ml-2 border-transparent ${badge.classes}`}>
-              {badge.label}
-            </Badge>
+          {projInfo && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium ml-2">
+              <span className={`w-2 h-2 rounded-full ${projInfo.dotClass} shrink-0`} />
+              {projInfo.label}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground mt-0.5">
