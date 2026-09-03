@@ -1,10 +1,10 @@
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CategorySummaryGroup } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
-import { ChevronRight, ChevronDown, PieChart, Plus, Tag } from "lucide-react";
+import { ChevronRight, ChevronDown, ChevronUp, PieChart, Plus, Tag } from "lucide-react";
 import { createCategory } from "@/lib/actions/categories";
 
 interface CategorySummaryPanelProps {
@@ -38,6 +38,15 @@ export default function CategorySummaryPanel({
     setCollapsedCategories(next);
   };
 
+  useEffect(() => {
+    if (!showNewCatModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowNewCatModal(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showNewCatModal]);
+
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
@@ -70,17 +79,17 @@ export default function CategorySummaryPanel({
         <div className="flex items-center gap-1.5 text-[11px]">
           <button
             onClick={() => toggleAll(false)}
-            className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-900 rounded text-slate-200"
+            className="p-1 bg-slate-800 hover:bg-slate-900 rounded text-slate-200"
             title="Expandir todas as categorias"
           >
-            +
+            <ChevronDown className="w-3 h-3" />
           </button>
           <button
             onClick={() => toggleAll(true)}
-            className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-900 rounded text-slate-200"
+            className="p-1 bg-slate-800 hover:bg-slate-900 rounded text-slate-200"
             title="Recolher todas as categorias"
           >
-            -
+            <ChevronUp className="w-3 h-3" />
           </button>
           <button
             onClick={() => setShowNewCatModal(true)}
@@ -96,7 +105,7 @@ export default function CategorySummaryPanel({
       <div className="bg-muted px-3 py-1.5 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
         <span className="w-28">Categoria</span>
         <span className="flex-1 px-2">Descrição</span>
-        <span className="text-right w-20">SUM of Valor</span>
+        <span className="text-right w-20">Total</span>
       </div>
 
       {/* Category List Accordion */}
