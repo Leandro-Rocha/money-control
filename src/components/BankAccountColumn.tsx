@@ -12,6 +12,7 @@ import { formatCurrency, parseNumberInput } from "@/lib/format";
 import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, ArrowRightLeft, Building, Repeat } from "lucide-react";
 import { createTransaction, deleteTransaction, updateTransaction, convertToTransfer, transformToRecurring } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
+import { TransactionContextMenu } from "./TransactionContextMenu";
 
 interface BankAccountColumnProps {
   data: AccountData;
@@ -590,57 +591,16 @@ export default function BankAccountColumn({
         </div>
       )}
       {contextMenu && (
-        <div 
-          className="fixed z-50 w-56 bg-white rounded-md shadow-lg border border-slate-200 py-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          {contextMenu.tx.isProjected ? (
-            <>
-              {contextMenu.tx.projectionSourceType !== "installment" && (
-                <button 
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-green-600"
-                  onClick={() => handleConfirmProjected(contextMenu.tx)}
-                >
-                  <Check className="w-4 h-4" /> Confirmar projeção
-                </button>
-              )}
-              <button 
-                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-slate-600"
-                onClick={() => handleDismissProjected(contextMenu.tx)}
-              >
-                <X className="w-4 h-4" /> Dispensar este mês
-              </button>
-            </>
-          ) : (
-            <>
-              {!contextMenu.tx.linkedTransactionId && (
-                <button 
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-blue-600"
-                  onClick={() => setTransferTxId(contextMenu.tx.id)}
-                >
-                  <ArrowRightLeft className="w-4 h-4" /> Transformar em Transferência
-                </button>
-              )}
-              {!contextMenu.tx.linkedTransactionId && (
-                <button 
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-purple-600"
-                  onClick={async () => {
-                    await transformToRecurring(contextMenu.tx.id);
-                    setContextMenu(null);
-                  }}
-                >
-                  <Repeat className="w-4 h-4" /> Transformar em Recorrente
-                </button>
-              )}
-              <button 
-                className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-rose-600"
-                onClick={() => handleDelete(contextMenu.tx.id, !!contextMenu.tx.linkedTransactionId)}
-              >
-                <Trash2 className="w-4 h-4" /> Excluir lançamento
-              </button>
-            </>
-          )}
-        </div>
+        <TransactionContextMenu
+          tx={contextMenu.tx}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onConfirmProjected={(tx) => { handleConfirmProjected(tx); setContextMenu(null); }}
+          onDismissProjected={(tx) => { handleDismissProjected(tx); setContextMenu(null); }}
+          onTransfer={(tx) => { setTransferTxId(tx.id); setContextMenu(null); }}
+          onRecurring={async (tx) => { await transformToRecurring(tx.id); setContextMenu(null); }}
+          onDelete={(tx) => { handleDelete(tx.id, !!tx.linkedTransactionId); setContextMenu(null); }}
+        />
       )}
       
       {transferTxId && (
