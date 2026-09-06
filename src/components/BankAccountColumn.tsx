@@ -24,6 +24,8 @@ interface BankAccountColumnProps {
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
 type EditingCell = {
@@ -40,8 +42,18 @@ export default function BankAccountColumn({
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
+  isExpanded: propIsExpanded,
+  onToggleExpanded,
 }: BankAccountColumnProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
+  const toggleExpanded = () => {
+    if (onToggleExpanded) {
+      onToggleExpanded();
+    } else {
+      setInternalExpanded(!internalExpanded);
+    }
+  };
 
   // Quick new transaction inputs
   const [newDay, setNewDay] = useState(new Date().getDate().toString());
@@ -280,18 +292,29 @@ export default function BankAccountColumn({
     return true;
   });
 
+  const hasActiveFilter = Boolean(filterText || filterCategoryId !== "" || filterHighValue !== "");
+  const hasZeroFilterMatches = hasActiveFilter && filteredTransactions.length === 0;
+  const effectiveExpanded = hasZeroFilterMatches ? false : isExpanded;
+
   return (
-    <Card className="flex flex-col shadow-sm flex-1 min-w-[360px] border-slate-200">
+    <Card className={`flex flex-col shadow-sm flex-1 min-w-[360px] border-slate-200 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
       {/* Header */}
-      <CardHeader className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
+      <CardHeader className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors" onClick={toggleExpanded}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-2 h-8 rounded-full" style={{ backgroundColor: data.account.color }} />
             <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building className="w-4 h-4 text-slate-500" />
-                {data.account.name}
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Building className="w-4 h-4 text-slate-500" />
+                  {data.account.name}
+                </CardTitle>
+                {hasActiveFilter && (
+                  <Badge variant="outline" className="text-[11px] font-normal font-sans py-0 h-5 bg-background/80">
+                    {filteredTransactions.length} de {data.transactions.length} lançamentos
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                 <div className="flex items-center gap-1" title="Total de Entradas">
                   <ArrowDownRight className="w-3.5 h-3.5 text-emerald-500" />
@@ -320,13 +343,13 @@ export default function BankAccountColumn({
             </div>
             
             <div className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              {effectiveExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </div>
         </div>
       </CardHeader>
       {/* Body */}
-      {isExpanded && (
+      {effectiveExpanded && (
         <div className="flex-1 flex flex-col">
           {/* Table Container */}
           <div className="overflow-x-auto flex-1">

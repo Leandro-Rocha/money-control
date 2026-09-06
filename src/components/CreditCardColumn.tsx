@@ -26,6 +26,8 @@ interface CreditCardColumnProps {
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
 type EditingCell = {
@@ -42,8 +44,18 @@ export default function CreditCardColumn({
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
+  isExpanded: propIsExpanded,
+  onToggleExpanded,
 }: CreditCardColumnProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
+  const toggleExpanded = () => {
+    if (onToggleExpanded) {
+      onToggleExpanded();
+    } else {
+      setInternalExpanded(!internalExpanded);
+    }
+  };
 
   // Quick new transaction inputs
   const [newDescription, setNewDescription] = useState("");
@@ -284,19 +296,30 @@ export default function CreditCardColumn({
     return true;
   });
 
+  const hasActiveFilter = Boolean(filterText || filterCategoryId !== "" || filterHighValue !== "");
+  const hasZeroFilterMatches = hasActiveFilter && filteredTransactions.length === 0;
+  const effectiveExpanded = hasZeroFilterMatches ? false : isExpanded;
+
   const sortedTransactions = sortCreditCardTransactions(filteredTransactions);
 
   return (
-    <Card className="flex flex-col shadow-sm flex-1">
-      <CardHeader className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
+    <Card className={`flex flex-col shadow-sm flex-1 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
+      <CardHeader className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors" onClick={toggleExpanded}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-2 h-8 rounded-full" style={{ backgroundColor: data.account.color }} />
             <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-slate-500" />
-                {data.account.name}
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-slate-500" />
+                  {data.account.name}
+                </CardTitle>
+                {hasActiveFilter && (
+                  <Badge variant="outline" className="text-[11px] font-normal font-sans py-0 h-5 bg-background/80">
+                    {filteredTransactions.length} de {data.transactions.length} lançamentos
+                  </Badge>
+                )}
+              </div>
               <div className="text-xs text-slate-500 mt-0.5">
                 Cartão de Crédito
               </div>
@@ -312,12 +335,12 @@ export default function CreditCardColumn({
             </div>
             
             <div className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              {effectiveExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </div>
         </div>
       </CardHeader>
-      {isExpanded && (
+      {effectiveExpanded && (
         <div className="flex-1 flex flex-col">
           <div className="overflow-x-auto flex-1">
             <Table className="w-full text-sm text-left border-collapse table-fixed">

@@ -60,6 +60,51 @@ function DashboardContent({ initialData }: DashboardProps) {
   const [filterCategoryId, setFilterCategoryId] = useState<number | "">("");
   const [filterHighValue, setFilterHighValue] = useState<number | "">("");
 
+  // Persisted card expansion state
+  const [expandedMap, setExpandedMap] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("money_control_expanded_accounts");
+      if (saved) {
+        setExpandedMap(JSON.parse(saved));
+      }
+    } catch {}
+  }, []);
+
+  const handleToggleExpanded = (accountId: number) => {
+    setExpandedMap((prev) => {
+      const isCurrentlyExpanded = prev[accountId] !== undefined ? prev[accountId] : true;
+      const next = { ...prev, [accountId]: !isCurrentlyExpanded };
+      try {
+        localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleExpandAll = (accountIds: number[]) => {
+    setExpandedMap((prev) => {
+      const next = { ...prev };
+      accountIds.forEach((id) => { next[id] = true; });
+      try {
+        localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleCollapseAll = (accountIds: number[]) => {
+    setExpandedMap((prev) => {
+      const next = { ...prev };
+      accountIds.forEach((id) => { next[id] = false; });
+      try {
+        localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   useEffect(() => {
     if (settingsOpen) {
       getRecurringEntries().then(setRecurringEntries);
@@ -317,41 +362,89 @@ function DashboardContent({ initialData }: DashboardProps) {
         {/* Left / Center: Columns for Bank Accounts & Credit Cards */}
         <div className="flex-1 w-full flex flex-col md:flex-row gap-5 items-start">
           {/* Bank Accounts Pillar */}
-          <div className="flex-1 w-full flex flex-col gap-5">
-            {bankAccounts.map((accData) => (
-              <BankAccountColumn
-                key={accData.account.id}
-                data={accData}
-                month={currentMonth}
-                categories={allCategories}
-                allAccounts={allAccounts}
-                onRefresh={refreshCurrentMonth}
-                filterText={filterText}
-                filterCategoryId={filterCategoryId}
-                filterHighValue={filterHighValue}
-              />
-            ))}
+          <div className="flex-1 w-full flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1 text-xs text-muted-foreground font-medium">
+              <span>Contas Correntes ({bankAccounts.length})</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExpandAll(bankAccounts.map((a) => a.account.id))}
+                  className="hover:text-foreground transition-colors hover:underline"
+                >
+                  Expandir todas
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => handleCollapseAll(bankAccounts.map((a) => a.account.id))}
+                  className="hover:text-foreground transition-colors hover:underline"
+                >
+                  Recolher todas
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              {bankAccounts.map((accData) => (
+                <BankAccountColumn
+                  key={accData.account.id}
+                  data={accData}
+                  month={currentMonth}
+                  categories={allCategories}
+                  allAccounts={allAccounts}
+                  onRefresh={refreshCurrentMonth}
+                  filterText={filterText}
+                  filterCategoryId={filterCategoryId}
+                  filterHighValue={filterHighValue}
+                  isExpanded={expandedMap[accData.account.id] !== undefined ? expandedMap[accData.account.id] : true}
+                  onToggleExpanded={() => handleToggleExpanded(accData.account.id)}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Credit Cards Pillar */}
-          <div className="flex-1 w-full flex flex-col gap-5">
-            {creditCards.map((accData) => (
-              <CreditCardColumn
-                key={accData.account.id}
-                data={accData}
-                month={currentMonth}
-                categories={allCategories}
-                allAccounts={allAccounts}
-                onRefresh={refreshCurrentMonth}
-                filterText={filterText}
-                filterCategoryId={filterCategoryId}
-                filterHighValue={filterHighValue}
-              />
-            ))}
+          <div className="flex-1 w-full flex flex-col gap-3">
+            <div className="flex items-center justify-between px-1 text-xs text-muted-foreground font-medium">
+              <span>Cartões de Crédito ({creditCards.length})</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExpandAll(creditCards.map((a) => a.account.id))}
+                  className="hover:text-foreground transition-colors hover:underline"
+                >
+                  Expandir todos
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => handleCollapseAll(creditCards.map((a) => a.account.id))}
+                  className="hover:text-foreground transition-colors hover:underline"
+                >
+                  Recolher todos
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              {creditCards.map((accData) => (
+                <CreditCardColumn
+                  key={accData.account.id}
+                  data={accData}
+                  month={currentMonth}
+                  categories={allCategories}
+                  allAccounts={allAccounts}
+                  onRefresh={refreshCurrentMonth}
+                  filterText={filterText}
+                  filterCategoryId={filterCategoryId}
+                  filterHighValue={filterHighValue}
+                  isExpanded={expandedMap[accData.account.id] !== undefined ? expandedMap[accData.account.id] : true}
+                  onToggleExpanded={() => handleToggleExpanded(accData.account.id)}
+                />
+              ))}
+            </div>
           </div>
         </div>
-
-        
       </div>
       </>
       ) : (
