@@ -61,3 +61,15 @@ O sistema SHALL sincronizar automaticamente os backups com um repositório Git r
 #### Scenario: Fallback local quando Git remoto não configurado
 - **WHEN** `BACKUP_GIT_REMOTE` não estiver configurada
 - **THEN** o backup e a política de retenção GFS são aplicados localmente no diretório `data/backups/`
+
+### Requirement: Restauração e gestão pela interface web
+O sistema SHALL disponibilizar na interface web controles para download de snapshots (.db e .json) e restauração de backups por upload de arquivo ou seleção de snapshots existentes no servidor.
+
+#### Scenario: Restauração via upload pela interface
+- **WHEN** o usuário envia um arquivo `.db` ou `.json` e confirma a restauração na interface
+- **THEN** o sistema gera uma cópia de segurança preventiva do banco atual no servidor
+- **AND** restaura os dados de forma transacional sem quebrar conexões ativas
+
+#### Scenario: Restauração a partir de snapshots existentes no servidor
+- **WHEN** o usuário seleciona um snapshot listado na interface e confirma a operação
+- **THEN** o sistema aplica os dados daquele snapshot no banco ativo respeitando retrocompatibilidade de colunas
