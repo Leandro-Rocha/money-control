@@ -17,6 +17,7 @@ export async function createAccount(data: {
   financingInstallmentsPaid?: number | null;
   financingInstallmentAmount?: number | null;
   initialInvestmentBalance?: number | null;
+  initialBalance?: number | null;
 }) {
   const [created] = await db.insert(accounts).values({
     name: data.name,
@@ -41,6 +42,18 @@ export async function createAccount(data: {
       day: 1,
       description: "Posição Inicial em Custódia",
       amount: data.initialInvestmentBalance,
+    });
+  }
+
+  if (data.type === "bank_account" && data.initialBalance && data.initialBalance !== 0 && created) {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await db.insert(transactions).values({
+      accountId: created.id,
+      month: currentMonth,
+      day: 1,
+      description: "Saldo Inicial de Abertura",
+      amount: data.initialBalance,
     });
   }
 
@@ -86,6 +99,18 @@ export async function updateFinancingBalance(
     patch.financingInstallmentsTotal = installmentsTotal;
   }
   await db.update(accounts).set(patch).where(eq(accounts.id, id));
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function archiveAccount(id: number) {
+  await db.update(accounts).set({ isActive: 0 }).where(eq(accounts.id, id));
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function restoreAccount(id: number) {
+  await db.update(accounts).set({ isActive: 1 }).where(eq(accounts.id, id));
   revalidatePath("/");
   return { success: true };
 }

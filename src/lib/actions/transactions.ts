@@ -10,24 +10,30 @@ import { isFutureMonth, addMonths } from "../date-helpers";
 import { buildProjectedMonthData, getCarryForwardBalance } from "./projections";
 
 export async function getMonthData(month: string): Promise<MonthData> {
-  // 1. Fetch accounts
-  const accList = await db
-    .select()
-    .from(accounts)
-    .where(eq(accounts.isActive, 1))
-    .orderBy(asc(accounts.displayOrder));
-
-  // 2. Fetch categories
-  const catList = await db.select().from(categories).orderBy(asc(categories.name));
-  const categoryMap = new Map(catList.map((c) => [c.id, c]));
-  const accountMap = new Map(accList.map((a) => [a.id, a.name]));
-
-  // 4. Fetch all real transactions for the month
+  // 1. Fetch all real transactions for the month
   const allTx = await db
     .select()
     .from(transactions)
     .where(eq(transactions.month, month))
     .orderBy(asc(transactions.day), asc(transactions.id));
+
+  const monthTxAccIds = Array.from(new Set(allTx.map((t) => t.accountId)));
+
+  // 2. Fetch accounts: active accounts OR inactive accounts with transactions in this target month
+  const accList = await db
+    .select()
+    .from(accounts)
+    .where(
+      monthTxAccIds.length > 0
+        ? or(eq(accounts.isActive, 1), inArray(accounts.id, monthTxAccIds))
+        : eq(accounts.isActive, 1)
+    )
+    .orderBy(asc(accounts.displayOrder));
+
+  // 3. Fetch categories
+  const catList = await db.select().from(categories).orderBy(asc(categories.name));
+  const categoryMap = new Map(catList.map((c) => [c.id, c]));
+  const accountMap = new Map(accList.map((a) => [a.id, a.name]));
 
   // 4.1 Resolve linked account names for transfers
   const linkedIds = Array.from(

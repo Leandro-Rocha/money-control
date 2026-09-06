@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pencil, Check, X, Building, CreditCard, TrendingUp, Receipt } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Building, CreditCard, TrendingUp, Receipt, Archive, ArchiveRestore, ChevronDown, ChevronRight } from "lucide-react";
 import { Account } from "@/lib/types";
-import { createAccount, updateAccount, deleteAccount } from "@/lib/actions/accounts";
+import { createAccount, updateAccount, deleteAccount, archiveAccount, restoreAccount } from "@/lib/actions/accounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/format";
@@ -32,6 +32,9 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
   const [newDueDay, setNewDueDay] = useState<number | "">("");
   const [newPaymentAccountId, setNewPaymentAccountId] = useState<number | "">("");
 
+  // Bank account initial balance
+  const [newInitialBankBalance, setNewInitialBankBalance] = useState<number | "">("");
+
   // Financing specific fields
   const [newFinancingTotal, setNewFinancingTotal] = useState<number | "">("");
   const [newFinancingRemaining, setNewFinancingRemaining] = useState<number | "">("");
@@ -41,6 +44,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
   
   // Investment specific fields
   const [newInitialInvestmentBalance, setNewInitialInvestmentBalance] = useState<number | "">("");
+  const [showArchived, setShowArchived] = useState(false);
   
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
@@ -67,12 +71,14 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
       financingInstallmentsPaid: newType === 'financing' && newFinancingInstallmentsPaid !== "" ? Number(newFinancingInstallmentsPaid) : 0,
       financingInstallmentAmount: newType === 'financing' && newFinancingInstallmentAmount !== "" ? Number(newFinancingInstallmentAmount) : null,
       initialInvestmentBalance: newType === 'investment' && newInitialInvestmentBalance !== "" ? Number(newInitialInvestmentBalance) : null,
+      initialBalance: newType === 'bank_account' && newInitialBankBalance !== "" ? Number(newInitialBankBalance) : null,
     });
 
     setNewName("");
     setNewType("bank_account");
     setNewDueDay("");
     setNewPaymentAccountId("");
+    setNewInitialBankBalance("");
     setNewFinancingTotal("");
     setNewFinancingRemaining("");
     setNewFinancingInstallmentsTotal("");
@@ -83,8 +89,19 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
     onRefresh();
   };
 
+  const handleArchive = async (id: number) => {
+    if (!confirm("Arquivar esta conta? Ela não aparecerá no fluxo ativo de meses atuais/futuros, mas todo o seu histórico passado será preservado.")) return;
+    await archiveAccount(id);
+    onRefresh();
+  };
+
+  const handleRestore = async (id: number) => {
+    await restoreAccount(id);
+    onRefresh();
+  };
+
   const handleDelete = async (id: number) => {
-    if (!confirm("Tem certeza? Esta ação apagará todas as transações desta conta.")) return;
+    if (!confirm("ATENÇÃO: Excluir definitivamente apagará todas as transações desta conta no banco de dados. Para manter o histórico, use 'Arquivar'. Deseja realmente excluir permanentemente?")) return;
     await deleteAccount(id);
     onRefresh();
   };
@@ -185,6 +202,26 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
             </div>
           )}
 
+          {newType === 'bank_account' && (
+            <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
+              <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Saldo de Partida</h4>
+              <div>
+                <label className="text-xs font-medium mb-1 block">Saldo Inicial de Abertura (R$)</label>
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  value={newInitialBankBalance} 
+                  onChange={e => setNewInitialBankBalance(e.target.value ? Number(e.target.value) : "")} 
+                  placeholder="Ex: 5000.00" 
+                  className="font-mono"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Opcional. Se esta conta já possui saldo na vida real, informe o valor para iniciar o saldo acumulado.
+                </p>
+              </div>
+            </div>
+          )}
+
           {newType === 'investment' && (
             <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
               <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Saldo de Partida</h4>
@@ -246,7 +283,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
       )}
 
       <div className="space-y-4">
-        {accounts.map((acc) => (
+        {accounts.filter((a) => a.isActive !== 0).map((acc) => (
           <div key={acc.id} className="flex items-center justify-between p-3 border rounded-lg hover:border-slate-300 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: acc.color }} />
@@ -336,12 +373,64 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
               />
               <div className="w-6 h-6 rounded border cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: acc.color }} onClick={(e) => (e.target as any).previousSibling?.click()} />
               
-              <Button variant="ghost" size="icon" onClick={() => handleDelete(acc.id)} className="text-rose-500 hover:text-rose-600 hover:bg-rose-50">
+              <Button variant="ghost" size="icon" onClick={() => handleArchive(acc.id)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100" title="Arquivar conta (preserva histórico)">
+                <Archive className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => handleDelete(acc.id)} className="text-rose-500 hover:text-rose-600 hover:bg-rose-50" title="Excluir permanentemente">
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           </div>
         ))}
+
+        {accounts.some((a) => a.isActive === 0) && (
+          <div className="pt-4 border-t space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowArchived(!showArchived)}
+              className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              {showArchived ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <span>Contas Arquivadas ({accounts.filter((a) => a.isActive === 0).length})</span>
+            </button>
+
+            {showArchived && (
+              <div className="space-y-2">
+                {accounts.filter((a) => a.isActive === 0).map((acc) => (
+                  <div key={acc.id} className="flex items-center justify-between p-3 border border-dashed rounded-lg bg-slate-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1.5 h-8 rounded-full bg-slate-300" />
+                      <div>
+                        <h4 className="font-medium text-sm text-slate-600">{acc.name}</h4>
+                        <span className="text-[11px] text-slate-400">Arquivada</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRestore(acc.id)}
+                        className="h-7 text-xs gap-1.5"
+                      >
+                        <ArchiveRestore className="w-3.5 h-3.5" />
+                        <span>Reativar</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(acc.id)}
+                        className="h-7 w-7 text-rose-400 hover:text-rose-600 hover:bg-rose-50"
+                        title="Excluir permanentemente"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
