@@ -39,6 +39,13 @@ export function initDatabase() {
     } catch (e) {
       console.error("Erro ao migrar categoria Outros legada:", e);
     }
+
+    try {
+      const { startBackupScheduler } = require("@/lib/backup");
+      startBackupScheduler({ dbInstance: sqlite });
+    } catch (e) {
+      console.error("Erro ao inicializar agendador de backup:", e);
+    }
   }
 }
 
