@@ -5,6 +5,7 @@ import { Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Edit2, Loader2, Save, X } from "lucide-react";
+import { CategoryPicker } from "./CategoryPicker";
 import { getTransactionRules, createTransactionRule, updateTransactionRule, deleteTransactionRule } from "@/lib/actions/transaction-rules";
 
 interface RulesTabProps {
@@ -111,14 +112,15 @@ export function RulesTab({ categories }: RulesTabProps) {
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Categoria (Opcional):</label>
-              <select 
-                value={editCategoryId} 
-                onChange={e => setEditCategoryId(e.target.value ? Number(e.target.value) : "")}
-                className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
-              >
-                <option value="">-- Manter sugerida pela IA --</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <CategoryPicker
+                categories={categories}
+                value={editCategoryId === "" ? null : Number(editCategoryId)}
+                onSelect={(id) => setEditCategoryId(id !== null ? id : "")}
+                mode="select"
+                placeholder="-- Manter sugerida pela IA --"
+                nullOptionLabel="-- Manter sugerida pela IA --"
+                className="w-full h-8"
+              />
             </div>
             <div className="flex justify-end gap-2 mt-2">
               <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isSubmitting}>Cancelar</Button>
@@ -145,14 +147,15 @@ export function RulesTab({ categories }: RulesTabProps) {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Categoria (Opcional):</label>
-                  <select 
-                    value={editCategoryId} 
-                    onChange={e => setEditCategoryId(e.target.value ? Number(e.target.value) : "")}
-                    className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
-                  >
-                    <option value="">-- Manter sugerida pela IA --</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <CategoryPicker
+                    categories={categories}
+                    value={editCategoryId === "" ? null : Number(editCategoryId)}
+                    onSelect={(id) => setEditCategoryId(id !== null ? id : "")}
+                    mode="select"
+                    placeholder="-- Manter sugerida pela IA --"
+                    nullOptionLabel="-- Manter sugerida pela IA --"
+                    className="w-full h-8"
+                  />
                 </div>
                 <div className="flex justify-end gap-2 mt-2">
                   <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isSubmitting}>Cancelar</Button>
@@ -170,12 +173,18 @@ export function RulesTab({ categories }: RulesTabProps) {
                     <span className="font-semibold text-slate-800 text-sm">{rule.targetDescription}</span>
                   </div>
                   <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-2">
-                    {rule.categoryId ? (
-                      <>
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: categories.find(c => c.id === rule.categoryId)?.color || '#ccc' }} />
-                        {categories.find(c => c.id === rule.categoryId)?.name || 'Desconhecida'}
-                      </>
-                    ) : (
+                    {rule.categoryId ? (() => {
+                      const cat = categories.find(c => c.id === rule.categoryId);
+                      const parent = cat?.parentId ? categories.find(c => c.id === cat.parentId) : undefined;
+                      const catColor = cat?.color || parent?.color || '#ccc';
+                      const label = parent ? `${parent.name} > ${cat?.name}` : cat?.name || 'Desconhecida';
+                      return (
+                        <>
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: catColor }} />
+                          <span>{label}</span>
+                        </>
+                      );
+                    })() : (
                       <span className="italic">Categoria: (Dinâmica via IA)</span>
                     )}
                   </div>

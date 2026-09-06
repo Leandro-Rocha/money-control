@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, ArrowLeft } from "lucide-react";
 
 interface ModalShellProps {
   /** Rendered when true (same pattern as TransferAssistantModal) */
   open?: boolean;
   onClose: () => void;
+  /** Optional back handler (renders a back arrow in the header) */
+  onBack?: () => void;
   /** Modal max-width class, e.g. "max-w-2xl" (default: "max-w-2xl") */
   maxWidth?: string;
   title: string;
@@ -33,6 +35,7 @@ interface ModalShellProps {
 export function ModalShell({
   open = true,
   onClose,
+  onBack,
   maxWidth = "max-w-2xl",
   title,
   subtitle,
@@ -60,14 +63,27 @@ export function ModalShell({
       >
         {/* Header */}
         <div className="px-6 py-4 border-b flex items-center justify-between bg-card shrink-0">
-          <div>
-            <h2 className={`text-xl font-bold flex items-center gap-2 ${titleColor}`}>
-              {icon}
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+          <div className="flex items-center gap-2">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onBack}
+                className="h-8 w-8 -ml-1.5 rounded-full text-muted-foreground hover:text-foreground"
+                title="Voltar"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
             )}
+            <div>
+              <h2 className={`text-xl font-bold flex items-center gap-2 ${titleColor}`}>
+                {icon}
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+              )}
+            </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
             <X className="w-5 h-5" />

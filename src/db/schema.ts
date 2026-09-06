@@ -4,12 +4,17 @@ import { sql } from "drizzle-orm";
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
-  type: text("type", { enum: ["bank_account", "credit_card", "investment", "other"] }).notNull(),
+  type: text("type", { enum: ["bank_account", "credit_card", "investment", "financing", "other"] }).notNull(),
   color: text("color").notNull().default("orange"),
   displayOrder: integer("display_order").notNull().default(0),
   isActive: integer("is_active").notNull().default(1),
   defaultPaymentAccountId: integer("default_payment_account_id").references((): AnySQLiteColumn => accounts.id, { onDelete: "set null" }),
   dueDay: integer("due_day"),
+  financingTotalAmount: real("financing_total_amount"),
+  financingRemainingAmount: real("financing_remaining_amount"),
+  financingInstallmentsTotal: integer("financing_installments_total"),
+  financingInstallmentsPaid: integer("financing_installments_paid"),
+  financingInstallmentAmount: real("financing_installment_amount"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -22,7 +27,8 @@ export const monthlyInitialBalances = sqliteTable("monthly_initial_balances", {
 
 export const categories = sqliteTable("categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull().unique(),
+  name: text("name").notNull(),
+  parentId: integer("parent_id").references((): AnySQLiteColumn => categories.id, { onDelete: "cascade" }),
   type: text("type", { enum: ["income", "expense", "both"] }).notNull().default("expense"),
   color: text("color"),
   showInSummary: integer("show_in_summary").notNull().default(1),

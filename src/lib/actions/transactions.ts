@@ -29,6 +29,33 @@ export async function getMonthData(month: string): Promise<MonthData> {
     .where(eq(transactions.month, month))
     .orderBy(asc(transactions.day), asc(transactions.id));
 
+  // 4.1 Resolve linked account names for transfers
+  const linkedIds = Array.from(
+    new Set(
+      allTx
+        .map((t) => t.linkedTransactionId)
+        .filter((id): id is number => typeof id === "number" && id > 0)
+    )
+  );
+
+  const linkedAccNameMap = new Map<number, string>();
+  if (linkedIds.length > 0) {
+    const linkedTxns = await db
+      .select({
+        id: transactions.id,
+        accountId: transactions.accountId,
+      })
+      .from(transactions)
+      .where(inArray(transactions.id, linkedIds));
+
+    for (const lt of linkedTxns) {
+      const accName = accountMap.get(lt.accountId);
+      if (accName) {
+        linkedAccNameMap.set(lt.id, accName);
+      }
+    }
+  }
+
   // 4.5 Fetch all recurring entries to help identify manual ones
   const allRecurring = await db.select().from(recurringEntries).where(eq(recurringEntries.active, 1));
   const recurringDescByAcc = new Map<number, Set<string>>();
@@ -56,17 +83,36 @@ export async function getMonthData(month: string): Promise<MonthData> {
 
       let combinedTx: TransactionWithCategory[] = [];
 
+      const accRecurring = recurringDescByAcc.get(acc.id);
       const realWithCat: TransactionWithCategory[] = realAccTx.map((tx) => {
         const cat = tx.categoryId ? categoryMap.get(tx.categoryId) : undefined;
+        const parent = cat?.parentId ? categoryMap.get(cat.parentId) : undefined;
+        const isRec = tx.sourceType === "recurring" || !!(accRecurring && accRecurring.has(tx.description.toLowerCase().trim()));
         return {
           ...tx,
+          sourceType: isRec ? "recurring" : tx.sourceType,
           categoryName: cat?.name,
-          categoryColor: cat?.color,
+          categoryColor: cat?.color || parent?.color || null,
+          parentCategoryId: parent?.id ?? null,
+          parentCategoryName: parent?.name ?? null,
+          linkedAccountName: tx.linkedTransactionId ? linkedAccNameMap.get(tx.linkedTransactionId) : undefined,
           isProjected: false,
         };
       });
 
-      combinedTx = [...realWithCat, ...projectedAccTx].sort((a, b) => {
+      const projectedWithCat: TransactionWithCategory[] = projectedAccTx.map((tx) => {
+        const cat = tx.categoryId ? categoryMap.get(tx.categoryId) : undefined;
+        const parent = cat?.parentId ? categoryMap.get(cat.parentId) : undefined;
+        return {
+          ...tx,
+          categoryName: cat?.name ?? tx.categoryName,
+          categoryColor: cat?.color || parent?.color || tx.categoryColor || null,
+          parentCategoryId: parent?.id ?? null,
+          parentCategoryName: parent?.name ?? null,
+        };
+      });
+
+      combinedTx = [...realWithCat, ...projectedWithCat].sort((a, b) => {
         if (acc.type === "credit_card") {
           const accRecurring = recurringDescByAcc.get(acc.id);
           const getGroup = (tx: TransactionWithCategory) => {
@@ -117,33 +163,86 @@ export async function getMonthData(month: string): Promise<MonthData> {
     })
   );
 
-  // 7. Build Category Summary
-  const catGroupMap = new Map<string, { total: number; items: any[]; color: string | null }>();
+  // 7. Build Category Summary (Macro view grouped by Parent Category)
+  interface TempGroup {
+    categoryId?: number;
+    categoryColor: string | null;
+    total: number;
+    items: any[];
+    subMap: Map<string, { id: number; name: string; total: number; color?: string | null; items: any[] }>;
+  }
+
+  const catGroupMap = new Map<string, TempGroup>();
+
   for (const cat of catList) {
-    if (cat.showInSummary === 1) {
-      catGroupMap.set(cat.name, { total: 0, items: [], color: cat.color });
+    if (!cat.parentId && cat.showInSummary === 1) {
+      catGroupMap.set(cat.name, {
+        categoryId: cat.id,
+        categoryColor: cat.color,
+        total: 0,
+        items: [],
+        subMap: new Map(),
+      });
     }
   }
-  catGroupMap.set("Sem categoria", { total: 0, items: [], color: null });
+  catGroupMap.set("Sem categoria", {
+    categoryColor: null,
+    total: 0,
+    items: [],
+    subMap: new Map(),
+  });
 
   const allDisplayedTx = accountsData.flatMap((a) => a.transactions);
 
   for (const tx of allDisplayedTx) {
-    let catName = "Sem categoria";
-    let catColor: string | null = null;
-    
+    let parentName = "Sem categoria";
+    let parentColor: string | null = null;
+    let parentId: number | undefined = undefined;
+    let subId: number | null = null;
+    let subName: string | null = null;
+    let subColor: string | null = null;
+
     if (tx.categoryId) {
       const cat = categoryMap.get(tx.categoryId);
       if (cat) {
-        if (cat.showInSummary === 0) continue;
-        catName = cat.name;
-        catColor = cat.color;
+        if (cat.parentId) {
+          const parent = categoryMap.get(cat.parentId);
+          if (parent) {
+            if (parent.showInSummary === 0 || cat.showInSummary === 0) continue;
+            parentName = parent.name;
+            parentColor = parent.color;
+            parentId = parent.id;
+            subId = cat.id;
+            subName = cat.name;
+            subColor = cat.color || parent.color;
+          } else {
+            if (cat.showInSummary === 0) continue;
+            parentName = cat.name;
+            parentColor = cat.color;
+            parentId = cat.id;
+          }
+        } else {
+          if (cat.showInSummary === 0) continue;
+          parentName = cat.name;
+          parentColor = cat.color;
+          parentId = cat.id;
+        }
       }
     }
 
-    const group = catGroupMap.get(catName) || { total: 0, items: [], color: catColor };
-    group.total += tx.amount;
-    group.items.push({
+    let group = catGroupMap.get(parentName);
+    if (!group) {
+      group = {
+        categoryId: parentId,
+        categoryColor: parentColor,
+        total: 0,
+        items: [],
+        subMap: new Map(),
+      };
+      catGroupMap.set(parentName, group);
+    }
+
+    const subItem = {
       id: tx.id,
       day: tx.day,
       description: tx.description,
@@ -152,16 +251,62 @@ export async function getMonthData(month: string): Promise<MonthData> {
       installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
       installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
       isProjected: tx.isProjected ?? false,
-    });
-    catGroupMap.set(catName, group);
+      subcategoryId: subId,
+      subcategoryName: subName,
+    };
+
+    group.total += tx.amount;
+    group.items.push(subItem);
+
+    const subKey = subName ? subName : (parentId ? "Geral" : "Sem categoria");
+    let subGroup = group.subMap.get(subKey);
+    if (!subGroup) {
+      subGroup = {
+        id: subId ?? (parentId ? 0 : -1),
+        name: subKey,
+        total: 0,
+        color: subColor || parentColor,
+        items: [],
+      };
+      group.subMap.set(subKey, subGroup);
+    }
+    subGroup.total += tx.amount;
+    subGroup.items.push(subItem);
   }
 
   const categorySummaries: CategorySummaryGroup[] = [];
   for (const [name, data] of catGroupMap.entries()) {
     if (data.items.length > 0) {
-      categorySummaries.push({ categoryName: name, categoryColor: data.color, totalAmount: Math.round(data.total * 100) / 100, items: data.items });
+      const groupTotal = Math.round(data.total * 100) / 100;
+      const groupTotalAbs = Math.abs(groupTotal);
+
+      const subcategories = Array.from(data.subMap.values()).map((sub) => {
+        const subTotal = Math.round(sub.total * 100) / 100;
+        const subTotalAbs = Math.abs(subTotal);
+        const percentage = groupTotalAbs > 0 ? Math.round((subTotalAbs / groupTotalAbs) * 1000) / 10 : 0;
+        return {
+          id: sub.id,
+          name: sub.name,
+          totalAmount: subTotal,
+          color: sub.color,
+          percentage,
+          items: sub.items,
+        };
+      });
+
+      subcategories.sort((a, b) => Math.abs(b.totalAmount) - Math.abs(a.totalAmount));
+
+      categorySummaries.push({
+        categoryId: data.categoryId,
+        categoryName: name,
+        categoryColor: data.categoryColor,
+        totalAmount: groupTotal,
+        items: data.items,
+        subcategories: subcategories.length > 0 ? subcategories : undefined,
+      });
     }
   }
+
   categorySummaries.sort((a, b) => {
     if (a.categoryName === "Sem categoria") return 1;
     if (b.categoryName === "Sem categoria") return -1;
@@ -218,6 +363,25 @@ export async function createMultipleTransactions(dataArray: {
   return { success: true };
 }
 
+export async function getAccountTransactionsForMonths(accountId: number, months: string[]) {
+  if (!accountId || months.length === 0) return [];
+  return await db
+    .select({
+      id: transactions.id,
+      month: transactions.month,
+      day: transactions.day,
+      amount: transactions.amount,
+      description: transactions.description,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.accountId, accountId),
+        inArray(transactions.month, months)
+      )
+    );
+}
+
 export async function createTransaction(data: {
   accountId: number;
   month: string;
@@ -256,6 +420,38 @@ export async function updateTransaction(
     notes?: string;
   }
 ) {
+  const [currentTxn] = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.id, id));
+
+  if (!currentTxn) {
+    return { success: false, error: "Transaction not found" };
+  }
+
+  // Se mudar categoria, valor ou data (dia), quebra o link com a outra transação da transferência
+  const categoryChanged =
+    data.categoryId !== undefined && data.categoryId !== currentTxn.categoryId;
+  const amountChanged =
+    data.amount !== undefined && Math.abs(data.amount - currentTxn.amount) > 0.0001;
+  const dateChanged =
+    data.day !== undefined && data.day !== currentTxn.day;
+
+  const shouldBreakLink = categoryChanged || amountChanged || dateChanged;
+
+  if (shouldBreakLink) {
+    if (currentTxn.linkedTransactionId) {
+      await db
+        .update(transactions)
+        .set({ linkedTransactionId: null })
+        .where(eq(transactions.id, currentTxn.linkedTransactionId));
+    }
+    await db
+      .update(transactions)
+      .set({ linkedTransactionId: null })
+      .where(eq(transactions.linkedTransactionId, id));
+  }
+
   await db
     .update(transactions)
     .set({
@@ -266,8 +462,48 @@ export async function updateTransaction(
       ...(data.installmentCurrent !== undefined ? { installmentCurrent: data.installmentCurrent } : {}),
       ...(data.installmentTotal !== undefined ? { installmentTotal: data.installmentTotal } : {}),
       ...(data.notes !== undefined ? { notes: data.notes?.trim() || null } : {}),
+      ...(shouldBreakLink ? { linkedTransactionId: null } : {}),
     })
     .where(eq(transactions.id, id));
+
+  if (data.categoryId !== undefined && currentTxn && currentTxn.installmentTotal) {
+    // Cascata de categoria para parcelas irmãs já confirmadas no banco
+    await db
+      .update(transactions)
+      .set({ categoryId: data.categoryId })
+      .where(
+        and(
+          eq(transactions.accountId, currentTxn.accountId),
+          eq(transactions.description, currentTxn.description),
+          eq(transactions.installmentTotal, currentTxn.installmentTotal)
+        )
+      );
+  }
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function unlinkTransfer(transactionId: number) {
+  const [txn] = await db.select().from(transactions).where(eq(transactions.id, transactionId));
+  if (!txn) return { success: false, error: "Transaction not found" };
+
+  if (txn.linkedTransactionId) {
+    await db
+      .update(transactions)
+      .set({ linkedTransactionId: null })
+      .where(eq(transactions.id, txn.linkedTransactionId));
+  }
+  await db
+    .update(transactions)
+    .set({ linkedTransactionId: null })
+    .where(eq(transactions.linkedTransactionId, transactionId));
+
+  await db
+    .update(transactions)
+    .set({ linkedTransactionId: null })
+    .where(eq(transactions.id, transactionId));
+
   revalidatePath("/");
   return { success: true };
 }
@@ -275,6 +511,19 @@ export async function updateTransaction(
 export async function deleteTransaction(id: number) {
   const [txn] = await db.select().from(transactions).where(eq(transactions.id, id));
   if (txn && txn.linkedTransactionId) {
+    const [linkedTxn] = await db.select().from(transactions).where(eq(transactions.id, txn.linkedTransactionId));
+    if (linkedTxn) {
+      const [linkedAcc] = await db.select().from(accounts).where(eq(accounts.id, linkedTxn.accountId));
+      if (linkedAcc && linkedAcc.type === "financing") {
+        const restoredAmount = Math.abs(txn.amount);
+        const curRemaining = linkedAcc.financingRemainingAmount ?? linkedAcc.financingTotalAmount ?? 0;
+        const curPaid = Math.max(0, (linkedAcc.financingInstallmentsPaid ?? 0) - 1);
+        await db.update(accounts).set({
+          financingRemainingAmount: Math.round((curRemaining + restoredAmount) * 100) / 100,
+          financingInstallmentsPaid: curPaid,
+        }).where(eq(accounts.id, linkedTxn.accountId));
+      }
+    }
     await db.delete(transactions).where(eq(transactions.id, txn.linkedTransactionId));
   }
   if (txn && txn.sourceType && txn.sourceId) {
@@ -287,6 +536,20 @@ export async function deleteTransaction(id: number) {
       )
     );
   }
+
+  // Se for a compra original parcelada (1/N ou sem current), exclui todas as parcelas irmãs confirmadas
+  if (txn && txn.installmentTotal && (txn.installmentCurrent === 1 || txn.installmentCurrent === null)) {
+    await db
+      .delete(transactions)
+      .where(
+        and(
+          eq(transactions.accountId, txn.accountId),
+          eq(transactions.description, txn.description),
+          eq(transactions.installmentTotal, txn.installmentTotal)
+        )
+      );
+  }
+
   await db.delete(transactions).where(eq(transactions.id, id));
   revalidatePath("/");
   return { success: true };
@@ -317,6 +580,18 @@ export async function convertToTransfer(transactionId: number, targetAccountId: 
   // Link source to target
   await db.update(transactions).set({ linkedTransactionId: targetTxn.id }).where(eq(transactions.id, transactionId));
 
+  // If target account is financing and source was an outflow, abate the debt balance
+  const [targetAcc] = await db.select().from(accounts).where(eq(accounts.id, targetAccountId));
+  if (targetAcc && targetAcc.type === "financing") {
+    const paidAmount = Math.abs(sourceTxn.amount);
+    const curRemaining = targetAcc.financingRemainingAmount ?? targetAcc.financingTotalAmount ?? 0;
+    const curPaid = targetAcc.financingInstallmentsPaid ?? 0;
+    await db.update(accounts).set({
+      financingRemainingAmount: Math.max(0, Math.round((curRemaining - paidAmount) * 100) / 100),
+      financingInstallmentsPaid: curPaid + 1,
+    }).where(eq(accounts.id, targetAccountId));
+  }
+
   revalidatePath("/");
   return { success: true };
 }
@@ -325,7 +600,7 @@ export async function findTransferCandidates(month: string) {
   const accs = db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(inArray(accounts.type, ["bank_account", "investment"]))
+    .where(inArray(accounts.type, ["bank_account", "investment", "financing"]))
     .all();
   const accIds = accs.map((a) => a.id);
 
@@ -440,6 +715,26 @@ export async function linkTransfersBatch(pairs: { tx1Id: number, tx2Id: number }
   if (!cat) throw new Error("Categoria Transferência não encontrada");
 
   for (const pair of pairs) {
+    const tx1 = db.select().from(transactions).where(eq(transactions.id, pair.tx1Id)).get();
+    const tx2 = db.select().from(transactions).where(eq(transactions.id, pair.tx2Id)).get();
+
+    if (tx1 && tx2) {
+      const acc1 = db.select().from(accounts).where(eq(accounts.id, tx1.accountId)).get();
+      const acc2 = db.select().from(accounts).where(eq(accounts.id, tx2.accountId)).get();
+
+      const financingAcc = acc1?.type === "financing" ? acc1 : acc2?.type === "financing" ? acc2 : null;
+      const outflowTx = tx1.amount < 0 ? tx1 : tx2.amount < 0 ? tx2 : null;
+      if (financingAcc && outflowTx) {
+        const paidAmount = Math.abs(outflowTx.amount);
+        const curRemaining = financingAcc.financingRemainingAmount ?? financingAcc.financingTotalAmount ?? 0;
+        const curPaid = financingAcc.financingInstallmentsPaid ?? 0;
+        db.update(accounts).set({
+          financingRemainingAmount: Math.max(0, Math.round((curRemaining - paidAmount) * 100) / 100),
+          financingInstallmentsPaid: curPaid + 1,
+        }).where(eq(accounts.id, financingAcc.id)).run();
+      }
+    }
+
     db.update(transactions)
       .set({ linkedTransactionId: pair.tx2Id, categoryId: cat.id })
       .where(eq(transactions.id, pair.tx1Id))

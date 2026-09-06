@@ -6,7 +6,9 @@ import {
   monthDiff,
   addMonths,
   currentMonth,
-  isFutureMonth
+  isFutureMonth,
+  isPurchaseFromDifferentMonth,
+  getFormattedPurchaseDate
 } from './date-helpers';
 
 describe('date-helpers', () => {
@@ -74,6 +76,68 @@ describe('date-helpers', () => {
       expect(isFutureMonth('2023-12')).toBe(false);
       
       vi.useRealTimers();
+    });
+  });
+
+  describe('shouldShowPurchaseDate / isPurchaseFromDifferentMonth', () => {
+    it('returns false when purchase date is in the same month', () => {
+      expect(isPurchaseFromDifferentMonth('04/08/2026', '2026-08')).toBe(false);
+      expect(isPurchaseFromDifferentMonth('2026-08-04', '2026-08')).toBe(false);
+    });
+
+    it('returns false when purchase date is in the month immediately before (M-1)', () => {
+      expect(isPurchaseFromDifferentMonth('28/07/2026', '2026-08')).toBe(false);
+      expect(isPurchaseFromDifferentMonth('2026-07-28', '2026-08')).toBe(false);
+      // Across year boundary: Dec 2025 vs Jan 2026
+      expect(isPurchaseFromDifferentMonth('25/12/2025', '2026-01')).toBe(false);
+    });
+
+    it('returns true when purchase date is 2 or more months older', () => {
+      expect(isPurchaseFromDifferentMonth('15/06/2026', '2026-08')).toBe(true);
+      expect(isPurchaseFromDifferentMonth('02/10/2025', '2026-08')).toBe(true);
+      expect(isPurchaseFromDifferentMonth('2026-06-15', '2026-08')).toBe(true);
+      // Across year boundary: Nov 2025 vs Jan 2026
+      expect(isPurchaseFromDifferentMonth('20/11/2025', '2026-01')).toBe(true);
+    });
+
+    it('returns false when purchase date or month is null/undefined/empty', () => {
+      expect(isPurchaseFromDifferentMonth(null, '2026-08')).toBe(false);
+      expect(isPurchaseFromDifferentMonth(undefined, '2026-08')).toBe(false);
+      expect(isPurchaseFromDifferentMonth('', '2026-08')).toBe(false);
+      expect(isPurchaseFromDifferentMonth('04/08/2026', '')).toBe(false);
+    });
+  });
+
+  describe('getFormattedPurchaseDate', () => {
+    it('formats current month (M) and previous month (M-1) as DD/MM', () => {
+      // Mês corrente (Agosto 2026)
+      expect(getFormattedPurchaseDate('20/08/2026', '2026-08')).toBe('20/08');
+      expect(getFormattedPurchaseDate('04/08/2026', '2026-08')).toBe('04/08');
+      expect(getFormattedPurchaseDate('2026-08-20', '2026-08')).toBe('20/08');
+
+      // Mês passado (Julho 2026)
+      expect(getFormattedPurchaseDate('28/07/2026', '2026-08')).toBe('28/07');
+      expect(getFormattedPurchaseDate('05/07/2026', '2026-08')).toBe('05/07');
+      expect(getFormattedPurchaseDate('2026-07-28', '2026-08')).toBe('28/07');
+
+      // Virada de ano: Dezembro 2025 para Janeiro 2026
+      expect(getFormattedPurchaseDate('25/12/2025', '2026-01')).toBe('25/12');
+    });
+
+    it('keeps full date DD/MM/YYYY for purchases from 2 or more months ago', () => {
+      expect(getFormattedPurchaseDate('15/06/2026', '2026-08')).toBe('15/06/2026');
+      expect(getFormattedPurchaseDate('01/05/2026', '2026-08')).toBe('01/05/2026');
+      expect(getFormattedPurchaseDate('02/10/2025', '2026-08')).toBe('02/10/2025');
+    });
+
+    it('uses fallback day and month when purchaseDate is missing', () => {
+      expect(getFormattedPurchaseDate(null, '2026-08', 20, '2026-08')).toBe('20/08');
+      expect(getFormattedPurchaseDate(undefined, '2026-08', 5, '2026-07')).toBe('05/07');
+    });
+
+    it('returns null when no date information is available', () => {
+      expect(getFormattedPurchaseDate(null, '2026-08')).toBeNull();
+      expect(getFormattedPurchaseDate(undefined, '2026-08')).toBeNull();
     });
   });
 });

@@ -29,7 +29,6 @@ export async function seedDatabase() {
     { name: "Carro", type: "expense" as const, color: "#475569" },
     { name: "Transferência", type: "both" as const, color: "#9ca3af", showInSummary: 0 },
     { name: "Variação Patrimonial", type: "both" as const, color: "#10b981", showInSummary: 0 },
-    { name: "Outros", type: "both" as const, color: "#64748b" },
   ];
 
   for (const cat of defaultCategories) {
@@ -72,8 +71,8 @@ export async function seedDatabase() {
 
     if (existingTx.length === 0) {
       await db.insert(transactions).values([
-        { accountId: itauAcc.id, month, day: 3, description: "D20", categoryId: catMap.get("Outros"), amount: -5800.00 },
-        { accountId: itauAcc.id, month, day: 4, description: "Luna", categoryId: catMap.get("Outros"), amount: -6.50 },
+        { accountId: itauAcc.id, month, day: 3, description: "D20", categoryId: undefined, amount: -5800.00 },
+        { accountId: itauAcc.id, month, day: 4, description: "Luna", categoryId: undefined, amount: -6.50 },
         { accountId: itauAcc.id, month, day: 10, description: "Conta de Luz", categoryId: catMap.get("Casa"), amount: -200.00 },
         { accountId: itauAcc.id, month, day: 10, description: "Claro", categoryId: catMap.get("Casa"), amount: -420.00 },
         { accountId: itauAcc.id, month, day: 10, description: "Condomínio", categoryId: catMap.get("Casa"), amount: -600.00 },
@@ -105,7 +104,7 @@ export async function seedDatabase() {
         { accountId: cartaoAcc.id, month, day: 1, description: "MeliMais", categoryId: catMap.get("Assinatura"), amount: -14.99 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Ligia Saraiva", installmentCurrent: 2, installmentTotal: 2, categoryId: catMap.get("Cuidados"), amount: -265.78 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Natação Miguel", installmentCurrent: 2, installmentTotal: 11, categoryId: catMap.get("Filhos"), amount: -326.18 },
-        { accountId: cartaoAcc.id, month, day: 1, description: "Shopee", categoryId: catMap.get("Outros"), amount: -77.40 },
+        { accountId: cartaoAcc.id, month, day: 1, description: "Shopee", categoryId: undefined, amount: -77.40 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Lanche Telha Norte", categoryId: catMap.get("Comida"), amount: -11.90 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Lanche Telha Norte", categoryId: catMap.get("Comida"), amount: -11.90 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Materiais Reforma", installmentCurrent: 1, installmentTotal: 10, categoryId: catMap.get("Casa"), amount: -378.20 },
@@ -115,14 +114,14 @@ export async function seedDatabase() {
         { accountId: cartaoAcc.id, month, day: 1, description: "Violeta", categoryId: catMap.get("Mercado"), amount: -137.99 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Materiais Reforma", categoryId: catMap.get("Casa"), amount: -99.31 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Nozes", categoryId: catMap.get("Comida"), amount: -32.00 },
-        { accountId: cartaoAcc.id, month, day: 1, description: "Grão do Mestre", categoryId: catMap.get("Outros"), amount: -14.90 },
+        { accountId: cartaoAcc.id, month, day: 1, description: "Grão do Mestre", categoryId: undefined, amount: -14.90 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Drogasil", installmentCurrent: 1, installmentTotal: 2, categoryId: catMap.get("Saúde"), amount: -248.30 },
-        { accountId: cartaoAcc.id, month, day: 1, description: "SuperFreteiro", categoryId: catMap.get("Outros"), amount: -5.52 },
+        { accountId: cartaoAcc.id, month, day: 1, description: "SuperFreteiro", categoryId: undefined, amount: -5.52 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Violeta", categoryId: catMap.get("Mercado"), amount: -353.17 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Drogasil", categoryId: catMap.get("Saúde"), amount: -5.99 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Violeta", categoryId: catMap.get("Mercado"), amount: -203.79 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Pizza", categoryId: catMap.get("Comida"), amount: -82.85 },
-        { accountId: cartaoAcc.id, month, day: 1, description: "IOF", categoryId: catMap.get("Outros"), amount: -2.04 },
+        { accountId: cartaoAcc.id, month, day: 1, description: "IOF", categoryId: undefined, amount: -2.04 },
         { accountId: cartaoAcc.id, month, day: 1, description: "RF Frenzy", categoryId: catMap.get("Filhos"), amount: -58.30 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Farmácia", categoryId: catMap.get("Saúde"), amount: -7.77 },
         { accountId: cartaoAcc.id, month, day: 1, description: "Chocolate", categoryId: catMap.get("Comida"), amount: -4.99 },

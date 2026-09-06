@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { MonthData } from "@/lib/types";
 import { getMonthData } from "@/lib/actions/transactions";
+import { logoutAction } from "@/lib/actions/auth";
 import MonthHeader from "./MonthHeader";
 import BankAccountColumn from "./BankAccountColumn";
 import CreditCardColumn from "./CreditCardColumn";
@@ -10,33 +11,49 @@ import { ImportStagingModal } from "./ImportStagingModal";
 import { InsightsModal } from "./InsightsModal";
 import { PullProjectionsModal } from "./PullProjectionsModal";
 import TransferAssistantModal from "./TransferAssistantModal";
-import { Loader2 } from "lucide-react";
+import { ExportPeriodModal } from "./ExportPeriodModal";
+import { Loader2, Settings, Search, Filter, X, Wallet, CreditCard, Landmark } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 import { SettingsDrawer } from "./SettingsDrawer";
-import { Settings, Search, Filter } from "lucide-react";
 import { getRecurringEntries } from "@/lib/actions/recurring";
 import { RecurringEntryUI } from "@/lib/types";
-import { useEffect } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect, useCallback } from "react";
+import { CategoryPicker } from "./CategoryPicker";
+import { getWealthData, WealthData } from "@/lib/actions/wealth";
+import WealthDashboard from "./WealthDashboard";
+import { PrivacyProvider } from "@/context/PrivacyContext";
+import { PinModal } from "./PinModal";
 
 interface DashboardProps {
   initialData: MonthData;
+  initialPrivate?: boolean;
 }
 
-export default function Dashboard({ initialData }: DashboardProps) {
+function DashboardContent({ initialData }: DashboardProps) {
   const [currentMonth, setCurrentMonth] = useState(initialData.month);
   const [data, setData] = useState<MonthData>(initialData);
+  const [viewMode, setViewMode] = useState<"cashflow" | "wealth">("cashflow");
+  const [wealthData, setWealthData] = useState<WealthData | null>(null);
   const [isPending, startTransition] = useTransition();
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [pullOpen, setPullOpen] = useState(false);
   const [transfersOpen, setTransfersOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialAccountType, setSettingsInitialAccountType] = useState<"bank_account" | "credit_card" | "investment" | "financing" | null>(null);
   const [recurringEntries, setRecurringEntries] = useState<RecurringEntryUI[]>([]);
+
+  const handleOpenCreateAccount = (type: "investment" | "financing") => {
+    setSettingsInitialAccountType(type);
+    setSettingsOpen(true);
+  };
 
   // Filter states
   const [filterText, setFilterText] = useState("");
@@ -56,12 +73,29 @@ export default function Dashboard({ initialData }: DashboardProps) {
   };
 
 
+  const loadWealth = useCallback(async () => {
+    startTransition(async () => {
+      const wData = await getWealthData(currentMonth);
+      setWealthData(wData);
+    });
+  }, [currentMonth]);
+
+  useEffect(() => {
+    if (viewMode === "wealth") {
+      loadWealth();
+    }
+  }, [viewMode, loadWealth]);
+
   const loadMonth = (monthStr: string) => {
     setCurrentMonth(monthStr);
     window.history.replaceState(null, "", `?month=${monthStr}`);
     startTransition(async () => {
       const refreshed = await getMonthData(monthStr);
       setData(refreshed);
+      if (viewMode === "wealth") {
+        const wData = await getWealthData(monthStr);
+        setWealthData(wData);
+      }
     });
   };
 
@@ -69,10 +103,14 @@ export default function Dashboard({ initialData }: DashboardProps) {
     startTransition(async () => {
       const refreshed = await getMonthData(currentMonth);
       setData(refreshed);
+      if (viewMode === "wealth") {
+        const wData = await getWealthData(currentMonth);
+        setWealthData(wData);
+      }
     });
   };
 
-  const bankAccounts = data.accountsData.filter((a) => a.account.type === "bank_account" || a.account.type === "investment");
+  const bankAccounts = data.accountsData.filter((a) => a.account.type === "bank_account");
   const creditCards = data.accountsData.filter((a) => a.account.type === "credit_card");
 
   // All accounts and categories for the drawer
@@ -82,7 +120,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
   let globalIncome = 0;
   let globalExpense = 0;
 
-  data.accountsData.forEach(accData => {
+  data.accountsData
+    .filter((a) => a.account.type === "bank_account" || a.account.type === "credit_card")
+    .forEach(accData => {
     accData.transactions.forEach(tx => {
       let includeInGlobal = true;
       if (tx.categoryId) {
@@ -104,6 +144,11 @@ export default function Dashboard({ initialData }: DashboardProps) {
 
   const globalBalance = globalIncome - globalExpense;
 
+  // Resumo da Posição Financeira ("Quanto dinheiro eu tenho?")
+  const totalBankBalance = bankAccounts.reduce((sum, a) => sum + (a.finalBalance || 0), 0);
+  const totalCreditCardExpense = creditCards.reduce((sum, a) => sum + (a.totalExpense || 0), 0);
+  const netCashPosition = totalBankBalance - totalCreditCardExpense;
+
   return (
     <div className="min-h-screen bg-muted/20 p-4 md:p-6 flex flex-col gap-5 max-w-[1700px] mx-auto">
       {/* Month Navigation Top Header */}
@@ -114,49 +159,157 @@ export default function Dashboard({ initialData }: DashboardProps) {
         globalIncome={globalIncome}
         globalExpense={globalExpense}
         globalBalance={globalBalance}
+        wealthTotalInvested={wealthData?.totalInvested}
+        wealthTotalDebts={wealthData?.totalDebts}
+        wealthNetWorth={wealthData?.netWorth}
+        onOpenCreateAccount={handleOpenCreateAccount}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         onMonthChange={loadMonth}
         onOpenRecurring={() => setRecurringOpen(true)}
         onOpenImport={() => setImportOpen(true)}
         onOpenInsights={() => setInsightsOpen(true)}
         onOpenPullProjections={() => setPullOpen(true)}
         onOpenTransfers={() => setTransfersOpen(true)}
+        onOpenExport={() => setExportOpen(true)}
+        onOpenSettings={() => {
+          setSettingsInitialAccountType(null);
+          setSettingsOpen(true);
+        }}
+        onLogout={logoutAction}
       />
 
-      {/* Global Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 bg-white p-3 rounded-xl border border-slate-200 items-center justify-between shadow-sm">
-        <div className="relative flex-1 w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-          <Input 
-            placeholder="Buscar por nome..." 
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            className="pl-9 h-9 bg-slate-50 border-slate-200" 
-          />
+      {viewMode === "cashflow" ? (
+        <>
+          {/* KPI da Posição Financeira ("Quanto dinheiro eu tenho?") */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-card text-card-foreground p-3.5 rounded-xl border border-border flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Wallet className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground font-medium">Saldo em Contas</div>
+              <div className={`text-lg font-bold font-mono tabular-nums privacy-sensitive ${totalBankBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                {formatCurrency(totalBankBalance)}
+              </div>
+            </div>
+          </div>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {bankAccounts.length} {bankAccounts.length === 1 ? "conta" : "contas"}
+          </span>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Filter className="h-4 w-4 text-slate-400 hidden sm:block" />
-          <Select value={filterCategoryId === "" ? "all" : filterCategoryId.toString()} onValueChange={(v) => setFilterCategoryId(v === "all" ? "" : Number(v))}>
-            <SelectTrigger className="w-full sm:w-[180px] h-9 bg-slate-50 border-slate-200">
-              <SelectValue placeholder="Todas as categorias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
-              {allCategories.map(c => (
-                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Input
-            type="number"
-            min="0"
-            placeholder="> Valor (R$)"
-            value={filterHighValue}
-            onChange={(e) => setFilterHighValue(e.target.value ? Number(e.target.value) : "")}
-            className="w-full sm:w-[150px] h-9 bg-slate-50 border-slate-200"
-          />
+
+        <div className="bg-card text-card-foreground p-3.5 rounded-xl border border-border flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground font-medium">Faturas de Cartão</div>
+              <div className="text-lg font-bold font-mono tabular-nums privacy-sensitive text-rose-600 dark:text-rose-400">
+                {formatCurrency(totalCreditCardExpense)}
+              </div>
+            </div>
+          </div>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {creditCards.length} {creditCards.length === 1 ? "cartão" : "cartões"}
+          </span>
+        </div>
+
+        <div className={`p-3.5 rounded-xl border flex items-center justify-between shadow-xs ${
+          netCashPosition >= 0
+            ? "bg-emerald-500/5 border-emerald-500/20 text-card-foreground"
+            : "bg-rose-500/5 border-rose-500/20 text-card-foreground"
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg ${
+              netCashPosition >= 0 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+            }`}>
+              <Landmark className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-muted-foreground">Posição Líquida (Disponível Real)</div>
+              <div className={`text-lg font-bold font-mono tabular-nums privacy-sensitive ${
+                netCashPosition >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+              }`}>
+                {netCashPosition >= 0 ? "+" : ""}{formatCurrency(netCashPosition)}
+              </div>
+            </div>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            netCashPosition >= 0
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+              : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+          }`}>
+            {netCashPosition >= 0 ? "Positivo" : "Atenção"}
+          </span>
         </div>
       </div>
+
+      {/* Global Filter Bar */}
+      {(() => {
+        const activeFiltersCount = (filterText.trim() ? 1 : 0) + (filterCategoryId !== "" ? 1 : 0) + (filterHighValue !== "" ? 1 : 0);
+        const handleClearFilters = () => {
+          setFilterText("");
+          setFilterCategoryId("");
+          setFilterHighValue("");
+        };
+
+        return (
+          <div className="flex flex-col sm:flex-row gap-3 bg-card text-card-foreground p-3 rounded-xl border border-border items-center justify-between shadow-sm">
+            <div className="relative flex-1 w-full max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar por nome..." 
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="pl-9 h-9 bg-muted/40 border-input" 
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium mr-1">
+                <Filter className="h-4 w-4" />
+                {activeFiltersCount > 0 && (
+                  <span className="inline-flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4 rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </div>
+
+              <CategoryPicker
+                mode="filter"
+                categories={allCategories}
+                value={filterCategoryId === "" ? null : filterCategoryId}
+                onSelect={(catId) => setFilterCategoryId(catId === null ? "" : catId)}
+              />
+              
+              <Input
+                type="number"
+                min="0"
+                placeholder="> Valor (R$)"
+                value={filterHighValue}
+                onChange={(e) => setFilterHighValue(e.target.value ? Number(e.target.value) : "")}
+                className="w-full sm:w-[140px] h-9 bg-muted/40 border-input font-mono text-xs"
+              />
+
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                  title="Limpar todos os filtros"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Limpar</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Main Layout Area */}
 
@@ -200,6 +353,25 @@ export default function Dashboard({ initialData }: DashboardProps) {
 
         
       </div>
+      </>
+      ) : (
+        wealthData ? (
+          <WealthDashboard
+            initialData={wealthData}
+            onRefresh={loadWealth}
+            onOpenSettings={() => {
+              setSettingsInitialAccountType(null);
+              setSettingsOpen(true);
+            }}
+            onOpenCreateAccount={handleOpenCreateAccount}
+          />
+        ) : (
+          <div className="bg-card text-card-foreground border border-border p-12 rounded-xl shadow-xs text-center flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <p className="text-xs text-muted-foreground font-medium">Carregando dados patrimoniais...</p>
+          </div>
+        )
+      )}
 
       {/* Global Loading Spinner Indicator */}
       {isPending && (
@@ -210,13 +382,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
       )}
 
 
-      <button
-        onClick={() => setSettingsOpen(true)}
-        className="fixed bottom-6 left-6 w-12 h-12 bg-slate-800 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-slate-700 hover:scale-105 transition-all z-40"
-        title="Configurações"
-      >
-        <Settings className="w-5 h-5" />
-      </button>
+
 
       
       
@@ -257,9 +423,22 @@ export default function Dashboard({ initialData }: DashboardProps) {
         />
       )}
 
+      {exportOpen && (
+        <ExportPeriodModal
+          currentMonth={currentMonth}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
+
       <SettingsDrawer
         open={settingsOpen}
-        onOpenChange={setSettingsOpen}
+        onOpenChange={(open) => {
+          setSettingsOpen(open);
+          if (!open) {
+            setSettingsInitialAccountType(null);
+          }
+        }}
+        initialAccountType={settingsInitialAccountType}
         accounts={allAccounts}
         categories={allCategories}
         recurring={recurringEntries}
@@ -267,5 +446,14 @@ export default function Dashboard({ initialData }: DashboardProps) {
       />
 
     </div>
+  );
+}
+
+export default function Dashboard({ initialData, initialPrivate }: DashboardProps) {
+  return (
+    <PrivacyProvider initialPrivate={initialPrivate}>
+      <DashboardContent initialData={initialData} />
+      <PinModal />
+    </PrivacyProvider>
   );
 }

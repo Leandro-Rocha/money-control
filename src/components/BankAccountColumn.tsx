@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
-import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, ArrowRightLeft, Building, Repeat } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, Building, Repeat } from "lucide-react";
 import { createTransaction, deleteTransaction, updateTransaction, convertToTransfer, transformToRecurring } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 import { TransactionContextMenu } from "./TransactionContextMenu";
+import { CategoryPicker } from "./CategoryPicker";
 
 interface BankAccountColumnProps {
   data: AccountData;
@@ -190,6 +191,7 @@ export default function BankAccountColumn({
       amount: tx.amount,
       installmentCurrent: tx.projectedInstallmentCurrent,
       installmentTotal: tx.projectedInstallmentTotal,
+      purchaseDate: tx.purchaseDate,
       sourceType: tx.projectionSourceType as any,
       sourceId: tx.projectionSourceId,
     });
@@ -227,6 +229,7 @@ export default function BankAccountColumn({
       amount,
       installmentCurrent: tx.projectedInstallmentCurrent,
       installmentTotal: tx.projectedInstallmentTotal,
+      purchaseDate: tx.purchaseDate,
       sourceType: tx.projectionSourceType as any,
       sourceId: tx.projectionSourceId,
     });
@@ -234,10 +237,42 @@ export default function BankAccountColumn({
     onRefresh();
   };
 
+  const handleSelectCategory = async (tx: TransactionWithCategory, newCategoryId: number | null) => {
+    if (tx.isProjected) {
+      await confirmProjectedRow({
+        accountId: tx.accountId,
+        month: tx.month,
+        day: tx.day,
+        description: tx.description,
+        categoryId: newCategoryId,
+        amount: tx.amount,
+        installmentCurrent: tx.projectedInstallmentCurrent,
+        installmentTotal: tx.projectedInstallmentTotal,
+        purchaseDate: tx.purchaseDate,
+        sourceType: tx.projectionSourceType as any,
+        sourceId: tx.projectionSourceId,
+      });
+      onRefresh();
+    } else {
+      if (newCategoryId !== tx.categoryId) {
+        await updateTransaction(tx.id, { categoryId: newCategoryId });
+        onRefresh();
+      }
+    }
+  };
+
   // Filtering logic
   const filteredTransactions = data.transactions.filter(tx => {
     if (filterText && !tx.description.toLowerCase().includes(filterText.toLowerCase())) return false;
-    if (filterCategoryId !== "" && tx.categoryId !== filterCategoryId) return false;
+    if (filterCategoryId !== "") {
+      if (filterCategoryId === -1) {
+        if (tx.categoryId) return false;
+      } else {
+        const directMatch = tx.categoryId === filterCategoryId;
+        const parentMatch = tx.parentCategoryId === filterCategoryId;
+        if (!directMatch && !parentMatch) return false;
+      }
+    }
     if (filterHighValue !== "") {
       const absAmount = Math.abs(tx.amount);
       if (absAmount <= Number(filterHighValue)) return false;
@@ -260,15 +295,17 @@ export default function BankAccountColumn({
               <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                 <div className="flex items-center gap-1" title="Total de Entradas">
                   <ArrowDownRight className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(data.totalIncome)}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono tabular-nums privacy-sensitive">{formatCurrency(data.totalIncome)}</span>
                 </div>
                 <div className="flex items-center gap-1" title="Total de Saídas">
                   <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
-                  <span className="text-rose-600 dark:text-rose-400">{formatCurrency(data.totalExpense)}</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-mono tabular-nums privacy-sensitive">{formatCurrency(data.totalExpense)}</span>
                 </div>
-                <div className={`flex items-center gap-1 font-medium ${data.netBalance >= 0 ? "text-indigo-600" : "text-rose-600"}`} title="Balanço do Mês">
-                  <span className="text-slate-300 mx-0.5">|</span>
-                  {data.netBalance >= 0 ? "+" : ""}{formatCurrency(data.netBalance)}
+                <div className="flex items-center gap-1 font-medium" title="Balanço do Mês">
+                  <span className="text-slate-300 mx-0.5 no-privacy-blur">|</span>
+                  <span className={`font-mono tabular-nums privacy-sensitive ${data.netBalance >= 0 ? "text-indigo-600" : "text-rose-600"}`}>
+                    {data.netBalance >= 0 ? "+" : ""}{formatCurrency(data.netBalance)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -277,7 +314,7 @@ export default function BankAccountColumn({
           <div className="flex items-center gap-4">
             <div className="text-right">
               <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">Saldo</div>
-              <div className={`font-bold text-lg ${data.finalBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+              <div className={`font-bold text-lg font-mono tabular-nums privacy-sensitive ${data.finalBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                 {formatCurrency(data.finalBalance)}
               </div>
             </div>
@@ -309,7 +346,7 @@ export default function BankAccountColumn({
                   <TableCell className="text-center text-slate-500">1</TableCell>
                   <TableCell className="text-slate-800 font-semibold">Saldo anterior</TableCell>
                   <TableCell className="text-slate-400">-</TableCell>
-                  <TableCell className="text-right font-semibold">
+                  <TableCell className="text-right font-semibold font-mono tabular-nums">
                     <span
                       className="font-medium text-slate-500"
                       title="Saldo anterior calculado automaticamente"
@@ -317,7 +354,7 @@ export default function BankAccountColumn({
                       {formatCurrency(data.initialBalance)}
                     </span>
                   </TableCell>
-                  <TableCell className={` text-right font-bold ${
+                  <TableCell className={`text-right font-bold font-mono tabular-nums ${
                     data.initialBalance >= 0 ? "text-emerald-700" : "text-rose-600"
                   }`}>
                     {formatCurrency(data.initialBalance)}
@@ -330,11 +367,7 @@ export default function BankAccountColumn({
                   const isRunningPositive = (tx.runningBalance || 0) >= 0;
                   const isProjected = tx.isProjected === true;
                     const isInstallmentShadow = isProjected && tx.projectionSourceType === "installment";
-                    const visuallyProjected = isProjected && !isInstallmentShadow;
-                    const onCellClick = (field: "description" | "category" | "amount" | "day") => {
-                      if (isInstallmentShadow) return;
-                      if (!isProjected) handleStartCellEdit(tx, field);
-                    };
+                    const isRecurringProjected = isProjected && !isInstallmentShadow;
                   const saveCell = isProjected ? handleSaveCellProjected : handleSaveCell;
                   const isEditingDay = editingCell?.txId === tx.id && editingCell?.field === "day";
                   const isEditingDesc = editingCell?.txId === tx.id && editingCell?.field === "description";
@@ -345,8 +378,10 @@ export default function BankAccountColumn({
                     <TableRow
                       key={tx.id}
                       className={`h-12 transition-colors border-b group ${
-                        isProjected
-                          ? "bg-slate-50/70 border-dashed border-slate-200 opacity-80 hover:opacity-100"
+                        isInstallmentShadow
+                          ? "bg-slate-50/50 hover:bg-slate-100/60 border-slate-100"
+                          : isRecurringProjected
+                          ? "bg-amber-50/20 hover:bg-amber-50/40 border-dashed border-slate-200"
                           : "hover:bg-slate-50 border-slate-100"
                       }`}
                       onContextMenu={(e) => {
@@ -376,7 +411,7 @@ export default function BankAccountColumn({
                         ) : (
                           <span
                             onClick={() => handleStartCellEdit(tx, "day")}
-                            className="cursor-pointer  inline-block w-full text-center"
+                            className="cursor-pointer inline-block w-full text-center"
                             title={isProjected ? "Clique para confirmar com este dia" : "Clique para editar o dia"}
                           >
                             {tx.day}
@@ -386,8 +421,8 @@ export default function BankAccountColumn({
 
                       {/* Descrição Cell */}
                       <TableCell
-                        className={!isEditingDesc ? "cursor-pointer" : ""}
-                        onClick={() => !isEditingDesc && handleStartCellEdit(tx, "description")}
+                        className={!isEditingDesc && !isInstallmentShadow ? "cursor-pointer" : ""}
+                        onClick={() => !isEditingDesc && !isInstallmentShadow && handleStartCellEdit(tx, "description")}
                       >
                         {isEditingDesc ? (
                           <Input
@@ -404,23 +439,45 @@ export default function BankAccountColumn({
                           />
                         ) : (
                           <span
-                            onClick={() => handleStartCellEdit(tx, "description")}
-                            className="cursor-pointer  truncate inline-flex items-center gap-1.5 h-9 px-3 border border-transparent"
-                            title={isInstallmentShadow ? "Lançamento automático (edite a original para alterar)" : visuallyProjected ? "Projeção — clique para confirmar com edição" : "Clique para editar"}
+                            className={`inline-flex items-center gap-1.5 h-9 px-3 border border-transparent rounded truncate ${
+                              isInstallmentShadow
+                                ? "cursor-default text-slate-600"
+                                : isRecurringProjected
+                                ? "cursor-pointer text-amber-700 font-medium"
+                                : "cursor-pointer text-slate-800"
+                            }`}
+                            title={
+                              isInstallmentShadow
+                                ? "Lançamento automático (edite a original para alterar)"
+                                : isRecurringProjected
+                                ? "Projeção recorrente — clique para confirmar com edição"
+                                : "Clique para editar"
+                            }
                           >
-                            {tx.linkedTransactionId && (
-                              <span title="Transferência vinculada" className="flex items-center shrink-0">
-                                <ArrowRightLeft className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="truncate">{tx.description}</span>
+                            {isRecurringProjected && (
+                              <span title="Gasto recorrente projetado">
+                                <Repeat className="w-3 h-3 text-amber-500 shrink-0" />
                               </span>
                             )}
-                            <span className="truncate">{tx.description}</span>
-                            {tx.purchaseDate && (
-                              <span className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-[10px] text-slate-400 rounded" title={`Data da compra: ${tx.purchaseDate}`}>
-                                {tx.purchaseDate}
+                            {tx.linkedTransactionId && (
+                              <span
+                                title={
+                                  tx.linkedAccountName
+                                    ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
+                                    : "Transferência vinculada"
+                                }
+                                className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-[10px]"
+                              >
+                                <span className="tracking-tight">
+                                  {tx.linkedAccountName
+                                    ? (tx.amount < 0 ? `→ ${tx.linkedAccountName}` : `← ${tx.linkedAccountName}`)
+                                    : (tx.amount < 0 ? "→" : "←")}
+                                </span>
                               </span>
                             )}
                             {isProjected && tx.projectedInstallmentCurrent && (
-                              <span className="ml-1 text-sm text-slate-400 not-italic">
+                              <span className="ml-1 text-sm text-slate-400 not-italic shrink-0">
                                 {tx.projectedInstallmentCurrent}/{tx.projectedInstallmentTotal}
                               </span>
                             )}
@@ -429,54 +486,22 @@ export default function BankAccountColumn({
                       </TableCell>
 
                       {/* Categoria Cell */}
-                      <TableCell
-                        className={!isEditingCat ? "cursor-pointer" : ""}
-                        onClick={() => !isEditingCat && handleStartCellEdit(tx, "category")}
-                      >
-                        {isEditingCat ? (
-                          <Select
-                            defaultOpen
-                            value={tempValue || "none"}
-                            onValueChange={(val) => {
-                              setTempValue(val === "none" ? "" : val);
-                              saveCell(tx, val);
-                            }}
-                            onOpenChange={(open) => {
-                              if (!open) setEditingCell(null);
-                            }}
-                          >
-                            <SelectTrigger className="w-full h-8 px-2 text-xs">
-                              <SelectValue placeholder="Sem categoria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Sem categoria</SelectItem>
-                              {categories.map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id.toString()}>
-                                  {cat.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span
-                            onClick={() => handleStartCellEdit(tx, "category")}
-                            className="cursor-pointer inline-block px-2 py-0.5 rounded text-[10px] uppercase font-semibold hover:ring-1 hover:ring-slate-300"
-                            style={{
-                              backgroundColor: tx.categoryName ? `${tx.categoryColor || "#64748b"}18` : "#f1f5f9",
-                              color: tx.categoryName ? tx.categoryColor || "#475569" : "#94a3b8",
-                              opacity: visuallyProjected ? 0.7 : 1,
-                            }}
-                            title="Clique para alterar a categoria"
-                          >
-                            {tx.categoryName || "Sem categoria"}
-                          </span>
-                        )}
+                      <TableCell className="text-center px-1">
+                        <CategoryPicker
+                          categories={categories}
+                          value={tx.categoryId}
+                          categoryName={tx.categoryName}
+                          categoryColor={tx.categoryColor}
+                          parentCategoryId={tx.parentCategoryId}
+                          parentCategoryName={tx.parentCategoryName}
+                          onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
+                        />
                       </TableCell>
 
                       {/* Valor Cell */}
                       <TableCell
-                        className={`text-right font-semibold ${!isEditingAmount ? "cursor-pointer" : ""}`}
-                        onClick={() => !isEditingAmount && handleStartCellEdit(tx, "amount")}
+                        className={`text-right font-semibold font-mono tabular-nums ${!isEditingAmount && !isInstallmentShadow ? "cursor-pointer" : ""}`}
+                        onClick={() => !isEditingAmount && !isInstallmentShadow && handleStartCellEdit(tx, "amount")}
                       >
                         {isEditingAmount ? (
                           <Input
@@ -488,20 +513,25 @@ export default function BankAccountColumn({
                               if (e.key === "Enter") saveCell(tx);
                               if (e.key === "Escape") setEditingCell(null);
                             }}
-                            className="w-full text-right text-sm"
+                            className="w-full text-right text-sm font-mono tabular-nums"
                             autoFocus
                           />
                         ) : (
                           <span
-                            onClick={() => onCellClick("amount")}
-                            className={`inline-flex items-center justify-end h-9 px-3 border ${
+                            className={`relative text-xs w-full flex items-center justify-end font-mono tabular-nums border p-1.5 rounded ${
                               isInstallmentShadow
-                                ? "border-transparent text-slate-500 cursor-default"
-                                : visuallyProjected
+                                ? "border-transparent text-slate-600 cursor-default"
+                                : isRecurringProjected
                                 ? "border-amber-500/50 text-amber-600 font-medium hover:bg-amber-50 cursor-pointer"
-                                : `border-transparent cursor-pointer ${isPositive ? "text-emerald-600" : "text-rose-600"}`
+                                : `border-transparent cursor-pointer hover:bg-slate-100/60 ${isPositive ? "text-emerald-600" : "text-rose-600"}`
                             }`}
-                            title={isInstallmentShadow ? "Lançamento automático" : visuallyProjected ? "Projeção — clique para confirmar com edição" : "Clique para editar o valor"}
+                            title={
+                              isInstallmentShadow
+                                ? "Lançamento automático"
+                                : isRecurringProjected
+                                ? "Projeção recorrente — clique para confirmar com edição"
+                                : "Clique para editar o valor"
+                            }
                           >
                             {formatCurrency(tx.amount)}
                           </span>
@@ -510,7 +540,7 @@ export default function BankAccountColumn({
 
                       {/* Saldo Cell */}
                       <TableCell
-                        className={` text-right font-medium ${
+                        className={`text-right font-medium font-mono tabular-nums ${
                           isRunningPositive ? "text-emerald-600" : "text-rose-600 font-bold"
                         } ${isProjected ? "opacity-60" : ""}`}
                       >
@@ -530,7 +560,7 @@ export default function BankAccountColumn({
                       placeholder="Dia"
                       value={newDay}
                       onChange={(e) => setNewDay(e.target.value)}
-                      className="w-full text-center text-sm"
+                      className="w-full text-center text-sm font-mono"
                       required
                     />
                   </TableCell>
@@ -545,19 +575,12 @@ export default function BankAccountColumn({
                       onKeyDown={(e) => e.key === "Enter" && handleAddTransaction()}
                     />
                   </TableCell>
-                  <TableCell>
-                    <Select value={newCategoryId === "" ? "" : newCategoryId.toString()} onValueChange={(val) => setNewCategoryId(val ? Number(val) : "")}>
-                      <SelectTrigger className="w-full h-8">
-                        <SelectValue placeholder="Categoria..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id.toString()}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <TableCell className="text-center px-1">
+                    <CategoryPicker
+                      categories={categories}
+                      value={newCategoryId === "" ? null : Number(newCategoryId)}
+                      onSelect={(catId) => setNewCategoryId(catId !== null ? catId : "")}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1 -my-1">
@@ -567,7 +590,7 @@ export default function BankAccountColumn({
                         placeholder="0,00"
                         value={newAmount}
                         onChange={(e) => setNewAmount(e.target.value)}
-                        className="w-full text-right text-sm"
+                        className="w-full text-right text-sm font-mono tabular-nums"
                         required
                         onKeyDown={(e) => e.key === "Enter" && handleAddTransaction()}
                       />

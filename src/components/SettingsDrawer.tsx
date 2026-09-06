@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, CreditCard, Tags, Repeat, Wand2, X } from "lucide-react";
+import { Settings, CreditCard, Tags, Repeat, Wand2, Shield, X } from "lucide-react";
 import { Account, Category, RecurringEntryUI } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ import { AccountsTab } from "./AccountsTab";
 import { RecurringTab } from "./RecurringTab";
 import { CategoriesTab } from "./CategoriesTab";
 import { RulesTab } from "./RulesTab";
+import { PrivacyTab } from "./PrivacyTab";
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -17,9 +18,10 @@ interface SettingsDrawerProps {
   categories: Category[];
   recurring: RecurringEntryUI[];
   onRefresh: () => void;
+  initialAccountType?: "bank_account" | "credit_card" | "investment" | "financing" | null;
 }
 
-type TabType = "accounts" | "categories" | "recurring" | "rules";
+type TabType = "accounts" | "categories" | "recurring" | "rules" | "privacy";
 
 export function SettingsDrawer({
   open,
@@ -28,8 +30,15 @@ export function SettingsDrawer({
   categories,
   recurring,
   onRefresh,
+  initialAccountType,
 }: SettingsDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabType>("accounts");
+
+  useEffect(() => {
+    if (open && initialAccountType) {
+      setActiveTab("accounts");
+    }
+  }, [open, initialAccountType]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,7 +54,7 @@ export function SettingsDrawer({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => onOpenChange(false)} />
-          <div className="bg-background w-full sm:max-w-xl md:max-w-2xl rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col h-[75vh] min-h-[500px] max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-background w-full sm:max-w-2xl md:max-w-4xl rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col h-[85vh] min-h-[550px] max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 pb-2 border-b">
               <div>
                 <div className="flex items-center justify-between">
@@ -58,7 +67,7 @@ export function SettingsDrawer({
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Gerencie suas contas, categorias e despesas recorrentes.
+                  Gerencie suas contas, categorias, despesas recorrentes e segurança.
                 </p>
               </div>
 
@@ -108,12 +117,28 @@ export function SettingsDrawer({
               <Wand2 className="w-4 h-4" />
               Regras
             </button>
+            <button
+              onClick={() => setActiveTab("privacy")}
+              className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+                activeTab === "privacy"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              Privacidade
+            </button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           {activeTab === "accounts" && (
-            <AccountsTab accounts={accounts} onRefresh={onRefresh} />
+            <AccountsTab 
+              accounts={accounts} 
+              onRefresh={onRefresh} 
+              initialType={initialAccountType}
+              initialIsAdding={Boolean(initialAccountType)}
+            />
           )}
           {activeTab === "categories" && (
             <CategoriesTab categories={categories} onRefresh={onRefresh} />
@@ -123,6 +148,9 @@ export function SettingsDrawer({
           )}
           {activeTab === "rules" && (
             <RulesTab categories={categories} />
+          )}
+          {activeTab === "privacy" && (
+            <PrivacyTab />
           )}
         </div>
           </div>

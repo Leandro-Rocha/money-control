@@ -12,13 +12,18 @@ export function createTestDb() {
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('bank_account', 'credit_card', 'investment', 'other')),
+      type TEXT NOT NULL CHECK(type IN ('bank_account', 'credit_card', 'investment', 'financing', 'other')),
       color TEXT NOT NULL DEFAULT 'orange',
       display_order INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       default_payment_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
-      due_day INTEGER
+      due_day INTEGER,
+      financing_total_amount REAL,
+      financing_remaining_amount REAL,
+      financing_installments_total INTEGER,
+      financing_installments_paid INTEGER,
+      financing_installment_amount REAL
     );
 
     CREATE TABLE IF NOT EXISTS monthly_initial_balances (
@@ -31,7 +36,8 @@ export function createTestDb() {
 
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
       type TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('income', 'expense', 'both')),
       color TEXT,
       show_in_summary INTEGER NOT NULL DEFAULT 1,

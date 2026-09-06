@@ -41,6 +41,7 @@ export async function getProjectedInstallments(
       p.account_id as accountId,
       ${targetMonth} as month,
       p.day,
+      p.purchase_date as purchaseDate,
       p.description,
       p.category_id as categoryId,
       p.amount,

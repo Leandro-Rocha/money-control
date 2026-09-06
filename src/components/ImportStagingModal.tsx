@@ -5,9 +5,11 @@ import { Category, TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, AlertTriangle, ArrowRight, UploadCloud } from "lucide-react";
 import { ModalShell } from "./ModalShell";
-import { createMultipleTransactions } from "@/lib/actions/transactions";
+import { createMultipleTransactions, getAccountTransactionsForMonths } from "@/lib/actions/transactions";
 import { getTransactionRules } from "@/lib/actions/transaction-rules";
 import { copyToClipboard } from "@/lib/clipboard";
+import { formatMonthLabel } from "@/lib/format";
+import { CategoryPicker } from "./CategoryPicker";
 
 interface ImportStagingModalProps {
   month: string;
@@ -33,7 +35,126 @@ interface ParsedRow {
   isDuplicate: boolean;
   ignored: boolean;
   isPastMonth: boolean;
+  resolvedMonth: string; // effective month this transaction will be saved to
   purchaseDate?: string;
+}
+
+/**
+ * Determines the effective month for a transaction based on account type.
+ *
+ * - credit_card / investment / financing / other: always use the UI month (fatura logic — all
+ *   transactions belong to the billing month regardless of their date).
+ * - bank_account: route to the month of the transaction date.
+ *   If extractedYear is provided (from DD/MM/YYYY or purchaseDate), uses that year directly.
+ *   Otherwise infers the year relative to uiMonth, handling year roll-overs.
+ */
+export function resolveTargetMonth(
+  uiMonth: string,
+  extractedMonth: number | null,
+  accountType: string,
+  extractedYear?: number | null,
+): string {
+  if (accountType !== "bank_account" || extractedMonth === null) return uiMonth;
+
+  if (extractedYear && extractedYear >= 2000 && extractedYear <= 2100) {
+    return `${extractedYear}-${String(extractedMonth).padStart(2, "0")}`;
+  }
+
+  const [yearStr, monthStr] = uiMonth.split("-");
+  const uiYear = parseInt(yearStr, 10);
+  const uiMonthNum = parseInt(monthStr, 10);
+
+  if (extractedMonth === uiMonthNum) return uiMonth;
+
+  // Year roll-over: e.g. December (12) in a January (1) statement → previous year
+  if (extractedMonth > uiMonthNum && extractedMonth - uiMonthNum > 6) {
+    return `${uiYear - 1}-${String(extractedMonth).padStart(2, "0")}`;
+  }
+
+  // Year roll-over: e.g. January (1) in a December (12) statement → next year
+  if (uiMonthNum > extractedMonth && uiMonthNum - extractedMonth > 6) {
+    return `${uiYear + 1}-${String(extractedMonth).padStart(2, "0")}`;
+  }
+
+  // Same year as uiMonth
+  return `${uiYear}-${String(extractedMonth).padStart(2, "0")}`;
+}
+
+export function buildCategoryPromptList(categories: Category[]): string {
+  const parentCategories = categories.filter((c) => !c.parentId);
+  const subByParent = new Map<number, Category[]>();
+  for (const cat of categories) {
+    if (cat.parentId) {
+      const list = subByParent.get(cat.parentId) || [];
+      list.push(cat);
+      subByParent.set(cat.parentId, list);
+    }
+  }
+
+  return parentCategories
+    .map((parent) => {
+      const subs = subByParent.get(parent.id) || [];
+      if (subs.length > 0) {
+        return `- ${parent.name} (Subcategorias: ${subs.map((s) => s.name).join(", ")})`;
+      }
+      return `- ${parent.name}`;
+    })
+    .join("\n");
+}
+
+export function matchExtractedCategory(
+  catExtracted: string | undefined | null,
+  categories: Category[]
+): number | null {
+  if (!catExtracted) return null;
+  const rawClean = catExtracted.trim();
+  const lower = rawClean.toLowerCase();
+  if (!rawClean || lower === "sem categoria" || lower === "outros" || lower === "outro") return null;
+
+  // 1. Tentar correspondência exata de nome (seja pai ou filha)
+  const exact = categories.find((c) => c.name.toLowerCase() === rawClean.toLowerCase());
+  if (exact) return exact.id;
+
+  // 2. Se tiver separadores como ">", "->", "/", ":", " - " (ex: "Alimentação > Supermercado")
+  const separators = [">", "->", ":", "/", " - "];
+  for (const sep of separators) {
+    if (rawClean.includes(sep)) {
+      const parts = rawClean.split(sep).map((s) => s.trim());
+      const parentName = parts[0]?.toLowerCase();
+      const childName = parts[parts.length - 1]?.toLowerCase();
+
+      // Busca o pai
+      const parentCat = categories.find((c) => !c.parentId && c.name.toLowerCase() === parentName);
+      if (parentCat) {
+        const childCat = categories.find(
+          (c) => c.parentId === parentCat.id && c.name.toLowerCase() === childName
+        );
+        if (childCat) return childCat.id;
+        return parentCat.id;
+      }
+
+      // Se não achou o pai com esse nome, procura se childName existe como categoria
+      const childDirect = categories.find((c) => c.name.toLowerCase() === childName);
+      if (childDirect) return childDirect.id;
+    }
+  }
+
+  // 3. Se a IA retornou algo como "Supermercado (Alimentação)"
+  if (rawClean.includes("(") && rawClean.includes(")")) {
+    const match = rawClean.match(/^([^(]+)\s*\(([^)]+)\)/);
+    if (match) {
+      const part1 = match[1].trim().toLowerCase();
+      const part2 = match[2].trim().toLowerCase();
+      const found = categories.find((c) => c.name.toLowerCase() === part1 || c.name.toLowerCase() === part2);
+      if (found) return found.id;
+    }
+  }
+
+  // 4. Correspondência parcial
+  const partial = categories.find((c) => rawClean.toLowerCase().includes(c.name.toLowerCase()));
+  if (partial) return partial.id;
+
+  return null;
 }
 
 export function ImportStagingModal({
@@ -51,30 +172,52 @@ export function ImportStagingModal({
   const [copied, setCopied] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+
+  const selectedAccount = accounts.find(a => a.id === accountId);
+  const isBankAccount = (selectedAccount?.type ?? "bank_account") === "bank_account";
 
   // -- Prompt Generation
   const promptText = useMemo(() => {
-    const catNames = categories.map(c => c.name).join(", ");
-    const [y, m] = month.split("-");
-    const targetMonth = `${m}/${y}`;
-    
-    return `Vou colar um extrato ou fatura. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 8 colunas:
+    const categoriesPromptList = buildCategoryPromptList(categories);
+
+    if (isBankAccount) {
+      return `Vou colar um extrato bancário. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 5 colunas:
+
+Data	Nome Original	Nome Limpo	Valor	Categoria
+
+Regras:
+1. Data: Extraia a data no formato DD/MM/AAAA (ex: 02/07/2026). Se o extrato omitir o ano, deduza do contexto ou período do extrato.
+2. Nome Original: Exatamente como aparece no extrato, sem limpar (ex: PIX TRANSF LEANDRO 02/07).
+3. Nome Limpo: Versão amigável e limpa (ex: Pix Leandro, Mercado Extra, Salário).
+4. Valor: Numérico, sem 'R$'. Saídas/Débitos/Gastos devem ser negativos (ex: -150.00). Entradas/Créditos/Depósitos devem ser positivos (ex: 3500.00).
+5. Categoria: Categorize preferencialmente na subcategoria mais específica correspondente (ex: Supermercado), ou na categoria principal caso não haja subcategoria aplicável (ex: Alimentação). Utilize ESTRITAMENTE as categorias e subcategorias cadastradas abaixo:
+${categoriesPromptList}
+Se não souber ou não se encaixar em nenhuma, deixe em branco.
+6. O que incluir: INCLUA TODOS os lançamentos (PIX enviados e recebidos, transferências, pagamentos de títulos/boletos/faturas de cartão, salários, rendimentos e tarifas). NÃO ignore nenhum lançamento.
+7. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos presentes no extrato, mesmo que abranja múltiplos meses.
+8. Ordem: Retorne as linhas em ordem cronológica por Data (da mais antiga para a mais recente).`;
+    }
+
+    return `Vou colar uma fatura de cartão de crédito. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 8 colunas:
 
 Data	Nome Original	Nome Limpo	Valor	Categoria	Parcela Atual	Total Parcelas	Data Compra
 
 Regras:
 1. Data: Extraia a data no formato em que aparece, preferencialmente DD/MM (ex: 02/10).
-2. Nome Original: Exatamente como aparece no extrato, sem limpar (ex: PGTO *UBER SAOPAULO 02/10).
+2. Nome Original: Exatamente como aparece na fatura, sem limpar (ex: PGTO *UBER SAOPAULO 02/10).
 3. Nome Limpo: Versão amigável e limpa, SEM informações de parcelamento (ex: Uber).
 4. Valor: Numérico, sem 'R$'. Saídas/Gastos devem ser negativos.
-5. Categoria: Categorize usando ESTRITAMENTE uma destas categorias: [${catNames}]. Se não souber, deixe em branco.
+5. Categoria: Categorize preferencialmente na subcategoria mais específica correspondente (ex: Supermercado), ou na categoria principal caso não haja subcategoria aplicável (ex: Alimentação). Utilize ESTRITAMENTE as categorias e subcategorias cadastradas abaixo:
+${categoriesPromptList}
+Se não souber ou não se encaixar em nenhuma, deixe em branco.
 6. Parcela Atual e Total: Se o nome original indicar parcelamento (ex: 02/05, PARC 2/5), extraia o número da parcela atual para a Coluna 6 e o total para a Coluna 7. Se não houver, deixe ambas em branco.
 7. O que ignorar: IGNORE seções como "Pagamentos efetuados" (pagamento da fatura) e "Compras parceladas - próximas faturas".
 8. O que incluir: INCLUA tarifas de serviço, IOF, compras internacionais e lançamentos do mês atual.
 9. Data Compra: A data exata da compra no formato DD/MM/YYYY na Coluna 8. Se omitir o ano, deduza do contexto da fatura. Se não aplicável, deixe em branco.
-10. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos cobrados, respeitando a regra 7 e 8.
+10. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos cobrados nesta fatura, respeitando as regras 7 e 8.
 11. Ordem: Retorne as linhas ordenadas por Dia (do menor para o maior).`;
-  }, [categories, month]);
+  }, [categories, isBankAccount]);
 
   useEffect(() => {
     getTransactionRules().then(data => setRules(data.filter((r: any) => r.active === 1)));
@@ -97,6 +240,17 @@ Regras:
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, pastedText, step]);
 
+  // -- Reset parsed rows when the account changes (task 6.1) --
+  // resolvedMonth is computed at parse time using the account type; if the user
+  // switches account the cached rows would carry stale month routing.
+  useEffect(() => {
+    if (parsedRows.length > 0 || step === 2) {
+      setParsedRows([]);
+      setStep(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
   const handleCopyPrompt = async () => {
     const success = await copyToClipboard(promptText);
     if (success) {
@@ -106,36 +260,53 @@ Regras:
   };
 
   // -- TSV Parser & Deduplication
-  const handleParse = () => {
+  const handleParse = async () => {
     if (!pastedText.trim()) return;
 
+    setIsParsing(true);
     const lines = pastedText.trim().split("\n");
-    const rows: ParsedRow[] = [];
-
-    const accountTx = existingTransactions.filter(t => t.accountId === accountId);
+    const tempRows: {
+      idx: number;
+      day: number;
+      description: string;
+      originalDescription: string;
+      amount: number;
+      categoryId: number | null;
+      catExtracted: string;
+      resolvedMonth: string;
+      isPastMonth: boolean;
+      instCur?: number;
+      instTot?: number;
+      purchaseDate?: string;
+    }[] = [];
 
     lines.forEach((line, idx) => {
       const parts = line.split("\t");
       if (parts.length < 4) return; // Skip invalid lines
       
-            if (parts[0].toLowerCase().includes("data") && (parts[1].toLowerCase().includes("nome") || parts[1].toLowerCase().includes("desc"))) return;
+      if (parts[0].toLowerCase().includes("data") && (parts[1].toLowerCase().includes("nome") || parts[1].toLowerCase().includes("desc"))) return;
 
       let dayStr = parts[0].trim();
       let extractedMonth: number | null = null;
+      let extractedYear: number | null = null;
+
       if (dayStr.includes("/")) {
         const dParts = dayStr.split("/");
         dayStr = dParts[0].replace(/\D/g, "");
-        const mStr = dParts[1].replace(/\D/g, "");
+        const mStr = dParts[1]?.replace(/\D/g, "");
         if (mStr) extractedMonth = parseInt(mStr, 10);
+        const yStr = dParts[2]?.replace(/\D/g, "");
+        if (yStr && yStr.length === 4) {
+          extractedYear = parseInt(yStr, 10);
+        } else if (yStr && yStr.length === 2) {
+          extractedYear = 2000 + parseInt(yStr, 10);
+        }
       } else {
         dayStr = dayStr.replace(/\D/g, "");
       }
 
       const day = parseInt(dayStr, 10);
       if (isNaN(day)) return;
-
-      const targetMonthNum = parseInt(month.split("-")[1], 10);
-      const isPastMonth = extractedMonth !== null && extractedMonth !== targetMonthNum;
 
       const originalDescription = parts[1].trim();
       let description = parts[2].trim();
@@ -154,6 +325,10 @@ Regras:
       if (isNaN(amount)) return;
 
       let catExtracted = parts[4]?.trim() || "";
+      const lowerCat = catExtracted.toLowerCase();
+      if (lowerCat === "sem categoria" || lowerCat === "outros" || lowerCat === "outro") {
+        catExtracted = "";
+      }
       let matchedCatId: number | null = null;
       
       // -- RULE ENGINE (Longest Match Wins) --
@@ -173,48 +348,106 @@ Regras:
         matchedCatId = matchedRule.categoryId || null;
         catExtracted = "Definido por Regra";
       } else {
-        if (catExtracted && catExtracted.toLowerCase() !== "sem categoria") {
-          const found = categories.find(c => c.name.toLowerCase() === catExtracted.toLowerCase());
-          if (found) matchedCatId = found.id;
-        }
+        matchedCatId = matchExtractedCategory(catExtracted, categories);
       }
 
-      const isDup = accountTx.some(t => t.day === day && t.amount === amount);
-
-      let instCur: number | undefined;
-      let instTot: number | undefined;
-      if (parts[5] && parts[5].trim() !== "") {
-        const parsed = parseInt(parts[5].trim().replace(/\D/g, ""), 10);
-        if (!isNaN(parsed)) instCur = parsed;
-      }
-      if (parts[6] && parts[6].trim() !== "") {
-        const parsed = parseInt(parts[6].trim().replace(/\D/g, ""), 10);
-        if (!isNaN(parsed)) instTot = parsed;
-      }
-      
       let purchaseDate: string | undefined = parts[7]?.trim();
       if (!purchaseDate) purchaseDate = undefined;
 
-      rows.push({
-        id: `temp-${idx}`,
+      // If date didn't have year, check if purchaseDate has DD/MM/YYYY
+      if (!extractedYear && purchaseDate && purchaseDate.includes("/")) {
+        const pParts = purchaseDate.split("/");
+        const pyStr = pParts[2]?.replace(/\D/g, "");
+        if (pyStr && pyStr.length === 4) {
+          extractedYear = parseInt(pyStr, 10);
+        } else if (pyStr && pyStr.length === 2) {
+          extractedYear = 2000 + parseInt(pyStr, 10);
+        }
+      }
+
+      // -- Resolve effective destination month based on account type --
+      const accountType = selectedAccount?.type ?? "bank_account";
+      const resolvedMonth = resolveTargetMonth(month, extractedMonth, accountType, extractedYear);
+      const isPastMonth = resolvedMonth !== month;
+
+      let instCur: number | undefined;
+      let instTot: number | undefined;
+      if (!isBankAccount) {
+        if (parts[5] && parts[5].trim() !== "") {
+          const parsed = parseInt(parts[5].trim().replace(/\D/g, ""), 10);
+          if (!isNaN(parsed)) instCur = parsed;
+        }
+        if (parts[6] && parts[6].trim() !== "") {
+          const parsed = parseInt(parts[6].trim().replace(/\D/g, ""), 10);
+          if (!isNaN(parsed)) instTot = parsed;
+        }
+      }
+
+      tempRows.push({
+        idx,
         day,
         description,
         originalDescription,
         amount,
         categoryId: matchedCatId,
-        categoryNameExtracted: catExtracted,
-        isDuplicate: isDup,
-        ignored: isDup,
+        catExtracted,
+        resolvedMonth,
         isPastMonth,
-        createRule: false,
-        rulePattern: originalDescription,
-        installmentCurrent: instCur,
-        installmentTotal: instTot,
+        instCur,
+        instTot,
         purchaseDate,
       });
     });
 
+    // Query DB for existing transactions across all relevant months for this account
+    const distinctMonths = Array.from(new Set(tempRows.map(r => r.resolvedMonth)));
+    let dbExistingTx: { month: string; day: number; amount: number }[] = [];
+    try {
+      dbExistingTx = await getAccountTransactionsForMonths(accountId, distinctMonths);
+    } catch {
+      dbExistingTx = existingTransactions
+        .filter(t => t.accountId === accountId)
+        .map(t => ({ month: t.month, day: t.day, amount: t.amount }));
+    }
+
+    const rows: ParsedRow[] = [];
+    const seenInBatch = new Set<string>();
+
+    for (const r of tempRows) {
+      // Duplicate in database: same month, same day, same amount (within 0.009 cents)
+      const existsInDb = dbExistingTx.some(
+        t => t.month === r.resolvedMonth && t.day === r.day && Math.abs(t.amount - r.amount) < 0.009
+      );
+
+      // Duplicate within the same pasted batch
+      const batchKey = `${r.resolvedMonth}_${r.day}_${r.amount}`;
+      const duplicateInBatch = seenInBatch.has(batchKey);
+      seenInBatch.add(batchKey);
+
+      const isDup = existsInDb || duplicateInBatch;
+
+      rows.push({
+        id: `temp-${r.idx}`,
+        day: r.day,
+        description: r.description,
+        originalDescription: r.originalDescription,
+        amount: r.amount,
+        categoryId: r.categoryId,
+        categoryNameExtracted: r.categoryId ? "" : r.catExtracted,
+        isDuplicate: isDup,
+        ignored: isDup,
+        isPastMonth: r.isPastMonth,
+        resolvedMonth: r.resolvedMonth,
+        createRule: false,
+        rulePattern: r.originalDescription,
+        installmentCurrent: r.instCur,
+        installmentTotal: r.instTot,
+        purchaseDate: r.purchaseDate,
+      });
+    }
+
     setParsedRows(rows);
+    setIsParsing(false);
     setStep(2);
   };
 
@@ -232,18 +465,38 @@ Regras:
   };
 
   const updateRowCategory = (id: string, catId: number | null) => {
-    setParsedRows(prev => prev.map(r => r.id === id ? { ...r, categoryId: catId } : r));
+    setParsedRows(prev => prev.map(r => r.id === id ? { ...r, categoryId: catId, categoryNameExtracted: "" } : r));
   };
   
   const updateRowDescription = (id: string, desc: string) => {
     setParsedRows(prev => prev.map(r => r.id === id ? { ...r, description: desc } : r));
   };
 
+  // Group rows for Step 2: by resolvedMonth for bank accounts, or target vs past for credit cards
+  const tableGroups = useMemo(() => {
+    if (isBankAccount) {
+      const months = Array.from(new Set(parsedRows.map(r => r.resolvedMonth))).sort();
+      return months.map(m => {
+        const rows = parsedRows.filter(r => r.resolvedMonth === m);
+        const label = formatMonthLabel(m);
+        return {
+          title: `${label} (${rows.length} ${rows.length === 1 ? "transação" : "transações"})`,
+          rows,
+        };
+      });
+    }
+
+    return [
+      { title: "Transações do Mês da Fatura", rows: parsedRows.filter(r => !r.isPastMonth) },
+      { title: "Parcelas e Compras Anteriores", rows: parsedRows.filter(r => r.isPastMonth) },
+    ].filter(g => g.rows.length > 0);
+  }, [isBankAccount, parsedRows]);
+
   // -- Commit
   const handleCommit = async () => {
     const toInsert = parsedRows.filter(r => !r.ignored).map(r => ({
       accountId,
-      month,
+      month: r.resolvedMonth, // use each row's effective destination month
       day: r.day,
       description: r.description,
       originalDescription: r.originalDescription,
@@ -276,7 +529,7 @@ Regras:
   return (
     <ModalShell
       onClose={onClose}
-      maxWidth="max-w-4xl"
+      maxWidth="max-w-6xl"
       title="Importar Transações via IA"
       subtitle={step === 1 ? "Passo 1: Gere os dados estruturados no Gemini e cole aqui." : "Passo 2: Revise os dados e identifique duplicatas antes de salvar."}
       icon={<UploadCloud className="w-5 h-5 text-primary" />}
@@ -285,8 +538,12 @@ Regras:
         step === 1 ? (
           <>
             <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleParse} disabled={!pastedText.trim()}>
-              Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
+            <Button onClick={handleParse} disabled={!pastedText.trim() || isParsing}>
+              {isParsing ? "Processando..." : (
+                <>
+                  Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
+                </>
+              )}
             </Button>
           </>
         ) : (
@@ -300,17 +557,19 @@ Regras:
       }
     >
       {step === 1 ? (
-        <div className="space-y-6">
-          <div className="bg-muted/50 p-4 rounded-lg border border-border">
-            <div className="flex items-start justify-between gap-4 mb-2">
-              <h3 className="font-semibold text-sm">Instruções para a IA</h3>
+        <div className="space-y-4">
+          <div className="bg-muted/50 p-3 rounded-lg border border-border">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <div>
+                <h3 className="font-semibold text-sm">Instruções para a IA</h3>
+                <p className="text-xs text-muted-foreground">Copie o prompt e cole no Gemini ou ChatGPT junto com seu PDF/Extrato.</p>
+              </div>
               <Button size="sm" variant="outline" onClick={handleCopyPrompt} className="shrink-0 h-8 text-xs">
                 {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
                 {copied ? "Copiado!" : "Copiar Prompt"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">Copie o prompt abaixo e cole no Gemini ou ChatGPT junto com o seu PDF/Extrato. Ele vai gerar os dados formatados exatamente com as suas categorias.</p>
-            <div className="bg-background p-3 rounded text-xs font-mono text-slate-700 whitespace-pre-wrap border">
+            <div className="bg-background p-2.5 rounded text-xs font-mono text-slate-700 whitespace-pre-wrap border max-h-24 overflow-y-auto">
               {promptText}
             </div>
           </div>
@@ -327,9 +586,11 @@ Regras:
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Mês de Destino</label>
-              <div className="h-10 rounded-md border border-input bg-muted px-3 flex items-center text-sm font-semibold">
-                {month}
+              <label className="text-sm font-medium mb-1.5 block">
+                {isBankAccount ? "Mês dos Lançamentos" : "Mês da Fatura"}
+              </label>
+              <div className="h-10 rounded-md border border-input bg-muted px-3 flex items-center text-xs sm:text-sm font-medium text-muted-foreground">
+                {isBankAccount ? "Automático (definido pela data de cada lançamento)" : month}
               </div>
             </div>
           </div>
@@ -342,7 +603,11 @@ Regras:
               value={pastedText}
               onChange={e => setPastedText(e.target.value)}
               className="w-full h-48 rounded-md border border-input bg-background p-3 text-sm font-mono placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder={`12\tPGTO *MERCADO EXTRA\tMercado Extra\t-150.00\tMercado\n15\tTED SALARIO\tSalário\t5000.00\tReceita`}
+              placeholder={
+                isBankAccount
+                  ? `02/07/2026\tPIX TRANSF LEANDRO\tPix Transf Leandro\t5917.92\tTransferência\t\t\t02/07/2026\n03/08/2026\tPIX TRANSF D20 SOC\tPix Transf D20 Soc\t-5800.00\tTransferência\t\t\t03/08/2026`
+                  : `12\tPGTO *MERCADO EXTRA\tMercado Extra\t-150.00\tMercado\n15\tTED SALARIO\tSalário\t5000.00\tReceita`
+              }
             />
           </div>
         </div>
@@ -363,7 +628,7 @@ Regras:
               <Button variant="outline" size="sm" onClick={handleSelectNone} className="h-7 text-xs">Nenhuma</Button>
             </div>
           </div>
-          <div className="border rounded-lg overflow-hidden bg-card">
+          <div className="border rounded-lg overflow-x-auto bg-card">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 border-b">
                 <tr>
@@ -371,19 +636,16 @@ Regras:
                   <th className="px-4 py-2 font-semibold">Dia</th>
                   <th className="px-4 py-2 font-semibold">Descrição</th>
                   <th className="px-4 py-2 font-semibold text-right">Valor</th>
-                  <th className="px-4 py-2 font-semibold">Categoria</th>
-                  <th className="px-4 py-2 font-semibold w-24">Parcela</th>
+                  <th className="px-4 py-2 font-semibold w-56">Categoria</th>
+                  {!isBankAccount && <th className="px-4 py-2 font-semibold w-24">Parcela</th>}
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {[
-                  { title: "Transações do Mês Alvo", rows: parsedRows.filter(r => !r.isPastMonth) },
-                  { title: "Parcelas e Compras Anteriores", rows: parsedRows.filter(r => r.isPastMonth) }
-                ].filter(g => g.rows.length > 0).map((group, groupIdx, arr) => (
+                {tableGroups.map((group, groupIdx, arr) => (
                   <React.Fragment key={groupIdx}>
-                    {arr.length > 1 && (
+                    {(arr.length > 1 || isBankAccount) && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-2 bg-slate-100 font-semibold text-xs text-slate-500 uppercase tracking-wider">
+                        <td colSpan={!isBankAccount ? 6 : 5} className="px-4 py-2 bg-slate-100 font-semibold text-xs text-slate-600 uppercase tracking-wider">
                           {group.title}
                         </td>
                       </tr>
@@ -398,7 +660,9 @@ Regras:
                             className="w-4 h-4 rounded border-slate-300 accent-primary cursor-pointer"
                           />
                         </td>
-                        <td className="px-4 py-2 align-middle font-medium text-slate-700">{row.day}</td>
+                        <td className="px-4 py-2 align-middle font-medium text-slate-700 whitespace-nowrap" title={row.purchaseDate || undefined}>
+                          {row.day}
+                        </td>
                         <td className="px-4 py-2 align-middle">
                           <input
                             type="text"
@@ -441,38 +705,40 @@ Regras:
                         <td className={`px-4 py-2 text-right font-semibold align-middle whitespace-nowrap ${row.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </td>
-                        <td className="px-4 py-2 align-middle max-w-[150px]">
-                          <select
-                            value={row.categoryId || ""}
-                            onChange={e => updateRowCategory(row.id, e.target.value ? Number(e.target.value) : null)}
-                            className="w-full max-w-full text-xs rounded border-slate-200 py-1 px-2 focus:ring-1 focus:ring-primary bg-white disabled:bg-transparent"
-                            disabled={row.ignored}
-                          >
-                            <option value="">Sem categoria</option>
-                            {categories.map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                          {row.categoryNameExtracted && !row.categoryId && (
-                            <p className="text-[10px] text-rose-500 mt-0.5 truncate" title={`A IA sugeriu: ${row.categoryNameExtracted}`}>
-                              Não encontrada: {row.categoryNameExtracted}
-                            </p>
-                          )}
+                        <td className="px-4 py-2 align-middle w-56 min-w-[200px]">
+                          <div className="flex flex-col gap-0.5">
+                            <CategoryPicker
+                              categories={categories}
+                              value={row.categoryId}
+                              onSelect={(catId) => updateRowCategory(row.id, catId)}
+                              disabled={row.ignored}
+                            />
+                            {row.categoryNameExtracted && !row.categoryId && (
+                              <p
+                                className="text-[10px] text-rose-500 mt-0.5 truncate max-w-[200px]"
+                                title={`A IA sugeriu: ${row.categoryNameExtracted}`}
+                              >
+                                Não encontrada: {row.categoryNameExtracted}
+                              </p>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-4 py-2 align-middle text-center text-xs text-slate-600 font-medium whitespace-nowrap">
-                          {row.installmentCurrent && row.installmentTotal
-                            ? `${row.installmentCurrent}/${row.installmentTotal}`
-                            : row.installmentCurrent
-                              ? row.installmentCurrent
-                              : '-'}
-                        </td>
+                        {!isBankAccount && (
+                          <td className="px-4 py-2 align-middle text-center text-xs text-slate-600 font-medium whitespace-nowrap">
+                            {row.installmentCurrent && row.installmentTotal
+                              ? `${row.installmentCurrent}/${row.installmentTotal}`
+                              : row.installmentCurrent
+                                ? row.installmentCurrent
+                                : '-'}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </React.Fragment>
                 ))}
                 {parsedRows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Nenhuma transação extraída.</td>
+                    <td colSpan={!isBankAccount ? 6 : 5} className="px-4 py-8 text-center text-muted-foreground">Nenhuma transação extraída.</td>
                   </tr>
                 )}
               </tbody>

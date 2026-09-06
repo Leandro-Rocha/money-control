@@ -1,9 +1,34 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Calendar, RefreshCw, UploadCloud, PieChart, ListPlus, ArrowUpRight, ArrowDownRight, ArrowRightLeft } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  UploadCloud,
+  PieChart,
+  ListPlus,
+  ArrowUpRight,
+  ArrowDownRight,
+  ArrowRightLeft,
+  LogOut,
+  Sparkles,
+  Settings,
+  ChevronDown,
+  Wallet,
+  CreditCard,
+  Landmark,
+  TrendingUp,
+  Receipt,
+  Plus,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { ProjectionState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { usePrivacy } from "@/context/PrivacyContext";
 
 interface MonthHeaderProps {
   currentMonth: string; // YYYY-MM
@@ -12,12 +37,21 @@ interface MonthHeaderProps {
   globalIncome: number;
   globalExpense: number;
   globalBalance: number;
+  wealthTotalInvested?: number;
+  wealthTotalDebts?: number;
+  wealthNetWorth?: number;
+  onOpenCreateAccount?: (initialType: "investment" | "financing") => void;
+  viewMode?: "cashflow" | "wealth";
+  onViewModeChange?: (mode: "cashflow" | "wealth") => void;
   onMonthChange: (month: string) => void;
   onOpenRecurring: () => void;
   onOpenImport: () => void;
   onOpenInsights: () => void;
   onOpenPullProjections: () => void;
   onOpenTransfers: () => void;
+  onOpenExport?: () => void;
+  onOpenSettings?: () => void;
+  onLogout?: () => void;
 }
 
 const PROJECTION_INFO: Record<ProjectionState, { label: string; dotClass: string } | null> = {
@@ -40,18 +74,53 @@ export default function MonthHeader({
   globalIncome,
   globalExpense,
   globalBalance,
+  wealthTotalInvested,
+  wealthTotalDebts,
+  wealthNetWorth,
+  onOpenCreateAccount,
+  viewMode = "cashflow",
+  onViewModeChange,
   onMonthChange,
   onOpenRecurring,
   onOpenImport,
   onOpenInsights,
   onOpenPullProjections,
   onOpenTransfers,
+  onOpenExport,
+  onOpenSettings,
+  onLogout,
 }: MonthHeaderProps) {
+  const { isPrivate, togglePrivacy } = usePrivacy();
+  const [analysesOpen, setAnalysesOpen] = useState(false);
+  const analysesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (analysesRef.current && !analysesRef.current.contains(event.target as Node)) {
+        setAnalysesOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAnalysesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const handlePrevMonth = () => {
     const [year, month] = currentMonth.split("-").map(Number);
     let newYear = year;
     let newMonth = month - 1;
-    if (newMonth < 1) { newMonth = 12; newYear -= 1; }
+    if (newMonth < 1) {
+      newMonth = 12;
+      newYear -= 1;
+    }
     onMonthChange(`${newYear}-${String(newMonth).padStart(2, "0")}`);
   };
 
@@ -59,7 +128,10 @@ export default function MonthHeader({
     const [year, month] = currentMonth.split("-").map(Number);
     let newYear = year;
     let newMonth = month + 1;
-    if (newMonth > 12) { newMonth = 1; newYear += 1; }
+    if (newMonth > 12) {
+      newMonth = 1;
+      newYear += 1;
+    }
     onMonthChange(`${newYear}-${String(newMonth).padStart(2, "0")}`);
   };
 
@@ -71,83 +143,310 @@ export default function MonthHeader({
   const projInfo = PROJECTION_INFO[projectionState];
 
   return (
-    <header className="bg-card text-card-foreground border-b border-border px-6 py-3 rounded-lg shadow-md flex items-center justify-between">
-      <div className="flex-1 flex flex-col gap-1 justify-center">
-        <div className="flex items-center gap-3">
-          <span className="font-bold tracking-tight text-lg">Money Control</span>
-          {projInfo && (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium ml-2">
+    <header className="bg-card text-card-foreground border border-border px-4 sm:px-6 py-3 rounded-xl shadow-xs flex flex-col gap-3">
+      {/* Nível 1: Barra Global (Marca, Alternador de Visão, Utilidades Globais) */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border/50 pb-2.5">
+        {/* Esquerda: Logo & Indicador de Projeção */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-1.5 rounded-lg bg-primary text-primary-foreground">
+              <Wallet className="w-4 h-4" />
+            </div>
+            <span className="font-bold tracking-tight text-lg whitespace-nowrap">Money Control</span>
+          </div>
+          {viewMode === "cashflow" && projInfo && (
+            <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground font-medium ml-1 whitespace-nowrap">
               <span className={`w-2 h-2 rounded-full ${projInfo.dotClass} shrink-0`} />
               {projInfo.label}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground mt-0.5">
-          <div className="flex items-center gap-1" title="Entradas Totais">
-            <ArrowDownRight className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(globalIncome)}</span>
+
+        {/* Centro: Segmented Control (Desktop First) */}
+        {onViewModeChange && (
+          <div className="flex justify-center">
+            <div className="inline-flex items-center p-1 bg-muted/80 rounded-xl border border-border shadow-inner">
+              <button
+                type="button"
+                onClick={() => onViewModeChange("cashflow")}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
+                  viewMode === "cashflow"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Fluxo de Caixa</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewModeChange("wealth")}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
+                  viewMode === "wealth"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Landmark className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Patrimônio & Dívidas</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1" title="Saídas Totais">
-            <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
-            <span className="text-rose-600 dark:text-rose-400">{formatCurrency(globalExpense)}</span>
-          </div>
-          <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${globalBalance >= 0 ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300" : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"}`} title="Balanço do Mês">
-            Balanço: {globalBalance >= 0 ? "+" : ""}{formatCurrency(globalBalance)}
-          </div>
+        )}
+
+        {/* Direita: Utilidades Globais (Privacidade, Configurações & Sair) */}
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={togglePrivacy}
+            className={cn(
+              "h-8 w-8 transition-all duration-200",
+              isPrivate
+                ? "text-amber-600 dark:text-amber-400 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title={
+              isPrivate
+                ? "Valores ocultos (clique para desbloquear com PIN)"
+                : "Ocultar valores (Modo Privacidade)"
+            }
+          >
+            {isPrivate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </Button>
+
+          {onOpenSettings && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenSettings}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Configurações (Contas, Categorias, Recorrentes, Privacidade)"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+          )}
+
+          {onLogout && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onLogout}
+              className="h-8 w-8 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+              title="Sair (Logout)"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handlePrevMonth}
-          className="text-white hover:bg-accent hover:text-accent-foreground text-muted-foreground"
-          title="Mês anterior"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
+      {/* Nível 2: Barra Contextual Conforme Modo Ativo */}
+      {viewMode === "cashflow" ? (
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-3">
+          {/* Resumo Financeiro do Mês */}
+          <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground min-w-0">
+            <div className="flex items-center gap-1 shrink-0" title="Entradas Totais">
+              <ArrowDownRight className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono tabular-nums privacy-sensitive">
+                {formatCurrency(globalIncome)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0" title="Saídas Totais">
+              <ArrowUpRight className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <span className="text-rose-600 dark:text-rose-400 font-mono tabular-nums privacy-sensitive">
+                {formatCurrency(globalExpense)}
+              </span>
+            </div>
+            <div
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tabular-nums privacy-sensitive shrink-0 ${
+                globalBalance >= 0
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
+                  : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"
+              }`}
+              title="Balanço do Mês"
+            >
+              Balanço: {globalBalance >= 0 ? "+" : ""}
+              {formatCurrency(globalBalance)}
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2 px-3 py-1 bg-muted text-muted-foreground rounded-md font-semibold text-lg w-[220px] justify-center shadow-inner">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span>{monthLabel}</span>
+          {/* Stepper de Mês */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePrevMonth}
+              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-8 shrink-0"
+              title="Mês anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+
+            <div className="flex items-center gap-2 px-3 py-1 bg-muted text-muted-foreground rounded-md font-semibold text-sm sm:text-base w-[180px] sm:w-[210px] justify-center shadow-inner shrink-0">
+              <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="truncate">{monthLabel}</span>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNextMonth}
+              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-8 shrink-0"
+              title="Próximo mês"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleToday}
+              className="ml-1 sm:ml-2 bg-primary text-primary-foreground hover:bg-primary/90 border-none h-8 text-xs shrink-0"
+            >
+              Mês Atual
+            </Button>
+          </div>
+
+          {/* Ações de Fluxo de Caixa */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenTransfers}
+              className="gap-1.5 h-8 text-xs shrink-0"
+              title="Assistente de transferências entre contas"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Transferências</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenPullProjections}
+              className="gap-1.5 h-8 text-xs"
+              title="Puxar projeções e despesas recorrentes para este mês"
+            >
+              <ListPlus className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Projeções</span>
+            </Button>
+
+            {/* Dropdown Análises */}
+            <div className="relative" ref={analysesRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAnalysesOpen((prev) => !prev)}
+                className="gap-1.5 h-8 text-xs"
+                title="Relatórios e inteligência financeira"
+              >
+                <PieChart className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Análises</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${
+                    analysesOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </Button>
+
+              {analysesOpen && (
+                <div className="absolute right-0 mt-1.5 w-56 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnalysesOpen(false);
+                      onOpenInsights();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                  >
+                    <PieChart className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <div className="flex flex-col">
+                      <span>Visão Geral de Gastos</span>
+                      <span className="text-[10px] text-muted-foreground">Distribuição por categoria</span>
+                    </div>
+                  </button>
+
+                  {onOpenExport && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAnalysesOpen(false);
+                        onOpenExport();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left border-t border-border/50 mt-1 pt-1.5"
+                    >
+                      <Sparkles className="w-4 h-4 text-violet-500 shrink-0" />
+                      <div className="flex flex-col">
+                        <span>Exportar Período (IA)</span>
+                        <span className="text-[10px] text-muted-foreground">Prompt estruturado para LLMs</span>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Botão Primário Importar */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onOpenImport}
+              className="gap-2 shadow-sm font-medium h-8 text-xs"
+              title="Importar faturas e extratos bancários"
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>Importar</span>
+            </Button>
+          </div>
         </div>
+      ) : (
+        /* Nível 2 em Modo Patrimônio */
+        <div className="flex items-center justify-between gap-3 h-8">
+          {/* Métricas de Posição Patrimonial Consolidada */}
+          <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground min-w-0">
+            <div className="flex items-center gap-1 shrink-0" title="Ativos Totais em Investimentos">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono tabular-nums privacy-sensitive">
+                {formatCurrency(wealthTotalInvested ?? 0)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0" title="Dívidas Totais em Financiamentos">
+              <Receipt className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <span className="text-rose-600 dark:text-rose-400 font-mono tabular-nums privacy-sensitive">
+                {formatCurrency(wealthTotalDebts ?? 0)}
+              </span>
+            </div>
+            <div
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tabular-nums privacy-sensitive shrink-0 ${
+                (wealthNetWorth ?? 0) >= 0
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
+                  : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"
+              }`}
+              title="Patrimônio Líquido Consolidado"
+            >
+              Patrimônio Líquido: {(wealthNetWorth ?? 0) >= 0 ? "+" : ""}
+              {formatCurrency(wealthNetWorth ?? 0)}
+            </div>
+          </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleNextMonth}
-          className="text-white hover:bg-accent hover:text-accent-foreground text-muted-foreground"
-          title="Próximo mês"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleToday}
-          className="ml-2 bg-primary text-primary-foreground hover:bg-primary/90 border-none"
-        >
-          Mês Atual
-        </Button>
-      </div>
-
-      <div className="flex-1 flex items-center justify-end gap-3">
-        <Button variant="outline" size="sm" onClick={onOpenTransfers} className="gap-2 text-blue-600 border-blue-600/30 hover:bg-blue-600/10">
-          <ArrowRightLeft className="w-4 h-4" /> Transferências
-        </Button>
-        <Button variant="outline" size="sm" onClick={onOpenPullProjections} className="gap-2 text-amber-600 border-amber-600/30 hover:bg-amber-600/10">
-          <ListPlus className="w-4 h-4" /> Projeções
-        </Button>
-        <Button variant="outline" size="sm" onClick={onOpenImport} className="gap-2 text-primary border-primary/30 hover:bg-primary/10">
-          <UploadCloud className="w-4 h-4" /> IA
-        </Button>
-        <Button variant="outline" size="sm" onClick={onOpenInsights} className="gap-2 text-indigo-600 border-indigo-600/30 hover:bg-indigo-600/10">
-          <PieChart className="w-4 h-4" /> Análise
-        </Button>
-        <span className="text-xs text-muted-foreground font-medium hidden md:inline-block">Modo Offline Local</span>
-      </div>
+          {/* Ação Primária de Patrimônio */}
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onOpenTransfers}
+              className="gap-1.5 shadow-sm font-medium h-8 text-xs shrink-0"
+              title="Registrar aporte ou pagamento de parcela entre contas"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              <span>Aporte / Parcela</span>
+            </Button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

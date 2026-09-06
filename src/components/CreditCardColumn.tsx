@@ -9,10 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
-import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, ArrowRightLeft, Repeat } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, Repeat } from "lucide-react";
 import { createTransaction, deleteTransaction, updateTransaction, transformToRecurring } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 import { TransactionContextMenu } from "./TransactionContextMenu";
+import { CategoryPicker } from "./CategoryPicker";
+import { getFormattedPurchaseDate } from "@/lib/date-helpers";
+import { sortCreditCardTransactions } from "@/lib/sorting";
 
 interface CreditCardColumnProps {
   data: AccountData;
@@ -64,16 +67,47 @@ export default function CreditCardColumn({
     tx: TransactionWithCategory,
     field: "description" | "installment" | "category" | "amount"
   ) => {
-    if (tx.isProjected) return;
+    // Parcela projetada derivada de compra original é estritamente somente leitura no mês futuro
+    if (tx.isProjected && tx.projectionSourceType === "installment") return;
+    if (tx.isProjected && field === "installment") return;
+
     setEditingCell({ txId: tx.id, field });
-    let val = "";
-    if (field === "description") val = tx.description;
-    if (field === "installment") {
-      val = tx.installmentCurrent && tx.installmentTotal ? `${tx.installmentCurrent}/${tx.installmentTotal}` : "";
+    if (field === "description") setTempValue(tx.description);
+    else if (field === "category") setTempValue(tx.categoryId ? tx.categoryId.toString() : "");
+    else if (field === "amount") {
+      setTempValue(Math.abs(tx.amount).toString().replace(".", ","));
+    } else if (field === "installment") {
+      setTempValue(
+        tx.installmentCurrent && tx.installmentTotal
+          ? `${tx.installmentCurrent}/${tx.installmentTotal}`
+          : ""
+      );
     }
-    if (field === "category") val = tx.categoryId ? tx.categoryId.toString() : "";
-    if (field === "amount") val = tx.amount.toString();
-    setTempValue(val);
+  };
+
+  const handleSelectCategory = async (tx: TransactionWithCategory, newCategoryId: number | null) => {
+    if (tx.isProjected) {
+      if (tx.projectionSourceType === "installment") return;
+      await confirmProjectedRow({
+        accountId: tx.accountId,
+        month: tx.month,
+        day: tx.day || 1,
+        description: tx.description,
+        categoryId: newCategoryId,
+        amount: tx.amount,
+        installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
+        installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
+        purchaseDate: tx.purchaseDate,
+        sourceType: tx.projectionSourceType as any,
+        sourceId: tx.projectionSourceId,
+      });
+      onRefresh();
+    } else {
+      if (newCategoryId !== tx.categoryId) {
+        await updateTransaction(tx.id, { categoryId: newCategoryId });
+        onRefresh();
+      }
+    }
   };
 
   const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
@@ -177,6 +211,9 @@ export default function CreditCardColumn({
       description: tx.description,
       categoryId: tx.categoryId,
       amount: tx.amount,
+      installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
+      installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
+      purchaseDate: tx.purchaseDate,
       sourceType: tx.projectionSourceType as any,
       sourceId: tx.projectionSourceId,
     });
@@ -218,6 +255,9 @@ export default function CreditCardColumn({
       description: newDesc,
       categoryId: newCat,
       amount: newAmount,
+      installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
+      installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
+      purchaseDate: tx.purchaseDate,
       sourceType: tx.projectionSourceType as any,
       sourceId: tx.projectionSourceId,
     });
@@ -228,13 +268,23 @@ export default function CreditCardColumn({
   // Filtering logic
   const filteredTransactions = data.transactions.filter(tx => {
     if (filterText && !tx.description.toLowerCase().includes(filterText.toLowerCase())) return false;
-    if (filterCategoryId !== "" && tx.categoryId !== filterCategoryId) return false;
+    if (filterCategoryId !== "") {
+      if (filterCategoryId === -1) {
+        if (tx.categoryId) return false;
+      } else {
+        const directMatch = tx.categoryId === filterCategoryId;
+        const parentMatch = tx.parentCategoryId === filterCategoryId;
+        if (!directMatch && !parentMatch) return false;
+      }
+    }
     if (filterHighValue !== "") {
       const absAmount = Math.abs(tx.amount);
       if (absAmount <= Number(filterHighValue)) return false;
     }
     return true;
   });
+
+  const sortedTransactions = sortCreditCardTransactions(filteredTransactions);
 
   return (
     <Card className="flex flex-col shadow-sm flex-1">
@@ -255,8 +305,8 @@ export default function CreditCardColumn({
           
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">Fatura</div>
-              <div className="font-bold text-lg text-rose-600">
+              <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">Total da Fatura</div>
+              <div className="font-bold text-lg font-mono tabular-nums privacy-sensitive text-rose-600 dark:text-rose-400">
                 {formatCurrency(data.totalExpense)}
               </div>
             </div>
@@ -280,26 +330,22 @@ export default function CreditCardColumn({
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-slate-100">
-                {filteredTransactions.length === 0 && (
+                {sortedTransactions.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-slate-500 py-8">
                       Nenhuma transação lançada.
                     </TableCell>
                   </TableRow>
                 )}
-                {filteredTransactions.map((tx) => {
+                {sortedTransactions.map((tx) => {
                     const isProjected = tx.isProjected === true;
                     const isInstallmentShadow = isProjected && tx.projectionSourceType === "installment";
-                    const visuallyProjected = isProjected && !isInstallmentShadow;
-                    const onCellClick = (field: "description" | "installment" | "category" | "amount") => {
-                      if (isInstallmentShadow) return;
-                      if (!isProjected) handleStartCellEdit(tx, field);
-                    };
-                    const saveCell = isProjected ? handleSaveCellProjected : handleSaveCell;
+                    const isRecurringProjected = isProjected && tx.projectionSourceType === "recurring";
+                    const isRecurring = isRecurringProjected || tx.sourceType === "recurring" || tx.projectionSourceType === "recurring";
                     const isEditingDesc = editingCell?.txId === tx.id && editingCell.field === "description";
-                    const isEditingInst = editingCell?.txId === tx.id && editingCell.field === "installment";
-                    const isEditingCat = editingCell?.txId === tx.id && editingCell.field === "category";
+                    const isEditingInstallment = editingCell?.txId === tx.id && editingCell.field === "installment";
                     const isEditingAmount = editingCell?.txId === tx.id && editingCell.field === "amount";
+                    const saveCell = isProjected ? handleSaveCellProjected : handleSaveCell;
 
                     const current = tx.installmentCurrent ?? tx.projectedInstallmentCurrent;
                     const total = tx.installmentTotal ?? tx.projectedInstallmentTotal;
@@ -307,25 +353,33 @@ export default function CreditCardColumn({
                       ? total ? `${current}/${total}` : `${current}`
                       : null;
 
+                    const displayDate = !isRecurring
+                      ? getFormattedPurchaseDate(tx.purchaseDate, tx.month || month, tx.day, tx.month)
+                      : null;
+
                     return (
                       <TableRow
                       key={tx.id}
                       className={`h-12 transition-colors border-b group ${
-                          visuallyProjected ? "bg-slate-50/70 border-dashed border-slate-200 opacity-80 hover:opacity-100"
-                            : "hover:bg-slate-50 border-slate-100"
-                        }`}
+                        isInstallmentShadow
+                          ? "bg-slate-50/50 hover:bg-slate-100/60 border-slate-100"
+                          : isRecurringProjected
+                          ? "bg-amber-50/20 hover:bg-amber-50/40 border-dashed border-slate-200"
+                          : "hover:bg-slate-50 border-slate-100"
+                      }`}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({ tx, x: e.clientX, y: e.clientY });
                       }}
                       >
+                        {/* Descrição Cell */}
                         <TableCell
-                          className={!isEditingDesc && !tx.isProjected ? "cursor-pointer" : ""}
-                          onClick={() => !isEditingDesc && !tx.isProjected && handleStartCellEdit(tx, "description")}
+                          className={!isEditingDesc && !isInstallmentShadow ? "cursor-pointer" : ""}
+                          onClick={() => !isEditingDesc && !isInstallmentShadow && handleStartCellEdit(tx, "description")}
                         >
-                          {isEditingDesc && !isProjected ? (
-                          <Input
-                            type="text"
+                          {isEditingDesc ? (
+                            <Input
+                              type="text"
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
                               onBlur={() => saveCell(tx)}
@@ -338,33 +392,63 @@ export default function CreditCardColumn({
                             />
                           ) : (
                             <span
-                              onClick={() => onCellClick("description")}
                               className={`inline-flex items-center gap-1.5 h-9 px-3 border border-transparent rounded truncate ${
-                                visuallyProjected ? "text-slate-500 italic"
-                                  : isInstallmentShadow ? "text-slate-500" : "cursor-pointer text-slate-800"
+                                isInstallmentShadow
+                                  ? "cursor-default text-slate-600"
+                                  : isRecurringProjected
+                                  ? "cursor-pointer text-amber-700 font-medium"
+                                  : "cursor-pointer text-slate-800"
                               }`}
-                              title={isInstallmentShadow ? "Lançamento automático (edite a original para alterar)" : visuallyProjected ? "Projeção — confirme ou dispense" : "Clique para editar"}
+                              title={
+                                isInstallmentShadow
+                                  ? (installmentLabel ? `Parcela ${installmentLabel} vinculada à compra original` : "Parcela vinculada à compra original")
+                                  : isRecurringProjected
+                                  ? "Projeção recorrente — clique para confirmar com edição"
+                                  : "Clique para editar"
+                              }
                             >
-                              {tx.linkedTransactionId && (
-                                <span title="Transferência vinculada" className="flex items-center shrink-0"><ArrowRightLeft className="w-3.5 h-3.5 text-blue-400" /></span>
-                              )}
                               <span className="truncate">{tx.description}</span>
-                              {tx.purchaseDate && (
-                                <span className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-[10px] text-slate-400 rounded" title={`Data da compra: ${tx.purchaseDate}`}>
-                                  {tx.purchaseDate}
+                              {isRecurringProjected && (
+                                <span title="Gasto recorrente projetado">
+                                  <Repeat className="w-3 h-3 text-amber-500 shrink-0" />
+                                </span>
+                              )}
+                              {tx.linkedTransactionId && (
+                                <span
+                                  title={
+                                    tx.linkedAccountName
+                                      ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
+                                      : "Transferência vinculada"
+                                  }
+                                  className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-[10px]"
+                                >
+                                  <span className="tracking-tight">
+                                    {tx.linkedAccountName
+                                      ? (tx.amount < 0 ? `→ ${tx.linkedAccountName}` : `← ${tx.linkedAccountName}`)
+                                      : (tx.amount < 0 ? "→" : "←")}
+                                  </span>
+                                </span>
+                              )}
+                              {displayDate && (
+                                <span
+                                  className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-[10px] text-slate-400 rounded"
+                                  title={tx.purchaseDate ? `Data da compra: ${tx.purchaseDate}` : `Data: ${displayDate}`}
+                                >
+                                  {displayDate}
                                 </span>
                               )}
                             </span>
                           )}
                         </TableCell>
 
-                        <TableCell 
-                          className={`text-center px-2 ${!isEditingInst && !tx.isProjected ? "cursor-pointer" : ""}`}
-                          onClick={() => !isEditingInst && !tx.isProjected && handleStartCellEdit(tx, "installment")}
+                        {/* Parcela Cell */}
+                        <TableCell
+                          className={`text-center px-2 ${!isEditingInstallment && !isProjected ? "cursor-pointer" : ""}`}
+                          onClick={() => !isEditingInstallment && !isProjected && handleStartCellEdit(tx, "installment")}
                         >
-                          {isEditingInst && !isProjected ? (
-                          <Input
-                            type="text"
+                          {isEditingInstallment ? (
+                            <Input
+                              type="text"
                               placeholder="1/10"
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
@@ -373,19 +457,27 @@ export default function CreditCardColumn({
                                 if (e.key === "Enter") saveCell(tx);
                                 if (e.key === "Escape") setEditingCell(null);
                               }}
-                              className="w-full h-8 px-1 text-center text-sm"
+                              className="w-full text-center text-sm font-mono"
                               autoFocus
                             />
                           ) : (
                             <span
-                              onClick={() => onCellClick("installment")}
-                              className={`inline-block w-full text-center rounded text-[11px] font-medium ${
+                              className={`inline-block w-full text-center rounded text-[11px] font-mono tabular-nums font-medium ${
                                 installmentLabel
-                                  ? visuallyProjected ? "bg-blue-50/60 text-blue-500 italic"
-                                    : "bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
-                                  : "text-slate-300 hover:text-slate-400 cursor-pointer"
+                                  ? isProjected
+                                    ? "bg-blue-50/60 text-blue-500/90 cursor-default"
+                                    : "bg-blue-50 text-blue-600 cursor-pointer"
+                                  : isProjected
+                                  ? "text-slate-300 cursor-default"
+                                  : "text-slate-300 cursor-pointer"
                               }`}
-                              title={visuallyProjected ? "Parcela projetada" : "Clique para alterar a parcela"}
+                              title={
+                                isInstallmentShadow
+                                  ? `Parcela ${installmentLabel} (vinculada à compra original)`
+                                  : installmentLabel
+                                  ? `Parcela ${installmentLabel} — clique para editar`
+                                  : "Sem parcelas — clique para definir"
+                              }
                             >
                               {installmentLabel || "—"}
                             </span>
@@ -393,58 +485,27 @@ export default function CreditCardColumn({
                         </TableCell>
 
                         {/* Categoria Cell */}
-                        <TableCell 
-                          className={!isEditingCat && !tx.isProjected ? "cursor-pointer" : ""}
-                          onClick={() => !isEditingCat && !tx.isProjected && handleStartCellEdit(tx, "category")}
-                        >
-                          {isEditingCat && !isProjected ? (
-                          <Select
-                            defaultOpen
-                            value={tempValue || "none"}
-                            onValueChange={(val) => {
-                              setTempValue(val === "none" ? "" : val);
-                              saveCell(tx, val);
-                            }}
-                            onOpenChange={(open) => {
-                              if (!open) setEditingCell(null);
-                            }}
-                          >
-                            <SelectTrigger className="w-full h-8 px-2 text-xs">
-                              <SelectValue placeholder="Sem categoria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Sem categoria</SelectItem>
-                              {categories.map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id.toString()}>
-                                  {cat.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          ) : (
-                            <span
-                              onClick={() => onCellClick("category")}
-                              className="inline-block .5  rounded text-[10px] uppercase font-semibold hover:ring-1 hover:ring-slate-300"
-                              style={{
-                                backgroundColor: tx.categoryName ? `${tx.categoryColor || "#64748b"}18` : "#f1f5f9",
-                                color: tx.categoryName ? tx.categoryColor || "#475569" : "#94a3b8",
-                                opacity: visuallyProjected ? 0.7 : 1,
-                                cursor: isProjected ? "default" : "pointer",
-                              }}
-                            >
-                              {tx.categoryName || "Sem categoria"}
-                            </span>
-                          )}
+                        <TableCell className="text-center px-1">
+                          <CategoryPicker
+                            categories={categories}
+                            value={tx.categoryId}
+                            categoryName={tx.categoryName}
+                            categoryColor={tx.categoryColor}
+                            parentCategoryId={tx.parentCategoryId}
+                            parentCategoryName={tx.parentCategoryName}
+                            onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
+                            disabled={isInstallmentShadow}
+                          />
                         </TableCell>
 
                         {/* Valor Cell */}
-                        <TableCell 
-                          className={`text-right font-semibold ${!isEditingAmount && !tx.isProjected ? "cursor-pointer" : ""}`}
-                          onClick={() => !isEditingAmount && !tx.isProjected && handleStartCellEdit(tx, "amount")}
+                        <TableCell
+                          className={`text-right font-semibold font-mono tabular-nums ${!isEditingAmount && !isInstallmentShadow ? "cursor-pointer" : ""}`}
+                          onClick={() => !isEditingAmount && !isInstallmentShadow && handleStartCellEdit(tx, "amount")}
                         >
-                          {isEditingAmount && !isProjected ? (
-                          <Input
-                            type="text"
+                          {isEditingAmount ? (
+                            <Input
+                              type="text"
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
                               onBlur={() => saveCell(tx)}
@@ -452,14 +513,25 @@ export default function CreditCardColumn({
                                 if (e.key === "Enter") saveCell(tx);
                                 if (e.key === "Escape") setEditingCell(null);
                               }}
-                              className="w-full text-right text-sm"
+                              className="w-full text-right text-sm font-mono tabular-nums"
                               autoFocus
                             />
                           ) : (
                             <span
-                              onClick={() => onCellClick("amount")}
-                              className={`relative text-xs w-full flex items-center justify-between border ${isInstallmentShadow ? 'border-transparent text-slate-500 cursor-default' : visuallyProjected ? 'border-amber-500/50 text-amber-600 dark:text-amber-400 font-medium hover:bg-amber-50 dark:hover:bg-amber-950/30 cursor-pointer' : 'border-transparent text-foreground hover:bg-muted/50 cursor-pointer'} p-1.5 rounded group`}
-                              title={isInstallmentShadow ? "Lançamento automático (edite a original para alterar)" : visuallyProjected ? "Projeção — confirme ou dispense" : "Clique para editar"}
+                              className={`relative text-xs w-full flex items-center justify-end font-mono tabular-nums border p-1.5 rounded ${
+                                isInstallmentShadow
+                                  ? "border-transparent text-slate-600 cursor-default"
+                                  : isRecurringProjected
+                                  ? "border-amber-500/50 text-amber-600 font-medium hover:bg-amber-50 cursor-pointer"
+                                  : "border-transparent text-foreground cursor-pointer hover:bg-slate-100/60"
+                              }`}
+                              title={
+                                isInstallmentShadow
+                                  ? `Valor da parcela ${installmentLabel || ""} (vinculada à compra original)`
+                                  : isRecurringProjected
+                                  ? "Projeção recorrente — clique para confirmar com edição"
+                                  : "Clique para editar o valor"
+                              }
                             >
                               {formatCurrency(tx.amount)}
                             </span>
@@ -489,23 +561,16 @@ export default function CreditCardColumn({
                         title="Parcela (ex: 1/10)"
                         value={newInstallment}
                         onChange={(e) => setNewInstallment(e.target.value)}
-                        className="w-full text-center text-sm"
+                        className="w-full text-center text-sm font-mono"
                         onKeyDown={(e) => e.key === "Enter" && handleAddTransaction()}
                       />
                     </TableCell>
-                    <TableCell>
-                      <Select value={newCategoryId === "" ? "" : newCategoryId.toString()} onValueChange={(val) => setNewCategoryId(val ? Number(val) : "")}>
-                        <SelectTrigger className="w-full h-8">
-                          <SelectValue placeholder="Categoria..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id.toString()}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <TableCell className="text-center px-1">
+                      <CategoryPicker
+                        categories={categories}
+                        value={newCategoryId === "" ? null : Number(newCategoryId)}
+                        onSelect={(catId) => setNewCategoryId(catId !== null ? catId : "")}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2 -my-1">
@@ -514,7 +579,7 @@ export default function CreditCardColumn({
                           placeholder="0,00"
                           value={newAmount}
                           onChange={(e) => setNewAmount(e.target.value)}
-                          className="w-full text-right text-sm"
+                          className="w-full text-right text-sm font-mono tabular-nums"
                           required
                           onKeyDown={(e) => e.key === "Enter" && handleAddTransaction()}
                         />

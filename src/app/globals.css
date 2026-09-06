@@ -55,7 +55,22 @@ body {
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground overflow-y-scroll;
+    body {
+      @apply bg-background text-foreground overflow-y-scroll;
+    }
   }
-}
+
+  /* Modo Privacidade: Ocultar TODOS os valores com blur */
+  .privacy-active .tabular-nums,
+  .privacy-active .privacy-sensitive,
+  .privacy-active [data-privacy="true"] {
+    filter: blur(8px) !important;
+    user-select: none !important;
+  }
+
+  /* Exceções: Nunca borrar o modal de PIN ou elementos explicitamente livres de blur */
+  .privacy-active .no-privacy-blur,
+  .privacy-active .no-privacy-blur * {
+    filter: none !important;
+    user-select: auto !important;
+  }

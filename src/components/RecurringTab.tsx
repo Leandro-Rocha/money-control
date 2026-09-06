@@ -5,6 +5,7 @@ import { RecurringEntryUI, Account, Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Pencil, Check, X } from "lucide-react";
+import { CategoryPicker } from "./CategoryPicker";
 import { createRecurringEntry, deleteRecurringEntry, updateRecurringEntry } from "@/lib/actions/recurring";
 import { formatCurrency } from "@/lib/format";
 
@@ -104,10 +105,14 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
               <option value="">Selecione a Conta...</option>
               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <select value={newCategoryId} onChange={e => setNewCategoryId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">Categoria...</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <CategoryPicker
+              categories={categories}
+              value={newCategoryId ? Number(newCategoryId) : null}
+              onSelect={(id) => setNewCategoryId(id ? String(id) : "")}
+              mode="select"
+              placeholder="Categoria..."
+              className="w-full h-9"
+            />
           </div>
           <Button onClick={handleAdd} className="w-full">Salvar Lançamento</Button>
         </div>
@@ -133,10 +138,14 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
                   <select value={editAccountId} onChange={e => setEditAccountId(e.target.value)} className="w-full h-8 rounded-md border border-input bg-background px-3 text-sm">
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
-                  <select value={editCategoryId} onChange={e => setEditCategoryId(e.target.value)} className="w-full h-8 rounded-md border border-input bg-background px-3 text-sm">
-                    <option value="">Categoria...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <CategoryPicker
+                    categories={categories}
+                    value={editCategoryId ? Number(editCategoryId) : null}
+                    onSelect={(id) => setEditCategoryId(id ? String(id) : "")}
+                    mode="select"
+                    placeholder="Categoria..."
+                    className="w-full h-8"
+                  />
                 </div>
                 <div className="flex justify-end gap-2 pt-1 border-t mt-2">
                   <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}><X className="w-4 h-4" /></Button>

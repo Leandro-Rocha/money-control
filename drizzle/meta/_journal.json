@@ -15,6 +15,20 @@
       "when": 1788365403876,
       "tag": "0001_nifty_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788530930577,
+      "tag": "0002_good_wong",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788586422673,
+      "tag": "0003_lyrical_genesis",
+      "breakpoints": true
     }
   ]
 }

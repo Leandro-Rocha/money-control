@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest"
+    "test": "vitest",
+    "docker:build": "docker compose up -d --build",
+    "docker:restart": "docker compose restart",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

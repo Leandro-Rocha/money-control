@@ -31,8 +31,8 @@ describe('projections repository', () => {
         { id: 1, name: 'Food', color: 'red' }
       ]);
       await testDb.insert(transactions).values([
-        { id: 1, accountId: 1, month: '2024-03', day: 10, description: 'Pizza', categoryId: 1, amount: 10.0, installmentCurrent: 1, installmentTotal: 3 },
-        { id: 2, accountId: 1, month: '2024-04', day: 10, description: 'Pizza', categoryId: 1, amount: 10.0, installmentCurrent: 2, installmentTotal: 3 },
+        { id: 1, accountId: 1, month: '2024-03', day: 10, description: 'Pizza', categoryId: 1, amount: 10.0, installmentCurrent: 1, installmentTotal: 3, purchaseDate: '10/03/2024' },
+        { id: 2, accountId: 1, month: '2024-04', day: 10, description: 'Pizza', categoryId: 1, amount: 10.0, installmentCurrent: 2, installmentTotal: 3, purchaseDate: '10/03/2024' },
         { id: 3, accountId: 1, month: '2023-12', day: 10, description: 'TV', amount: 100.0, installmentCurrent: 4, installmentTotal: 12 },
         { id: 4, accountId: 1, month: '2024-04', day: 10, description: 'Phone', amount: 50.0, installmentCurrent: 1, installmentTotal: 2 }
       ]);
@@ -46,7 +46,8 @@ describe('projections repository', () => {
       expect(rows.find((r: any) => r.description === 'Pizza')).toMatchObject({
         month: '2024-05',
         projectedInstallmentCurrent: 3,
-        projectedInstallmentTotal: 3
+        projectedInstallmentTotal: 3,
+        purchaseDate: '10/03/2024'
       });
       expect(rows.find((r: any) => r.description === 'TV')).toMatchObject({
         month: '2024-05',

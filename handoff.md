@@ -24,7 +24,7 @@ Foi feita uma grande reestruturação para suportar faturas com exatidão:
 - O usuário decidiu **descartar** o ambiente local.
 - **O pipeline de CI/CD foi cancelado.**
 - A partir de agora, o desenvolvimento e uso serão **direto no servidor (`192.168.0.220`)** em uma única fonte da verdade (`data/money_control.db`).
-- Alterações serão refletidas apenas através do rebuild e `pm2 restart`.
+- Alterações serão refletidas através do rebuild do container: `docker compose up -d --build`. O serviço sobe automaticamente no boot do servidor (`restart: unless-stopped`).
 
 ## ⏭️ Próximos Passos
 O usuário migrará para o servidor, instanciará um novo `agy` e fornecerá este documento para continuação. O ecossistema está limpo, testado e em perfeitas condições para escalar.

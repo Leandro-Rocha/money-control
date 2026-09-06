@@ -4,6 +4,7 @@ export interface Category {
   type: "income" | "expense" | "both";
   color?: string | null;
   showInSummary: number;
+  parentId?: number | null;
 }
 
 export interface Transaction {
@@ -27,7 +28,10 @@ export interface Transaction {
 export interface TransactionWithCategory extends Transaction {
   categoryName?: string;
   categoryColor?: string | null;
+  parentCategoryId?: number | null;
+  parentCategoryName?: string | null;
   runningBalance?: number; // Calculated row by row
+  linkedAccountName?: string; // Counterpart account name for linked transfers
   // Projection fields
   isProjected?: boolean;
   projectionSourceType?: "installment" | "recurring" | "credit_card_bill" | null;
@@ -39,12 +43,17 @@ export interface TransactionWithCategory extends Transaction {
 export interface Account {
   id: number;
   name: string;
-  type: "bank_account" | "credit_card" | "investment" | "other";
+  type: "bank_account" | "credit_card" | "investment" | "financing" | "other";
   color: string;
   displayOrder: number;
   isActive: number;
   defaultPaymentAccountId?: number | null;
   dueDay?: number | null;
+  financingTotalAmount?: number | null;
+  financingRemainingAmount?: number | null;
+  financingInstallmentsTotal?: number | null;
+  financingInstallmentsPaid?: number | null;
+  financingInstallmentAmount?: number | null;
 }
 
 export interface AccountData {
@@ -66,13 +75,26 @@ export interface CategorySummarySubItem {
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
   isProjected?: boolean;
+  subcategoryId?: number | null;
+  subcategoryName?: string | null;
+}
+
+export interface CategorySummarySubcategory {
+  id: number;
+  name: string;
+  totalAmount: number;
+  color?: string | null;
+  percentage: number;
+  items: CategorySummarySubItem[];
 }
 
 export interface CategorySummaryGroup {
+  categoryId?: number;
   categoryName: string;
   categoryColor?: string | null;
   totalAmount: number;
   items: CategorySummarySubItem[];
+  subcategories?: CategorySummarySubcategory[];
 }
 
 export type ProjectionState = "none" | "projected" | "partial" | "confirmed";
@@ -98,4 +120,56 @@ export interface RecurringEntryUI {
   day: number;
   amount: number;
   active: number;
+}
+
+export interface ExportTransactionItem {
+  date: string; // "DD/MM/YYYY"
+  month: string; // "YYYY-MM"
+  day: number;
+  accountName: string;
+  accountType: string;
+  description: string;
+  categoryName: string;
+  parentCategoryName?: string | null;
+  amount: number;
+  installmentInfo?: string | null;
+  notes?: string | null;
+  isProjected?: boolean;
+}
+
+export interface ExportSubcategorySummary {
+  name: string;
+  totalAmount: number;
+  percentage: number;
+}
+
+export interface ExportCategorySummary {
+  categoryName: string;
+  totalIncome: number;
+  totalExpense: number;
+  netAmount: number;
+  expensePercentage: number;
+  incomePercentage: number;
+  subcategories: ExportSubcategorySummary[];
+}
+
+export interface ExportAccountSummary {
+  accountId: number;
+  accountName: string;
+  accountType: string;
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+}
+
+export interface ExportPeriodData {
+  startMonth: string;
+  endMonth: string;
+  months: string[];
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+  accounts: ExportAccountSummary[];
+  categories: ExportCategorySummary[];
+  transactions: ExportTransactionItem[];
 }

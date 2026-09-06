@@ -156,7 +156,7 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
                     <ArrowRightLeft className="w-4 h-4 mx-1" />
                     <div className="h-px w-8 bg-blue-200"></div>
                   </div>
-                  <span className="font-bold text-slate-700 mt-1">{formatCurrency(Math.abs(pair.tx1.amount))}</span>
+                  <span className="font-bold font-mono tabular-nums privacy-sensitive text-slate-700 mt-1">{formatCurrency(Math.abs(pair.tx1.amount))}</span>
                   {pair.dayDiff === 0 ? (
                     <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full mt-1">
                       Mesmo dia

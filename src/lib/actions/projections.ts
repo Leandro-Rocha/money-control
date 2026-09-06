@@ -214,6 +214,7 @@ export async function confirmMultipleProjectedRows(rows: any[]) {
     amount: r.amount,
     installmentCurrent: r.projectedInstallmentCurrent ?? r.installmentCurrent ?? null,
     installmentTotal: r.projectedInstallmentTotal ?? r.installmentTotal ?? null,
+    purchaseDate: r.purchaseDate ?? null,
     notes: null,
     sourceType: r.projectionSourceType ?? null,
     sourceId: r.projectionSourceId ?? null,
@@ -247,6 +248,7 @@ export async function confirmProjectedRow(data: {
   amount: number;
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
+  purchaseDate?: string | null;
   sourceType?: "installment" | "recurring" | "credit_card_bill" | null;
   sourceId?: number | null;
 }) {
@@ -259,6 +261,7 @@ export async function confirmProjectedRow(data: {
     amount: data.amount,
     installmentCurrent: data.installmentCurrent ?? null,
     installmentTotal: data.installmentTotal ?? null,
+    purchaseDate: data.purchaseDate ?? null,
     notes: null,
     sourceType: data.sourceType ?? null,
     sourceId: data.sourceId ?? null,

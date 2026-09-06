@@ -22,6 +22,24 @@ export const db = drizzle(sqlite, { schema });
 
 export function initDatabase() {
   migrate(db, { migrationsFolder: "drizzle" });
+
+  if (!isTest) {
+    try {
+      sqlite.transaction(() => {
+        const outros = sqlite
+          .prepare("SELECT id FROM categories WHERE name = 'Outros' AND parent_id IS NULL")
+          .all() as { id: number }[];
+        for (const cat of outros) {
+          sqlite.prepare("UPDATE transactions SET category_id = NULL WHERE category_id = ?").run(cat.id);
+          sqlite.prepare("UPDATE transaction_rules SET category_id = NULL WHERE category_id = ?").run(cat.id);
+          sqlite.prepare("UPDATE recurring_entries SET category_id = NULL WHERE category_id = ?").run(cat.id);
+          sqlite.prepare("DELETE FROM categories WHERE id = ?").run(cat.id);
+        }
+      })();
+    } catch (e) {
+      console.error("Erro ao migrar categoria Outros legada:", e);
+    }
+  }
 }
 
 initDatabase();

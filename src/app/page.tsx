@@ -1,5 +1,6 @@
 import { getMonthData } from "@/lib/actions/transactions";
 import Dashboard from "@/components/Dashboard";
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,12 @@ export default async function HomePage({ searchParams }: any) {
     initialMonth = `${yyyy}-${mm}`;
   }
 
-  const initialData = await getMonthData(initialMonth);
+  const [initialData, cookieStore] = await Promise.all([
+    getMonthData(initialMonth),
+    cookies(),
+  ]);
 
-  return <Dashboard initialData={initialData} />;
+  const initialPrivate = cookieStore.get("money_control_privacy_active")?.value === "true";
+
+  return <Dashboard initialData={initialData} initialPrivate={initialPrivate} />;
 }
