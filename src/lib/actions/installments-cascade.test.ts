@@ -100,6 +100,62 @@ describe('installment cascading and projection confirmation', () => {
     expect(remaining).toHaveLength(0);
   });
 
+  it('does not delete historical purchases from past years with the same description and installment total', async () => {
+    // Past year purchase (2024)
+    const [pastP1] = await testDb.insert(transactions).values({
+      accountId: 1,
+      month: '2024-05',
+      day: 10,
+      description: 'Curso Online',
+      categoryId: 1,
+      amount: -200,
+      installmentCurrent: 1,
+      installmentTotal: 3,
+    }).returning();
+
+    await testDb.insert(transactions).values({
+      accountId: 1,
+      month: '2024-06',
+      day: 10,
+      description: 'Curso Online',
+      categoryId: 1,
+      amount: -200,
+      installmentCurrent: 2,
+      installmentTotal: 3,
+    });
+
+    // Current year purchase (2026)
+    const [currentP1] = await testDb.insert(transactions).values({
+      accountId: 1,
+      month: '2026-08',
+      day: 10,
+      description: 'Curso Online',
+      categoryId: 1,
+      amount: -200,
+      installmentCurrent: 1,
+      installmentTotal: 3,
+    }).returning();
+
+    await testDb.insert(transactions).values({
+      accountId: 1,
+      month: '2026-09',
+      day: 10,
+      description: 'Curso Online',
+      categoryId: 1,
+      amount: -200,
+      installmentCurrent: 2,
+      installmentTotal: 3,
+    });
+
+    // Delete current purchase (2026)
+    await deleteTransaction(currentP1.id);
+
+    // Current year transactions should be deleted, but past 2024 transactions must remain intact
+    const remaining = await testDb.select().from(transactions).where(eq(transactions.accountId, 1));
+    expect(remaining).toHaveLength(2);
+    expect(remaining.map((r: any) => r.month)).toEqual(['2024-05', '2024-06']);
+  });
+
   it('confirming a recurring projection turns it into a real transaction and creates dismissed record', async () => {
     await confirmProjectedRow({
       accountId: 1,

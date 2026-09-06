@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePrivacy } from "@/context/PrivacyContext";
-import { Shield, Clock, EyeOff, Check, KeyRound, Info } from "lucide-react";
+import { Shield, Clock, EyeOff, Check, KeyRound, Info, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const TIMEOUT_OPTIONS = [
@@ -102,6 +102,32 @@ export function PrivacyTab() {
         >
           <EyeOff className="w-4 h-4" />
           {isPrivate ? "Valores Já Ocultos" : "Ocultar Agora"}
+        </Button>
+      </div>
+
+      {/* Backup do Banco de Dados */}
+      <div className="bg-card border rounded-xl p-5 shadow-xs flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <Download className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-semibold text-foreground">Backup do Banco de Dados</h4>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Baixe uma cópia completa do seu arquivo SQLite (<code className="font-mono text-foreground">.db</code>) em 1 clique.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className="shrink-0 gap-1.5 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-colors"
+        >
+          <a href="/api/backup" download>
+            <Download className="w-4 h-4" />
+            Baixar Backup (.db)
+          </a>
         </Button>
       </div>
     </div>

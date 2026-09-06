@@ -157,6 +157,41 @@ export function matchExtractedCategory(
   return null;
 }
 
+/**
+ * Normalizes a transaction description:
+ * lowercases, trims whitespace, removes basic punctuation, and collapses multiple spaces.
+ */
+export function normalizeDescription(str: string): string {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()?[\]]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Checks if a transaction already exists in the database list based on:
+ * same month, day, amount (within 0.009), and matching normalized description
+ * (against either description or originalDescription).
+ */
+export function isDbDuplicate(
+  row: { resolvedMonth: string; day: number; amount: number; description: string; originalDescription?: string },
+  dbTransactions: { month: string; day: number; amount: number; description?: string }[]
+): boolean {
+  const normDesc = normalizeDescription(row.description);
+  const normOrigDesc = row.originalDescription ? normalizeDescription(row.originalDescription) : "";
+
+  return dbTransactions.some((t) => {
+    if (t.month !== row.resolvedMonth || t.day !== row.day || Math.abs(t.amount - row.amount) >= 0.009) {
+      return false;
+    }
+    const normDbDesc = normalizeDescription(t.description || "");
+    return normDbDesc === normDesc || (normOrigDesc !== "" && normDbDesc === normOrigDesc);
+  });
+}
+
 export function ImportStagingModal({
   month,
   accounts,
@@ -401,26 +436,26 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
 
     // Query DB for existing transactions across all relevant months for this account
     const distinctMonths = Array.from(new Set(tempRows.map(r => r.resolvedMonth)));
-    let dbExistingTx: { month: string; day: number; amount: number }[] = [];
+    let dbExistingTx: { month: string; day: number; amount: number; description?: string }[] = [];
     try {
       dbExistingTx = await getAccountTransactionsForMonths(accountId, distinctMonths);
     } catch {
       dbExistingTx = existingTransactions
         .filter(t => t.accountId === accountId)
-        .map(t => ({ month: t.month, day: t.day, amount: t.amount }));
+        .map(t => ({ month: t.month, day: t.day, amount: t.amount, description: t.description }));
     }
 
     const rows: ParsedRow[] = [];
     const seenInBatch = new Set<string>();
 
     for (const r of tempRows) {
-      // Duplicate in database: same month, same day, same amount (within 0.009 cents)
-      const existsInDb = dbExistingTx.some(
-        t => t.month === r.resolvedMonth && t.day === r.day && Math.abs(t.amount - r.amount) < 0.009
-      );
+      const normDesc = normalizeDescription(r.description);
+
+      // Duplicate in database: same month, same day, same amount, and matching description
+      const existsInDb = isDbDuplicate(r, dbExistingTx);
 
       // Duplicate within the same pasted batch
-      const batchKey = `${r.resolvedMonth}_${r.day}_${r.amount}`;
+      const batchKey = `${r.resolvedMonth}_${r.day}_${r.amount}_${normDesc}`;
       const duplicateInBatch = seenInBatch.has(batchKey);
       seenInBatch.add(batchKey);
 
@@ -617,7 +652,7 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800">
               <p className="font-semibold">Atenção a duplicatas!</p>
-              <p>Linhas amarelas indicam transações que já parecem existir neste mês (mesmo dia e valor). Elas foram marcadas para ser ignoradas por padrão, mas você pode desmarcá-las se forem legítimas.</p>
+              <p>Linhas amarelas indicam transações que já parecem existir neste mês (mesmo dia, valor e descrição). Elas foram marcadas para ser ignoradas por padrão, mas você pode desmarcá-las se forem legítimas.</p>
             </div>
           </div>
 
@@ -673,6 +708,11 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
                           />
                           <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-2">
                             <span>{row.originalDescription}</span>
+                            {row.isDuplicate && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                                Duplicata detectada
+                              </span>
+                            )}
                             {!row.ignored && (
                               <label className="flex items-center gap-1 cursor-pointer hover:text-indigo-500 transition-colors">
                                 <input

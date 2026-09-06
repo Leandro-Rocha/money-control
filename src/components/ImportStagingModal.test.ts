@@ -96,3 +96,81 @@ describe("matchExtractedCategory", () => {
     expect(matchExtractedCategory("outros", categories)).toBeNull();
   });
 });
+
+import { normalizeDescription, isDbDuplicate } from "./ImportStagingModal";
+
+describe("normalizeDescription", () => {
+  it("lowercases, trims, removes punctuation and normalizes spacing", () => {
+    expect(normalizeDescription("  UBER *TRIP BR!  ")).toBe("uber trip br");
+    expect(normalizeDescription("PGTO*MERCADO-EXTRA...")).toBe("pgtomercadoextra");
+    expect(normalizeDescription("Pix  Transf.  Leandro")).toBe("pix transf leandro");
+  });
+});
+
+describe("isDbDuplicate (deduplication)", () => {
+  const dbTransactions = [
+    {
+      month: "2026-08",
+      day: 15,
+      amount: -50.0,
+      description: "Farmácia Drogasil",
+    },
+    {
+      month: "2026-08",
+      day: 15,
+      amount: -100.0,
+      description: "PGTO*IFOOD BR",
+    },
+  ];
+
+  it("does NOT mark transactions as duplicates when amount and day match but descriptions differ", () => {
+    const row = {
+      resolvedMonth: "2026-08",
+      day: 15,
+      amount: -50.0,
+      description: "Padaria do Bairro",
+    };
+    expect(isDbDuplicate(row, dbTransactions)).toBe(false);
+  });
+
+  it("marks transaction as duplicate when month, day, amount and description match (case/punctuation-insensitive)", () => {
+    const row = {
+      resolvedMonth: "2026-08",
+      day: 15,
+      amount: -50.0,
+      description: "farmacia drogasil!",
+    };
+    expect(isDbDuplicate(row, dbTransactions)).toBe(true);
+  });
+
+  it("marks transaction as duplicate when originalDescription matches db description", () => {
+    const row = {
+      resolvedMonth: "2026-08",
+      day: 15,
+      amount: -100.0,
+      description: "iFood",
+      originalDescription: "PGTO*IFOOD BR",
+    };
+    expect(isDbDuplicate(row, dbTransactions)).toBe(true);
+  });
+
+  it("does NOT mark as duplicate if day differs even if description and amount match", () => {
+    const row = {
+      resolvedMonth: "2026-08",
+      day: 16,
+      amount: -50.0,
+      description: "Farmácia Drogasil",
+    };
+    expect(isDbDuplicate(row, dbTransactions)).toBe(false);
+  });
+
+  it("does NOT mark as duplicate if month differs even if day, description and amount match", () => {
+    const row = {
+      resolvedMonth: "2026-09",
+      day: 15,
+      amount: -50.0,
+      description: "Farmácia Drogasil",
+    };
+    expect(isDbDuplicate(row, dbTransactions)).toBe(false);
+  });
+});

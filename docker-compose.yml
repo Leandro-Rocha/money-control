@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     ports:
       - "${MONEY_CONTROL_PORT:-3050}:3000"
+    environment:
+      - TZ=America/Sao_Paulo
     env_file:
       - .env
     volumes:

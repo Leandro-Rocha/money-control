@@ -203,3 +203,67 @@ describe('breaking transfer links on updateTransaction', () => {
     expect(tx20.linkedTransactionId).toBe(10);
   });
 });
+
+describe('unlinkTransfer with financing account', () => {
+  beforeEach(async () => {
+    testDb = createTestDb();
+
+    await testDb.insert(accounts).values([
+      { id: 1, name: 'Nubank', type: 'bank_account', color: 'purple', displayOrder: 1, isActive: 1 },
+      {
+        id: 2,
+        name: 'Financiamento Carro',
+        type: 'financing',
+        color: 'rose',
+        displayOrder: 2,
+        isActive: 1,
+        financingTotalAmount: 10000,
+        financingRemainingAmount: 8000,
+        financingInstallmentsTotal: 10,
+        financingInstallmentsPaid: 2,
+      },
+    ]);
+
+    await testDb.insert(categories).values([
+      { id: 1, name: 'Transferência', type: 'both', showInSummary: 0 },
+    ]);
+  });
+
+  it('restores remaining debt and decrements paid installments when unlinking from bank account side', async () => {
+    await testDb.insert(transactions).values([
+      { id: 10, accountId: 1, month: '2026-08', day: 10, description: 'Parcela Carro', amount: -1000.0, categoryId: 1, linkedTransactionId: 20 },
+      { id: 20, accountId: 2, month: '2026-08', day: 10, description: 'Parcela Carro', amount: 1000.0, categoryId: 1, linkedTransactionId: 10 },
+    ]);
+
+    const result = await actions.unlinkTransfer(10);
+    expect(result.success).toBe(true);
+
+    const [tx10] = await testDb.select().from(transactions).where(eq(transactions.id, 10));
+    const [tx20] = await testDb.select().from(transactions).where(eq(transactions.id, 20));
+    expect(tx10.linkedTransactionId).toBeNull();
+    expect(tx20.linkedTransactionId).toBeNull();
+
+    const [financingAcc] = await testDb.select().from(accounts).where(eq(accounts.id, 2));
+    expect(financingAcc.financingRemainingAmount).toBe(9000.0);
+    expect(financingAcc.financingInstallmentsPaid).toBe(1);
+  });
+
+  it('restores remaining debt and decrements paid installments when unlinking from financing side', async () => {
+    await testDb.insert(transactions).values([
+      { id: 10, accountId: 1, month: '2026-08', day: 10, description: 'Parcela Carro', amount: -1000.0, categoryId: 1, linkedTransactionId: 20 },
+      { id: 20, accountId: 2, month: '2026-08', day: 10, description: 'Parcela Carro', amount: 1000.0, categoryId: 1, linkedTransactionId: 10 },
+    ]);
+
+    const result = await actions.unlinkTransfer(20);
+    expect(result.success).toBe(true);
+
+    const [tx10] = await testDb.select().from(transactions).where(eq(transactions.id, 10));
+    const [tx20] = await testDb.select().from(transactions).where(eq(transactions.id, 20));
+    expect(tx10.linkedTransactionId).toBeNull();
+    expect(tx20.linkedTransactionId).toBeNull();
+
+    const [financingAcc] = await testDb.select().from(accounts).where(eq(accounts.id, 2));
+    expect(financingAcc.financingRemainingAmount).toBe(9000.0);
+    expect(financingAcc.financingInstallmentsPaid).toBe(1);
+  });
+});

@@ -13,7 +13,7 @@ if (!isTest && !fs.existsSync(dbDir)) {
 }
 
 const dbPath = isTest ? ":memory:" : path.join(dbDir, "money_control.db");
-const sqlite = new Database(dbPath);
+export const sqlite = new Database(dbPath);
 
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");

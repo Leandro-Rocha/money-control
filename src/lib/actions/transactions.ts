@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { accounts, categories, transactions, recurringEntries, transactionRules, dismissedProjections } from "@/db/schema";
-import { eq, and, asc, inArray, isNull } from "drizzle-orm";
+import { eq, and, asc, inArray, isNull, or, gte, lte } from "drizzle-orm";
 import { AccountData, CategorySummaryGroup, MonthData, ProjectionState, TransactionWithCategory } from "../types";
 import { formatMonthLabel } from "../format";
 import { revalidatePath } from "next/cache";
@@ -337,27 +337,29 @@ export async function createMultipleTransactions(dataArray: {
 }[], newRules?: { pattern: string; targetDescription: string; categoryId: number | null }[]) {
   if (dataArray.length === 0) return { success: true };
   
-  await db.insert(transactions).values(dataArray.map(data => ({
-    accountId: data.accountId,
-    month: data.month,
-    purchaseDate: data.purchaseDate ?? null,
-    day: data.day,
-    description: data.description.trim(),
-    originalDescription: data.originalDescription ?? null,
-    categoryId: data.categoryId ?? null,
-    amount: data.amount,
-    installmentCurrent: data.installmentCurrent ?? null,
-    installmentTotal: data.installmentTotal ?? null,
-  })));
-  
-  if (newRules && newRules.length > 0) {
-    await db.insert(transactionRules).values(newRules.map(r => ({
-      pattern: r.pattern.trim(),
-      targetDescription: r.targetDescription.trim(),
-      categoryId: r.categoryId ?? null,
-      active: 1,
-    })));
-  }
+  db.transaction((tx) => {
+    tx.insert(transactions).values(dataArray.map(data => ({
+      accountId: data.accountId,
+      month: data.month,
+      purchaseDate: data.purchaseDate ?? null,
+      day: data.day,
+      description: data.description.trim(),
+      originalDescription: data.originalDescription ?? null,
+      categoryId: data.categoryId ?? null,
+      amount: data.amount,
+      installmentCurrent: data.installmentCurrent ?? null,
+      installmentTotal: data.installmentTotal ?? null,
+    }))).run();
+    
+    if (newRules && newRules.length > 0) {
+      tx.insert(transactionRules).values(newRules.map(r => ({
+        pattern: r.pattern.trim(),
+        targetDescription: r.targetDescription.trim(),
+        categoryId: r.categoryId ?? null,
+        active: 1,
+      }))).run();
+    }
+  });
   
   revalidatePath("/");
   return { success: true };
@@ -485,112 +487,187 @@ export async function updateTransaction(
 }
 
 export async function unlinkTransfer(transactionId: number) {
-  const [txn] = await db.select().from(transactions).where(eq(transactions.id, transactionId));
-  if (!txn) return { success: false, error: "Transaction not found" };
+  let notFound = false;
 
-  if (txn.linkedTransactionId) {
-    await db
-      .update(transactions)
+  db.transaction((tx) => {
+    const txn = tx.select().from(transactions).where(eq(transactions.id, transactionId)).get();
+    if (!txn) {
+      notFound = true;
+      return;
+    }
+
+    const linkedTxId = txn.linkedTransactionId;
+    let linkedTxn: typeof txn | undefined = undefined;
+    if (linkedTxId) {
+      linkedTxn = tx.select().from(transactions).where(eq(transactions.id, linkedTxId)).get();
+    } else {
+      linkedTxn = tx.select().from(transactions).where(eq(transactions.linkedTransactionId, transactionId)).get();
+    }
+
+    if (linkedTxn) {
+      const acc1 = tx.select().from(accounts).where(eq(accounts.id, txn.accountId)).get();
+      const acc2 = tx.select().from(accounts).where(eq(accounts.id, linkedTxn.accountId)).get();
+
+      const financingAcc = acc1?.type === "financing" ? acc1 : acc2?.type === "financing" ? acc2 : null;
+      const outflowTx = txn.amount < 0 ? txn : linkedTxn.amount < 0 ? linkedTxn : null;
+
+      if (financingAcc && outflowTx) {
+        const restoredAmount = Math.abs(outflowTx.amount);
+        const curRemaining = financingAcc.financingRemainingAmount ?? financingAcc.financingTotalAmount ?? 0;
+        const curPaid = Math.max(0, (financingAcc.financingInstallmentsPaid ?? 0) - 1);
+        tx.update(accounts).set({
+          financingRemainingAmount: Math.round((curRemaining + restoredAmount) * 100) / 100,
+          financingInstallmentsPaid: curPaid,
+        }).where(eq(accounts.id, financingAcc.id)).run();
+      }
+
+      tx.update(transactions)
+        .set({ linkedTransactionId: null })
+        .where(eq(transactions.id, linkedTxn.id))
+        .run();
+    }
+
+    if (txn.linkedTransactionId) {
+      tx.update(transactions)
+        .set({ linkedTransactionId: null })
+        .where(eq(transactions.id, txn.linkedTransactionId))
+        .run();
+    }
+
+    tx.update(transactions)
       .set({ linkedTransactionId: null })
-      .where(eq(transactions.id, txn.linkedTransactionId));
-  }
-  await db
-    .update(transactions)
-    .set({ linkedTransactionId: null })
-    .where(eq(transactions.linkedTransactionId, transactionId));
+      .where(eq(transactions.linkedTransactionId, transactionId))
+      .run();
 
-  await db
-    .update(transactions)
-    .set({ linkedTransactionId: null })
-    .where(eq(transactions.id, transactionId));
+    tx.update(transactions)
+      .set({ linkedTransactionId: null })
+      .where(eq(transactions.id, transactionId))
+      .run();
+  });
+
+  if (notFound) return { success: false, error: "Transaction not found" };
 
   revalidatePath("/");
   return { success: true };
 }
 
 export async function deleteTransaction(id: number) {
-  const [txn] = await db.select().from(transactions).where(eq(transactions.id, id));
-  if (txn && txn.linkedTransactionId) {
-    const [linkedTxn] = await db.select().from(transactions).where(eq(transactions.id, txn.linkedTransactionId));
-    if (linkedTxn) {
-      const [linkedAcc] = await db.select().from(accounts).where(eq(accounts.id, linkedTxn.accountId));
-      if (linkedAcc && linkedAcc.type === "financing") {
-        const restoredAmount = Math.abs(txn.amount);
-        const curRemaining = linkedAcc.financingRemainingAmount ?? linkedAcc.financingTotalAmount ?? 0;
-        const curPaid = Math.max(0, (linkedAcc.financingInstallmentsPaid ?? 0) - 1);
-        await db.update(accounts).set({
-          financingRemainingAmount: Math.round((curRemaining + restoredAmount) * 100) / 100,
-          financingInstallmentsPaid: curPaid,
-        }).where(eq(accounts.id, linkedTxn.accountId));
+  db.transaction((tx) => {
+    const txn = tx.select().from(transactions).where(eq(transactions.id, id)).get();
+    if (txn && txn.linkedTransactionId) {
+      const linkedTxn = tx.select().from(transactions).where(eq(transactions.id, txn.linkedTransactionId)).get();
+      if (linkedTxn) {
+        const acc1 = tx.select().from(accounts).where(eq(accounts.id, txn.accountId)).get();
+        const acc2 = tx.select().from(accounts).where(eq(accounts.id, linkedTxn.accountId)).get();
+        const financingAcc = acc1?.type === "financing" ? acc1 : acc2?.type === "financing" ? acc2 : null;
+        const outflowTx = txn.amount < 0 ? txn : linkedTxn.amount < 0 ? linkedTxn : null;
+
+        if (financingAcc && outflowTx) {
+          const restoredAmount = Math.abs(outflowTx.amount);
+          const curRemaining = financingAcc.financingRemainingAmount ?? financingAcc.financingTotalAmount ?? 0;
+          const curPaid = Math.max(0, (financingAcc.financingInstallmentsPaid ?? 0) - 1);
+          tx.update(accounts).set({
+            financingRemainingAmount: Math.round((curRemaining + restoredAmount) * 100) / 100,
+            financingInstallmentsPaid: curPaid,
+          }).where(eq(accounts.id, financingAcc.id)).run();
+        }
+      }
+      tx.delete(transactions).where(eq(transactions.id, txn.linkedTransactionId)).run();
+    }
+
+    if (txn && txn.sourceType && txn.sourceId) {
+      tx.delete(dismissedProjections).where(
+        and(
+          eq(dismissedProjections.accountId, txn.accountId),
+          eq(dismissedProjections.month, txn.month),
+          eq(dismissedProjections.sourceType, txn.sourceType),
+          eq(dismissedProjections.sourceId, txn.sourceId)
+        )
+      ).run();
+    }
+
+    // Se for a compra original parcelada (1/N ou sem current), exclui todas as parcelas irmãs confirmadas do mesmo lote
+    if (txn && txn.installmentTotal && (txn.installmentCurrent === 1 || txn.installmentCurrent === null)) {
+      const minMonth = txn.month;
+      const maxMonth = addMonths(txn.month, txn.installmentTotal);
+
+      if (txn.purchaseDate) {
+        tx.delete(transactions)
+          .where(
+            and(
+              eq(transactions.accountId, txn.accountId),
+              eq(transactions.description, txn.description),
+              eq(transactions.installmentTotal, txn.installmentTotal),
+              or(
+                eq(transactions.purchaseDate, txn.purchaseDate),
+                and(
+                  gte(transactions.month, minMonth),
+                  lte(transactions.month, maxMonth)
+                )
+              )
+            )
+          )
+          .run();
+      } else {
+        tx.delete(transactions)
+          .where(
+            and(
+              eq(transactions.accountId, txn.accountId),
+              eq(transactions.description, txn.description),
+              eq(transactions.installmentTotal, txn.installmentTotal),
+              gte(transactions.month, minMonth),
+              lte(transactions.month, maxMonth)
+            )
+          )
+          .run();
       }
     }
-    await db.delete(transactions).where(eq(transactions.id, txn.linkedTransactionId));
-  }
-  if (txn && txn.sourceType && txn.sourceId) {
-    await db.delete(dismissedProjections).where(
-      and(
-        eq(dismissedProjections.accountId, txn.accountId),
-        eq(dismissedProjections.month, txn.month),
-        eq(dismissedProjections.sourceType, txn.sourceType),
-        eq(dismissedProjections.sourceId, txn.sourceId)
-      )
-    );
-  }
 
-  // Se for a compra original parcelada (1/N ou sem current), exclui todas as parcelas irmãs confirmadas
-  if (txn && txn.installmentTotal && (txn.installmentCurrent === 1 || txn.installmentCurrent === null)) {
-    await db
-      .delete(transactions)
-      .where(
-        and(
-          eq(transactions.accountId, txn.accountId),
-          eq(transactions.description, txn.description),
-          eq(transactions.installmentTotal, txn.installmentTotal)
-        )
-      );
-  }
+    tx.delete(transactions).where(eq(transactions.id, id)).run();
+  });
 
-  await db.delete(transactions).where(eq(transactions.id, id));
   revalidatePath("/");
   return { success: true };
 }
 
 export async function convertToTransfer(transactionId: number, targetAccountId: number) {
-  const [sourceTxn] = await db.select().from(transactions).where(eq(transactions.id, transactionId));
-  if (!sourceTxn) throw new Error("Transaction not found");
-  if (sourceTxn.linkedTransactionId) throw new Error("Transaction is already linked");
+  db.transaction((tx) => {
+    const sourceTxn = tx.select().from(transactions).where(eq(transactions.id, transactionId)).get();
+    if (!sourceTxn) throw new Error("Transaction not found");
+    if (sourceTxn.linkedTransactionId) throw new Error("Transaction is already linked");
 
-  const [transferCat] = await db.select().from(categories).where(eq(categories.name, "Transferência"));
-  const catId = transferCat ? transferCat.id : null;
+    const transferCat = tx.select().from(categories).where(eq(categories.name, "Transferência")).get();
+    const catId = transferCat ? transferCat.id : null;
 
-  // Update source category
-  await db.update(transactions).set({ categoryId: catId }).where(eq(transactions.id, transactionId));
+    // Update source category
+    tx.update(transactions).set({ categoryId: catId }).where(eq(transactions.id, transactionId)).run();
 
-  // Insert target
-  const [targetTxn] = await db.insert(transactions).values({
-    accountId: targetAccountId,
-    month: sourceTxn.month,
-    day: sourceTxn.day,
-    description: sourceTxn.description,
-    categoryId: catId,
-    amount: -sourceTxn.amount, // Invert amount
-    linkedTransactionId: sourceTxn.id,
-  }).returning();
+    // Insert target
+    const targetTxn = tx.insert(transactions).values({
+      accountId: targetAccountId,
+      month: sourceTxn.month,
+      day: sourceTxn.day,
+      description: sourceTxn.description,
+      categoryId: catId,
+      amount: -sourceTxn.amount, // Invert amount
+      linkedTransactionId: sourceTxn.id,
+    }).returning().get();
 
-  // Link source to target
-  await db.update(transactions).set({ linkedTransactionId: targetTxn.id }).where(eq(transactions.id, transactionId));
+    // Link source to target
+    tx.update(transactions).set({ linkedTransactionId: targetTxn.id }).where(eq(transactions.id, transactionId)).run();
 
-  // If target account is financing and source was an outflow, abate the debt balance
-  const [targetAcc] = await db.select().from(accounts).where(eq(accounts.id, targetAccountId));
-  if (targetAcc && targetAcc.type === "financing") {
-    const paidAmount = Math.abs(sourceTxn.amount);
-    const curRemaining = targetAcc.financingRemainingAmount ?? targetAcc.financingTotalAmount ?? 0;
-    const curPaid = targetAcc.financingInstallmentsPaid ?? 0;
-    await db.update(accounts).set({
-      financingRemainingAmount: Math.max(0, Math.round((curRemaining - paidAmount) * 100) / 100),
-      financingInstallmentsPaid: curPaid + 1,
-    }).where(eq(accounts.id, targetAccountId));
-  }
+    // If target account is financing and source was an outflow, abate the debt balance
+    const targetAcc = tx.select().from(accounts).where(eq(accounts.id, targetAccountId)).get();
+    if (targetAcc && targetAcc.type === "financing") {
+      const paidAmount = Math.abs(sourceTxn.amount);
+      const curRemaining = targetAcc.financingRemainingAmount ?? targetAcc.financingTotalAmount ?? 0;
+      const curPaid = targetAcc.financingInstallmentsPaid ?? 0;
+      tx.update(accounts).set({
+        financingRemainingAmount: Math.max(0, Math.round((curRemaining - paidAmount) * 100) / 100),
+        financingInstallmentsPaid: curPaid + 1,
+      }).where(eq(accounts.id, targetAccountId)).run();
+    }
+  });
 
   revalidatePath("/");
   return { success: true };
@@ -711,39 +788,42 @@ export async function findTransferCandidates(month: string) {
 }
 
 export async function linkTransfersBatch(pairs: { tx1Id: number, tx2Id: number }[]) {
-  const cat = db.select({ id: categories.id }).from(categories).where(eq(categories.name, "Transferência")).get();
-  if (!cat) throw new Error("Categoria Transferência não encontrada");
+  db.transaction((tx) => {
+    const cat = tx.select({ id: categories.id }).from(categories).where(eq(categories.name, "Transferência")).get();
+    if (!cat) throw new Error("Categoria Transferência não encontrada");
 
-  for (const pair of pairs) {
-    const tx1 = db.select().from(transactions).where(eq(transactions.id, pair.tx1Id)).get();
-    const tx2 = db.select().from(transactions).where(eq(transactions.id, pair.tx2Id)).get();
+    for (const pair of pairs) {
+      const tx1 = tx.select().from(transactions).where(eq(transactions.id, pair.tx1Id)).get();
+      const tx2 = tx.select().from(transactions).where(eq(transactions.id, pair.tx2Id)).get();
 
-    if (tx1 && tx2) {
-      const acc1 = db.select().from(accounts).where(eq(accounts.id, tx1.accountId)).get();
-      const acc2 = db.select().from(accounts).where(eq(accounts.id, tx2.accountId)).get();
+      if (tx1 && tx2) {
+        const acc1 = tx.select().from(accounts).where(eq(accounts.id, tx1.accountId)).get();
+        const acc2 = tx.select().from(accounts).where(eq(accounts.id, tx2.accountId)).get();
 
-      const financingAcc = acc1?.type === "financing" ? acc1 : acc2?.type === "financing" ? acc2 : null;
-      const outflowTx = tx1.amount < 0 ? tx1 : tx2.amount < 0 ? tx2 : null;
-      if (financingAcc && outflowTx) {
-        const paidAmount = Math.abs(outflowTx.amount);
-        const curRemaining = financingAcc.financingRemainingAmount ?? financingAcc.financingTotalAmount ?? 0;
-        const curPaid = financingAcc.financingInstallmentsPaid ?? 0;
-        db.update(accounts).set({
-          financingRemainingAmount: Math.max(0, Math.round((curRemaining - paidAmount) * 100) / 100),
-          financingInstallmentsPaid: curPaid + 1,
-        }).where(eq(accounts.id, financingAcc.id)).run();
+        const financingAcc = acc1?.type === "financing" ? acc1 : acc2?.type === "financing" ? acc2 : null;
+        const outflowTx = tx1.amount < 0 ? tx1 : tx2.amount < 0 ? tx2 : null;
+        if (financingAcc && outflowTx) {
+          const paidAmount = Math.abs(outflowTx.amount);
+          const curRemaining = financingAcc.financingRemainingAmount ?? financingAcc.financingTotalAmount ?? 0;
+          const curPaid = financingAcc.financingInstallmentsPaid ?? 0;
+          tx.update(accounts).set({
+            financingRemainingAmount: Math.max(0, Math.round((curRemaining - paidAmount) * 100) / 100),
+            financingInstallmentsPaid: curPaid + 1,
+          }).where(eq(accounts.id, financingAcc.id)).run();
+        }
       }
-    }
 
-    db.update(transactions)
-      .set({ linkedTransactionId: pair.tx2Id, categoryId: cat.id })
-      .where(eq(transactions.id, pair.tx1Id))
-      .run();
-    db.update(transactions)
-      .set({ linkedTransactionId: pair.tx1Id, categoryId: cat.id })
-      .where(eq(transactions.id, pair.tx2Id))
-      .run();
-  }
+      tx.update(transactions)
+        .set({ linkedTransactionId: pair.tx2Id, categoryId: cat.id })
+        .where(eq(transactions.id, pair.tx1Id))
+        .run();
+      tx.update(transactions)
+        .set({ linkedTransactionId: pair.tx1Id, categoryId: cat.id })
+        .where(eq(transactions.id, pair.tx2Id))
+        .run();
+    }
+  });
+
   revalidatePath("/");
   return { success: true };
 }
