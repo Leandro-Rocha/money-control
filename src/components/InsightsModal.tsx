@@ -254,11 +254,25 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                 ? `Distribuição: ${drilldownData.category.categoryName}`
                 : "Distribuição Geral de Despesas"}
             </h3>
-            {!drilldownData && (
+            {drilldownData?.category.budget != null && drilldownData.category.budget > 0 ? (
+              <span className="text-xs font-medium">
+                Meta: <strong className="font-mono tabular-nums">{formatCurrency(drilldownData.category.budget)}</strong>
+                {" · "}
+                {drilldownData.expense > drilldownData.category.budget ? (
+                  <span className="text-rose-600 font-semibold font-mono tabular-nums">
+                    Estourado em {formatCurrency(drilldownData.expense - drilldownData.category.budget)} ({((drilldownData.expense / drilldownData.category.budget) * 100).toFixed(0)}%)
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-mono tabular-nums">
+                    {((drilldownData.expense / drilldownData.category.budget) * 100).toFixed(0)}% consumido
+                  </span>
+                )}
+              </span>
+            ) : !drilldownData ? (
               <span className="text-[11px] text-slate-400">
                 Clique em uma categoria para ver detalhes
               </span>
-            )}
+            ) : null}
           </div>
 
           {!drilldownData ? (
@@ -421,6 +435,38 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                 style={{ width: `${group.percentage}%`, backgroundColor: group.categoryColor || "#94a3b8" }}
                               />
                             </div>
+
+                            {/* Indicador de Orçamento/Meta se configurado */}
+                            {group.budget != null && group.budget > 0 && (
+                              <div className="mt-2 pt-1.5 border-t border-slate-100 flex flex-col gap-1">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-500 font-medium">
+                                    Meta Mensal: <strong className="text-slate-700 font-mono tabular-nums">{formatCurrency(group.budget)}</strong>
+                                  </span>
+                                  {group.netExpense > group.budget ? (
+                                    <span className="text-rose-600 font-semibold font-mono tabular-nums">
+                                      Estourado em {formatCurrency(group.netExpense - group.budget)} ({((group.netExpense / group.budget) * 100).toFixed(0)}%)
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-700 font-medium font-mono tabular-nums">
+                                      {((group.netExpense / group.budget) * 100).toFixed(0)}% consumido (restam {formatCurrency(group.budget - group.netExpense)})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      group.netExpense > group.budget
+                                        ? "bg-rose-500"
+                                        : (group.netExpense / group.budget) >= 0.85
+                                        ? "bg-amber-500"
+                                        : "bg-emerald-500"
+                                    }`}
+                                    style={{ width: `${Math.min(100, (group.netExpense / group.budget) * 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 

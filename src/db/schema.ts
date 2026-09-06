@@ -32,6 +32,7 @@ export const categories = sqliteTable("categories", {
   type: text("type", { enum: ["income", "expense", "both"] }).notNull().default("expense"),
   color: text("color"),
   showInSummary: integer("show_in_summary").notNull().default(1),
+  budget: real("budget"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 

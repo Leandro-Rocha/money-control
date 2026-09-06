@@ -41,6 +41,7 @@ export function createTestDb() {
       type TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('income', 'expense', 'both')),
       color TEXT,
       show_in_summary INTEGER NOT NULL DEFAULT 1,
+      budget REAL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 

@@ -125,5 +125,34 @@ describe('categories actions', () => {
     const defaultSub = await testDb.select().from(categories).where(eq(categories.name, 'Aportes')).get();
     expect(defaultSub.type).toBe('expense');
   });
+
+  it('persists and updates monthly budget for parent categories', async () => {
+    // 1. Create parent category with budget
+    const createRes = await actions.createCategory({
+      name: 'Alimentação Planejada',
+      type: 'expense',
+      color: '#ef4444',
+      budget: 1500.5,
+    });
+    expect(createRes.success).toBe(true);
+
+    const cat = await testDb.select().from(categories).where(eq(categories.name, 'Alimentação Planejada')).get();
+    expect(cat).toBeDefined();
+    expect(cat.budget).toBe(1500.5);
+
+    // 2. Update budget
+    const updateRes = await actions.updateCategory(cat.id, { budget: 2000 });
+    expect(updateRes.success).toBe(true);
+
+    const updatedCat = await testDb.select().from(categories).where(eq(categories.id, cat.id)).get();
+    expect(updatedCat.budget).toBe(2000);
+
+    // 3. Clear budget
+    const clearRes = await actions.updateCategory(cat.id, { budget: null });
+    expect(clearRes.success).toBe(true);
+
+    const clearedCat = await testDb.select().from(categories).where(eq(categories.id, cat.id)).get();
+    expect(clearedCat.budget).toBeNull();
+  });
 });
 

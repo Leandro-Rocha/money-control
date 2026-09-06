@@ -5,6 +5,7 @@ export interface Category {
   color?: string | null;
   showInSummary: number;
   parentId?: number | null;
+  budget?: number | null;
 }
 
 export interface Transaction {
@@ -92,6 +93,7 @@ export interface CategorySummaryGroup {
   categoryId?: number;
   categoryName: string;
   categoryColor?: string | null;
+  budget?: number | null;
   totalAmount: number;
   items: CategorySummarySubItem[];
   subcategories?: CategorySummarySubcategory[];

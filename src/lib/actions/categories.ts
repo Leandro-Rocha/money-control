@@ -11,6 +11,7 @@ export async function createCategory(data: {
   color?: string | null;
   showInSummary?: number;
   parentId?: number | null;
+  budget?: number | null;
 }) {
   const trimmedName = data.name.trim();
   const parentId = data.parentId ?? null;
@@ -52,6 +53,7 @@ export async function createCategory(data: {
     color: finalColor,
     showInSummary: data.showInSummary ?? 1,
     parentId,
+    budget: data.budget !== undefined ? data.budget : null,
   });
   revalidatePath("/");
   return { success: true };
@@ -65,6 +67,7 @@ export async function updateCategory(
     color?: string | null;
     showInSummary?: number;
     parentId?: number | null;
+    budget?: number | null;
   }
 ) {
   const updateData: Record<string, any> = {};
@@ -73,6 +76,7 @@ export async function updateCategory(
   if (data.color !== undefined) updateData.color = data.color;
   if (data.showInSummary !== undefined) updateData.showInSummary = data.showInSummary;
   if (data.parentId !== undefined) updateData.parentId = data.parentId;
+  if (data.budget !== undefined) updateData.budget = data.budget;
 
   // Se estiver atualizando o nome, verificar duplicidade sob o parentId relevante
   if (data.name !== undefined) {

@@ -173,6 +173,7 @@ export async function getMonthData(month: string): Promise<MonthData> {
   interface TempGroup {
     categoryId?: number;
     categoryColor: string | null;
+    budget?: number | null;
     total: number;
     items: any[];
     subMap: Map<string, { id: number; name: string; total: number; color?: string | null; items: any[] }>;
@@ -185,6 +186,7 @@ export async function getMonthData(month: string): Promise<MonthData> {
       catGroupMap.set(cat.name, {
         categoryId: cat.id,
         categoryColor: cat.color,
+        budget: cat.budget,
         total: 0,
         items: [],
         subMap: new Map(),
@@ -193,6 +195,7 @@ export async function getMonthData(month: string): Promise<MonthData> {
   }
   catGroupMap.set("Sem categoria", {
     categoryColor: null,
+    budget: null,
     total: 0,
     items: [],
     subMap: new Map(),
@@ -306,6 +309,7 @@ export async function getMonthData(month: string): Promise<MonthData> {
         categoryId: data.categoryId,
         categoryName: name,
         categoryColor: data.categoryColor,
+        budget: data.budget,
         totalAmount: groupTotal,
         items: data.items,
         subcategories: subcategories.length > 0 ? subcategories : undefined,

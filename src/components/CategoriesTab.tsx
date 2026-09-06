@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Category } from "@/lib/types";
+import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Tags, Pencil, Check, X, Eye, EyeOff, CornerDownRight, FolderPlus } from "lucide-react";
@@ -19,6 +20,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
   const [newParentType, setNewParentType] = useState<"income" | "expense" | "both">("expense");
   const [newParentColor, setNewParentColor] = useState("#3b82f6");
   const [newParentShow, setNewParentShow] = useState(true);
+  const [newParentBudget, setNewParentBudget] = useState("");
 
   // Estado para adicionar subcategoria a um pai específico
   const [addingSubToParentId, setAddingSubToParentId] = useState<number | null>(null);
@@ -29,6 +31,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState<"income" | "expense" | "both">("expense");
+  const [editBudget, setEditBudget] = useState("");
 
   // Separação de pais e filhas
   const parentCategories = categories.filter((c) => !c.parentId);
@@ -44,18 +47,21 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
   const handleAddParent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newParentName.trim()) return;
+    const parsedBudget = newParentBudget.trim() ? parseFloat(newParentBudget.replace(",", ".")) : null;
     const res = await createCategory({
       name: newParentName.trim(),
       type: newParentType,
       color: newParentColor,
       showInSummary: newParentShow ? 1 : 0,
       parentId: null,
+      budget: parsedBudget && !isNaN(parsedBudget) ? parsedBudget : null,
     });
     if (!res.success && res.error) {
       alert(res.error);
       return;
     }
     setNewParentName("");
+    setNewParentBudget("");
     setIsAddingParent(false);
     onRefresh();
   };
@@ -100,11 +106,17 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
     setEditingId(cat.id);
     setEditName(cat.name);
     setEditType(cat.type);
+    setEditBudget(cat.budget != null ? String(cat.budget) : "");
   };
 
   const saveEdit = async () => {
     if (!editingId || !editName.trim()) return;
-    const res = await updateCategory(editingId, { name: editName.trim(), type: editType });
+    const parsedBudget = editBudget.trim() ? parseFloat(editBudget.replace(",", ".")) : null;
+    const res = await updateCategory(editingId, {
+      name: editName.trim(),
+      type: editType,
+      budget: parsedBudget && !isNaN(parsedBudget) ? parsedBudget : null,
+    });
     if (!res.success && res.error) {
       alert(res.error);
       return;
@@ -147,7 +159,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Tipo</label>
               <select
@@ -159,6 +171,18 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                 <option value="income">Receita</option>
                 <option value="both">Ambos</option>
               </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Meta Mensal (R$)</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={newParentBudget}
+                onChange={(e) => setNewParentBudget(e.target.value)}
+                placeholder="Ex: 1500 (Opcional)"
+                className="h-9"
+              />
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Cor de Identificação</label>
@@ -214,7 +238,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                           <Input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="h-7 py-0 w-40"
+                            className="h-7 py-0 w-40 text-xs"
                             autoFocus
                           />
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={saveEdit}>
@@ -224,23 +248,39 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                             <X className="w-3.5 h-3.5 text-rose-500" />
                           </Button>
                         </div>
-                        <select
-                          value={editType}
-                          onChange={(e: any) => setEditType(e.target.value)}
-                          className="h-6 text-xs rounded border border-input bg-background px-1"
-                        >
-                          <option value="expense">Despesa</option>
-                          <option value="income">Receita</option>
-                          <option value="both">Ambos</option>
-                        </select>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={editType}
+                            onChange={(e: any) => setEditType(e.target.value)}
+                            className="h-6 text-xs rounded border border-input bg-background px-1"
+                          >
+                            <option value="expense">Despesa</option>
+                            <option value="income">Receita</option>
+                            <option value="both">Ambos</option>
+                          </select>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Meta R$"
+                            value={editBudget}
+                            onChange={(e) => setEditBudget(e.target.value)}
+                            className="h-6 py-0 w-28 text-xs"
+                          />
+                        </div>
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-2 group">
+                        <div className="flex items-center gap-2 group flex-wrap">
                           <h4 className="font-semibold text-slate-800 text-sm">{parent.name}</h4>
                           {children.length > 0 && (
                             <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
                               {children.length} {children.length === 1 ? "subcategoria" : "subcategorias"}
+                            </span>
+                          )}
+                          {parent.budget != null && parent.budget > 0 && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
+                              Meta: {formatCurrency(parent.budget)}
                             </span>
                           )}
                           <Pencil
