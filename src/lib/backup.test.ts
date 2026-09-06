@@ -11,6 +11,7 @@ import {
   applyGfsRetention,
   pruneOldBackups,
   runDailyBackup,
+  restoreBackup,
   GitSyncOptions,
 } from "./backup";
 
@@ -247,5 +248,86 @@ describe("backup module", () => {
     expect(manifest.gitRemote).toBe("https://oauth2:***@github.com/myuser/my-backups.git");
 
     testDb.close();
+  });
+
+  describe("restoreBackup", () => {
+    it("restores database from valid .db file and creates safety pre-restore backup", () => {
+      const liveDbPath = path.join(testDir, "money_control.db");
+      const initialDb = new Database(liveDbPath);
+      initialDb.exec("CREATE TABLE notes (id INT, text TEXT); INSERT INTO notes VALUES (1, 'initial data');");
+      initialDb.close();
+
+      // Cria arquivos transitórios wal e shm para testar limpeza
+      fs.writeFileSync(path.join(testDir, "money_control.db-wal"), "wal-content");
+      fs.writeFileSync(path.join(testDir, "money_control.db-shm"), "shm-content");
+
+      // Cria banco de backup
+      const backupFile = path.join(backupsDir, "snapshot.db");
+      const backupDb = new Database(backupFile);
+      backupDb.exec("CREATE TABLE notes (id INT, text TEXT); INSERT INTO notes VALUES (2, 'restored from backup');");
+      backupDb.close();
+
+      const result = restoreBackup(backupFile, { dataDir: testDir });
+
+      expect(result.success).toBe(true);
+      expect(result.type).toBe("sqlite");
+      expect(result.backupCreated).toBeDefined();
+      expect(fs.existsSync(result.backupCreated!)).toBe(true);
+
+      // WAL e SHM devem ter sido removidos
+      expect(fs.existsSync(path.join(testDir, "money_control.db-wal"))).toBe(false);
+      expect(fs.existsSync(path.join(testDir, "money_control.db-shm"))).toBe(false);
+
+      // Verifica que o banco ativo agora tem os dados restaurados
+      const restoredDb = new Database(liveDbPath);
+      const row = restoredDb.prepare("SELECT * FROM notes WHERE id = 2").get() as any;
+      expect(row.text).toBe("restored from backup");
+      restoredDb.close();
+    });
+
+    it("restores database from canonical .json dump atomicaly", () => {
+      const liveDbPath = path.join(testDir, "money_control.db");
+      const initialDb = new Database(liveDbPath);
+      initialDb.exec(`
+        CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE transactions (id INTEGER PRIMARY KEY, amount REAL);
+        INSERT INTO accounts VALUES (1, 'Old Bank');
+      `);
+      initialDb.close();
+
+      const dumpJson = {
+        meta: { schemaVersion: 5, exportedAt: "2026-09-06T00:00:00Z", counts: { accounts: 1, transactions: 1 } },
+        data: {
+          accounts: [{ id: 5, name: "Restored Bank" }],
+          transactions: [{ id: 10, amount: 99.5 }],
+        },
+      };
+
+      const dumpFile = path.join(backupsDir, "dump.json");
+      fs.writeFileSync(dumpFile, JSON.stringify(dumpJson), "utf-8");
+
+      const result = restoreBackup(dumpFile, { dataDir: testDir });
+
+      expect(result.success).toBe(true);
+      expect(result.type).toBe("json");
+      expect(result.recordsRestored?.accounts).toBe(1);
+      expect(result.recordsRestored?.transactions).toBe(1);
+
+      const restoredDb = new Database(liveDbPath);
+      const account = restoredDb.prepare("SELECT * FROM accounts").get() as any;
+      expect(account.id).toBe(5);
+      expect(account.name).toBe("Restored Bank");
+
+      const tx = restoredDb.prepare("SELECT * FROM transactions").get() as any;
+      expect(tx.id).toBe(10);
+      expect(tx.amount).toBe(99.5);
+      restoredDb.close();
+    });
+
+    it("fails safely if backup file does not exist", () => {
+      const result = restoreBackup(path.join(backupsDir, "missing.db"), { dataDir: testDir });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("não encontrado");
+    });
   });
 });

@@ -54,6 +54,16 @@ export interface BackupResult {
   error?: string;
 }
 
+export interface RestoreResult {
+  success: boolean;
+  type: "sqlite" | "json";
+  sourcePath: string;
+  targetPath: string;
+  backupCreated?: string;
+  recordsRestored?: Record<string, number>;
+  error?: string;
+}
+
 export interface BackupOptions {
   dbInstance?: Database.Database;
   dataDir?: string;
@@ -502,4 +512,187 @@ export function startBackupScheduler(options?: {
   if (schedulerTimer && typeof schedulerTimer.unref === "function") {
     schedulerTimer.unref();
   }
+}
+
+export function restoreBackup(
+  sourcePath: string,
+  options?: {
+    dataDir?: string;
+  }
+): RestoreResult {
+  const dataDir = options?.dataDir ?? path.join(process.cwd(), "data");
+  const targetDbPath = path.join(dataDir, "money_control.db");
+  const walPath = path.join(dataDir, "money_control.db-wal");
+  const shmPath = path.join(dataDir, "money_control.db-shm");
+
+  if (!fs.existsSync(sourcePath)) {
+    return {
+      success: false,
+      type: sourcePath.endsWith(".json") ? "json" : "sqlite",
+      sourcePath,
+      targetPath: targetDbPath,
+      error: `Arquivo de backup não encontrado: ${sourcePath}`,
+    };
+  }
+
+  // Backup de segurança preventivo do banco atual antes de substituir
+  let backupCreated: string | undefined;
+  if (fs.existsSync(targetDbPath)) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    backupCreated = path.join(dataDir, `money_control.db.pre-restore-${timestamp}.bak`);
+    try {
+      fs.copyFileSync(targetDbPath, backupCreated);
+    } catch (err: any) {
+      return {
+        success: false,
+        type: sourcePath.endsWith(".json") ? "json" : "sqlite",
+        sourcePath,
+        targetPath: targetDbPath,
+        error: `Falha ao criar cópia preventiva do banco atual: ${err?.message || err}`,
+      };
+    }
+  }
+
+  // 1. Restauração via snapshot SQLite nativo (.db)
+  if (sourcePath.endsWith(".db")) {
+    try {
+      const testDb = new Database(sourcePath, { readonly: true });
+      const check = testDb.prepare("PRAGMA integrity_check").pluck().get() as string;
+      testDb.close();
+
+      if (check !== "ok") {
+        return {
+          success: false,
+          type: "sqlite",
+          sourcePath,
+          targetPath: targetDbPath,
+          error: `Arquivo de backup SQLite corrompido (integrity_check: ${check})`,
+        };
+      }
+
+      // Remove arquivos transitórios de WAL/SHM para não misturar páginas antigas com o novo snapshot
+      if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+      if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+
+      fs.copyFileSync(sourcePath, targetDbPath);
+
+      return {
+        success: true,
+        type: "sqlite",
+        sourcePath,
+        targetPath: targetDbPath,
+        backupCreated,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        type: "sqlite",
+        sourcePath,
+        targetPath: targetDbPath,
+        error: `Erro ao restaurar arquivo SQLite: ${err?.message || err}`,
+      };
+    }
+  }
+
+  // 2. Restauração via Dump Canônico JSON (.json)
+  if (sourcePath.endsWith(".json")) {
+    try {
+      const raw = fs.readFileSync(sourcePath, "utf-8");
+      const parsed = JSON.parse(raw);
+
+      if (!parsed.data || typeof parsed.data !== "object") {
+        return {
+          success: false,
+          type: "json",
+          sourcePath,
+          targetPath: targetDbPath,
+          error: "Estrutura do dump canônico JSON inválida (objeto 'data' ausente)",
+        };
+      }
+
+      const db = new Database(targetDbPath);
+      db.pragma("foreign_keys = OFF");
+
+      const tableOrder = [
+        "dismissed_projections",
+        "recurring_entries",
+        "transaction_rules",
+        "transactions",
+        "categories",
+        "monthly_initial_balances",
+        "accounts",
+      ];
+
+      const recordsRestored: Record<string, number> = {};
+
+      db.transaction(() => {
+        // Limpa tabelas na ordem de dependência reversa
+        for (const t of tableOrder) {
+          const exists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(t);
+          if (exists) {
+            db.prepare(`DELETE FROM ${t}`).run();
+          }
+        }
+
+        const mapping: Record<string, string> = {
+          accounts: "accounts",
+          monthlyInitialBalances: "monthly_initial_balances",
+          categories: "categories",
+          transactions: "transactions",
+          transactionRules: "transaction_rules",
+          recurringEntries: "recurring_entries",
+          dismissedProjections: "dismissed_projections",
+        };
+
+        for (const [key, tableName] of Object.entries(mapping)) {
+          const rows = parsed.data[key];
+          if (Array.isArray(rows) && rows.length > 0) {
+            const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
+            if (!tableExists) continue;
+
+            const cols = Object.keys(rows[0]);
+            const colPlaceholders = cols.map(() => "?").join(", ");
+            const colNames = cols.map((c) => `"${c}"`).join(", ");
+            const insertStmt = db.prepare(`INSERT INTO ${tableName} (${colNames}) VALUES (${colPlaceholders})`);
+
+            for (const row of rows) {
+              const values = cols.map((c) => row[c]);
+              insertStmt.run(...values);
+            }
+            recordsRestored[tableName] = rows.length;
+          } else {
+            recordsRestored[tableName] = 0;
+          }
+        }
+      })();
+
+      db.pragma("foreign_keys = ON");
+      db.close();
+
+      return {
+        success: true,
+        type: "json",
+        sourcePath,
+        targetPath: targetDbPath,
+        backupCreated,
+        recordsRestored,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        type: "json",
+        sourcePath,
+        targetPath: targetDbPath,
+        error: `Erro ao restaurar a partir do dump JSON: ${err?.message || err}`,
+      };
+    }
+  }
+
+  return {
+    success: false,
+    type: "sqlite",
+    sourcePath,
+    targetPath: targetDbPath,
+    error: "Formato de arquivo não suportado. Utilize um arquivo .db ou .json.",
+  };
 }
