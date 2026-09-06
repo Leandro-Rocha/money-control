@@ -72,6 +72,7 @@ export async function getProjectedInstallments(
 }
 
 export async function getProjectedRecurring(targetMonth: string): Promise<TransactionWithCategory[]> {
+  const monthNum = parseInt(targetMonth.split("-")[1], 10);
   const query = sql`
     SELECT 
       -(r.id * 100000 + 99999) as id,
@@ -92,6 +93,7 @@ export async function getProjectedRecurring(targetMonth: string): Promise<Transa
     FROM recurring_entries r
     LEFT JOIN categories c ON r.category_id = c.id
     WHERE r.active = 1
+      AND (r.month IS NULL OR r.month = ${monthNum})
       AND NOT EXISTS (
         SELECT 1 FROM dismissed_projections dp
         WHERE dp.source_type = 'recurring'

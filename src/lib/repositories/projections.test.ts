@@ -73,5 +73,27 @@ describe('projections repository', () => {
       expect(rows.length).toBe(1);
       expect(rows[0].description).toBe('Assinatura B');
     });
+
+    it('should project annual recurring entries only in their configured month', async () => {
+      await testDb.insert(recurringEntries).values([
+        { id: 10, accountId: 1, day: 10, description: 'Netflix Mensal', amount: -50.0, month: null, active: 1 },
+        { id: 11, accountId: 1, day: 15, description: 'IPVA Anual Maio', amount: -1200.0, month: 5, active: 1 },
+        { id: 12, accountId: 1, day: 20, description: 'IPTU Anual Junho', amount: -800.0, month: 6, active: 1 },
+      ]);
+
+      // May: should include Netflix (null) and IPVA (5), but NOT IPTU (6)
+      const mayRows = await repo.getProjectedRecurring('2024-05');
+      const mayDescs = mayRows.map(r => r.description);
+      expect(mayDescs).toContain('Netflix Mensal');
+      expect(mayDescs).toContain('IPVA Anual Maio');
+      expect(mayDescs).not.toContain('IPTU Anual Junho');
+
+      // June: should include Netflix (null) and IPTU (6), but NOT IPVA (5)
+      const junRows = await repo.getProjectedRecurring('2024-06');
+      const junDescs = junRows.map(r => r.description);
+      expect(junDescs).toContain('Netflix Mensal');
+      expect(junDescs).toContain('IPTU Anual Junho');
+      expect(junDescs).not.toContain('IPVA Anual Maio');
+    });
   });
 });

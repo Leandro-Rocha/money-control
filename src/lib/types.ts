@@ -121,6 +121,7 @@ export interface RecurringEntryUI {
   description: string;
   day: number;
   amount: number;
+  month?: number | null;
   active: number;
 }
 

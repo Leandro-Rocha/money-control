@@ -1,0 +1,1 @@
+ALTER TABLE `recurring_entries` ADD `month` integer;

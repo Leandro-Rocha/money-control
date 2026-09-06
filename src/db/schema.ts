@@ -72,6 +72,7 @@ export const recurringEntries = sqliteTable("recurring_entries", {
   description: text("description").notNull(),
   day: integer("day").notNull(), // Day of month (1-31)
   amount: real("amount").notNull(), // Positive for income, negative for expense
+  month: integer("month"), // 1-12 (null = every month, 1-12 = annual in specific month)
   active: integer("active").notNull().default(1), // 1 = active, 0 = inactive
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });

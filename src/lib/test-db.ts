@@ -71,6 +71,7 @@ export function createTestDb() {
       description TEXT NOT NULL,
       day INTEGER NOT NULL,
       amount REAL NOT NULL,
+      month INTEGER,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );

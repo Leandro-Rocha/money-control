@@ -9,6 +9,11 @@ import { CategoryPicker } from "./CategoryPicker";
 import { createRecurringEntry, deleteRecurringEntry, updateRecurringEntry } from "@/lib/actions/recurring";
 import { formatCurrency } from "@/lib/format";
 
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
 interface RecurringTabProps {
   entries: RecurringEntryUI[];
   accounts: Account[];
@@ -23,6 +28,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [newDay, setNewDay] = useState("");
   const [newAccountId, setNewAccountId] = useState("");
   const [newCategoryId, setNewCategoryId] = useState("");
+  const [newMonth, setNewMonth] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDesc, setEditDesc] = useState("");
@@ -30,6 +36,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [editDay, setEditDay] = useState("");
   const [editAccountId, setEditAccountId] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
+  const [editMonth, setEditMonth] = useState("");
 
   const handleAdd = async () => {
     if (!newDesc || !newAmount || !newDay || !newAccountId) return;
@@ -42,9 +49,10 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       description: newDesc,
       day: parseInt(newDay, 10),
       amount: amountVal,
+      month: newMonth ? parseInt(newMonth, 10) : null,
     });
 
-    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId("");
+    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewMonth("");
     setIsAdding(false);
     onRefresh();
   };
@@ -63,6 +71,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
     setEditDay(e.day.toString());
     setEditAccountId(e.accountId.toString());
     setEditCategoryId(e.categoryId ? e.categoryId.toString() : "");
+    setEditMonth(e.month ? String(e.month) : "");
   };
 
   const saveEdit = async () => {
@@ -75,7 +84,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       amount: amountVal,
       day: parseInt(editDay, 10),
       accountId: parseInt(editAccountId, 10),
-      categoryId: editCategoryId ? parseInt(editCategoryId, 10) : null
+      categoryId: editCategoryId ? parseInt(editCategoryId, 10) : null,
+      month: editMonth ? parseInt(editMonth, 10) : null,
     });
     setEditingId(null);
     onRefresh();
@@ -96,9 +106,21 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       {isAdding && (
         <div className="bg-muted p-4 rounded-lg space-y-4">
           <Input placeholder="Descrição" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input placeholder="Valor (ex: -150,00)" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
             <Input placeholder="Dia (1-31)" type="number" min="1" max="31" value={newDay} onChange={e => setNewDay(e.target.value)} />
+            <select
+              value={newMonth}
+              onChange={e => setNewMonth(e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Todo mês (Mensal)</option>
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={idx + 1} value={idx + 1}>
+                  {name} (Anual)
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <select value={newAccountId} onChange={e => setNewAccountId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
@@ -130,9 +152,21 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
             {editingId === entry.id ? (
               <div className="space-y-3">
                 <Input value={editDesc} onChange={e => setEditDesc(e.target.value)} className="h-8" />
-                <div className="flex gap-2">
-                  <Input value={editDay} onChange={e => setEditDay(e.target.value)} className="w-16 h-8 text-center" placeholder="Dia" />
-                  <Input value={editAmount} onChange={e => setEditAmount(e.target.value)} className="flex-1 h-8 text-right" placeholder="Valor" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <Input value={editDay} onChange={e => setEditDay(e.target.value)} className="h-8 text-center" placeholder="Dia" />
+                  <Input value={editAmount} onChange={e => setEditAmount(e.target.value)} className="h-8 text-right" placeholder="Valor" />
+                  <select
+                    value={editMonth}
+                    onChange={e => setEditMonth(e.target.value)}
+                    className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="">Todo mês (Mensal)</option>
+                    {MONTH_NAMES.map((name, idx) => (
+                      <option key={idx + 1} value={idx + 1}>
+                        {name} (Anual)
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <select value={editAccountId} onChange={e => setEditAccountId(e.target.value)} className="w-full h-8 rounded-md border border-input bg-background px-3 text-sm">
@@ -155,8 +189,17 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
             ) : (
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Dia {entry.day}</span>
+                    {entry.month ? (
+                      <span className="text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                        {MONTH_NAMES[entry.month - 1]} (Anual)
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        Mensal
+                      </span>
+                    )}
                     <span className="font-semibold text-sm">{entry.description}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1 flex gap-2">
