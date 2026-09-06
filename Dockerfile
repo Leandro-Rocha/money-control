@@ -18,7 +18,7 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git tzdata && rm -rf /var/lib/apt/lists/*
 ENV TZ=America/Sao_Paulo
 ENV NODE_ENV=production
 ENV PORT=3000
