@@ -12,6 +12,8 @@ import {
   pruneOldBackups,
   runDailyBackup,
   restoreBackup,
+  restoreLiveDatabase,
+  listAvailableBackups,
   GitSyncOptions,
 } from "./backup";
 
@@ -328,6 +330,97 @@ describe("backup module", () => {
       const result = restoreBackup(path.join(backupsDir, "missing.db"), { dataDir: testDir });
       expect(result.success).toBe(false);
       expect(result.error).toContain("não encontrado");
+    });
+  });
+
+  describe("listAvailableBackups", () => {
+    it("scans directories and orders backups descending by date", () => {
+      const dailyDir = path.join(testDir, "backups", "daily");
+      const monthlyDir = path.join(testDir, "backups", "monthly");
+      fs.mkdirSync(dailyDir, { recursive: true });
+      fs.mkdirSync(monthlyDir, { recursive: true });
+
+      fs.writeFileSync(path.join(dailyDir, "money_control_2026-09-05.db"), "content1");
+      fs.writeFileSync(path.join(dailyDir, "dump_2026-09-06.json"), "content2");
+      fs.writeFileSync(path.join(monthlyDir, "money_control_2026-08_final.db"), "content3");
+
+      const list = listAvailableBackups(testDir);
+
+      expect(list.length).toBe(3);
+      expect(list[0].date).toBe("2026-09-06");
+      expect(list[0].format).toBe("json");
+      expect(list[1].date).toBe("2026-09-05");
+      expect(list[1].format).toBe("sqlite");
+      expect(list[2].date).toBe("2026-08");
+      expect(list[2].sourceType).toBe("monthly");
+    });
+  });
+
+  describe("restoreLiveDatabase", () => {
+    it("restores live connection using ATTACH DATABASE and copies common columns", async () => {
+      const liveDb = new Database(":memory:");
+      liveDb.exec(`
+        CREATE TABLE categories (id INT PRIMARY KEY, name TEXT, budget REAL);
+        INSERT INTO categories VALUES (1, 'Old Cat', 500);
+      `);
+
+      // Cria backup em arquivo com schema anterior (sem coluna budget)
+      const backupFile = path.join(backupsDir, "old_schema_backup.db");
+      const backupDb = new Database(backupFile);
+      backupDb.exec(`
+        CREATE TABLE categories (id INT PRIMARY KEY, name TEXT);
+        INSERT INTO categories VALUES (2, 'Restored Cat');
+      `);
+      backupDb.close();
+
+      const result = await restoreLiveDatabase(backupFile, {
+        dbInstance: liveDb,
+        dataDir: testDir,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.type).toBe("sqlite");
+      expect(result.recordsRestored?.categories).toBe(1);
+
+      const rows = liveDb.prepare("SELECT * FROM categories").all() as any[];
+      expect(rows.length).toBe(1);
+      expect(rows[0].id).toBe(2);
+      expect(rows[0].name).toBe("Restored Cat");
+      expect(rows[0].budget).toBeNull(); // Preenchido com valor default com segurança
+
+      liveDb.close();
+    });
+
+    it("restores live connection from canonical JSON dump", async () => {
+      const liveDb = new Database(":memory:");
+      liveDb.exec(`
+        CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT);
+        INSERT INTO accounts VALUES (1, 'Existing');
+      `);
+
+      const dumpJson = {
+        meta: { schemaVersion: 5 },
+        data: {
+          accounts: [{ id: 10, name: "Live Restored JSON" }],
+        },
+      };
+
+      const dumpFile = path.join(backupsDir, "test_live_dump.json");
+      fs.writeFileSync(dumpFile, JSON.stringify(dumpJson), "utf-8");
+
+      const result = await restoreLiveDatabase(dumpFile, {
+        dbInstance: liveDb,
+        dataDir: testDir,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.type).toBe("json");
+      expect(result.recordsRestored?.accounts).toBe(1);
+
+      const row = liveDb.prepare("SELECT * FROM accounts WHERE id = 10").get() as any;
+      expect(row.name).toBe("Live Restored JSON");
+
+      liveDb.close();
     });
   });
 });

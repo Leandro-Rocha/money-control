@@ -85,4 +85,21 @@ describe("GET /api/backup", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("application/vnd.sqlite3");
   });
+
+  it("returns 200 with canonical JSON when format=json query parameter is present", async () => {
+    vi.spyOn(auth, "isAuthEnabled").mockReturnValue(false);
+
+    const req = new NextRequest("http://localhost:3000/api/backup?format=json");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("application/json");
+    expect(res.headers.get("Content-Disposition")).toMatch(
+      /^attachment; filename="dump_backup_\d{4}-\d{2}-\d{2}\.json"$/
+    );
+
+    const json = await res.json();
+    expect(json.meta).toBeDefined();
+    expect(json.data).toBeDefined();
+  });
 });
