@@ -5,6 +5,7 @@ import { usePrivacy } from "@/context/PrivacyContext";
 import { Lock, Eye, EyeOff, Loader2, X, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModalShell } from "./ModalShell";
 
 export function PinModal() {
   const { isPinModalOpen, closePinModal, verifyAndUnlock } = usePrivacy();
@@ -56,100 +57,84 @@ export function PinModal() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 no-privacy-blur"
-      onKeyDown={handleKeyDown}
-    >
-      <div
-        className="bg-card text-card-foreground w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 no-privacy-blur"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-              <Lock className="w-5 h-5" />
-            </div>
-            <button
+    <div className="no-privacy-blur" onKeyDown={handleKeyDown}>
+      <ModalShell
+        open={isPinModalOpen}
+        onClose={closePinModal}
+        title="Desbloquear Valores"
+        subtitle="Digite seu PIN numérico para visualizar os valores da tela."
+        maxWidth="max-w-sm"
+        icon={<Lock className="text-primary" />}
+        footer={
+          <div className="flex w-full items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
               onClick={closePinModal}
-              className="text-muted-foreground hover:text-foreground rounded-full p-1 transition-colors"
+              className="flex-1"
+              disabled={isLoading}
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <h3 className="text-lg font-bold tracking-tight">Desbloquear Valores</h3>
-          <p className="text-xs text-muted-foreground mt-1 mb-5">
-            Digite seu PIN numérico para visualizar os valores da tela.
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <div className="relative">
-                <Input
-                  ref={inputRef}
-                  type={showClearPin ? "text" : "password"}
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={pin}
-                  onChange={(e) => {
-                    setPin(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="Digite o PIN..."
-                  className="pr-10 text-center tracking-widest text-lg font-mono"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowClearPin(!showClearPin)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
-                >
-                  {showClearPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 mt-2 font-medium animate-in fade-in">
-                  <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                  <span>{error}</span>
-                </div>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="pin-form"
+              className="flex-1"
+              disabled={!pin.trim() || isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Validando...
+                </>
+              ) : (
+                "Desbloquear"
               )}
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closePinModal}
-                className="flex-1"
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={!pin.trim() || isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Validando...
-                  </>
-                ) : (
-                  "Desbloquear"
-                )}
-              </Button>
-            </div>
-          </form>
-
-          <div className="mt-4 pt-3 border-t border-border/50 text-center">
-            <span className="text-[11px] text-muted-foreground">
-              Esqueceu o PIN? A senha mestra também pode ser usada.
-            </span>
+            </Button>
           </div>
+        }
+      >
+        <form id="pin-form" onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                type={showClearPin ? "text" : "password"}
+                inputMode="numeric"
+                autoComplete="off"
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="Digite o PIN..."
+                className="pr-10 text-center tracking-widest text-lg font-mono"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowClearPin(!showClearPin)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+              >
+                {showClearPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 mt-2 font-medium animate-in fade-in">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+        </form>
+
+        <div className="mt-4 pt-3 border-t border-border/50 text-center">
+          <span className="text-[11px] text-muted-foreground">
+            Esqueceu o PIN? A senha mestra também pode ser usada.
+          </span>
         </div>
-      </div>
+      </ModalShell>
     </div>
   );
 }

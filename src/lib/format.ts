@@ -49,3 +49,40 @@ export function parseNumberInput(input: string): number | null {
 
   return isNegative ? -Math.abs(val) : Math.abs(val);
 }
+
+export function formatCurrencyInput(rawInput: string, allowNegative: boolean = false): string {
+  if (!rawInput) return "";
+
+  let isNegative = false;
+  if (allowNegative) {
+    if (rawInput.includes("+")) {
+      isNegative = false;
+    } else {
+      const minusCount = (rawInput.match(/-/g) || []).length;
+      isNegative = minusCount % 2 === 1;
+    }
+  }
+
+  let cleanDigits = rawInput.replace(/\D/g, "");
+  if (!cleanDigits) {
+    return isNegative ? "-" : "";
+  }
+
+  // Prevent numeric overflow (limit to 12 digits, e.g. 9.999.999.999,99)
+  if (cleanDigits.length > 12) {
+    cleanDigits = cleanDigits.slice(0, 12);
+  }
+
+  const cents = parseInt(cleanDigits, 10);
+  if (cents === 0) {
+    return isNegative ? "-" : "";
+  }
+
+  const amount = cents / 100;
+  const formatted = amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return isNegative ? `-${formatted}` : formatted;
+}

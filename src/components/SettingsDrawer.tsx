@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, CreditCard, Tags, Repeat, Wand2, Shield, X } from "lucide-react";
+import { Settings, CreditCard, Tags, Repeat, Wand2, Shield, X, Database, Landmark } from "lucide-react";
 import { Account, Category, RecurringEntryUI } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,8 @@ import { RecurringTab } from "./RecurringTab";
 import { CategoriesTab } from "./CategoriesTab";
 import { RulesTab } from "./RulesTab";
 import { PrivacyTab } from "./PrivacyTab";
+import { DataBackupsTab } from "./DataBackupsTab";
+import { OpenFinanceTab } from "./OpenFinanceTab";
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -18,10 +20,10 @@ interface SettingsDrawerProps {
   categories: Category[];
   recurring: RecurringEntryUI[];
   onRefresh: () => void;
-  initialAccountType?: "bank_account" | "credit_card" | "investment" | "financing" | null;
+  initialAccountType?: "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | null;
 }
 
-type TabType = "accounts" | "categories" | "recurring" | "rules" | "privacy";
+type TabType = "accounts" | "categories" | "recurring" | "rules" | "data-backups" | "privacy" | "open-finance";
 
 export function SettingsDrawer({
   open,
@@ -85,6 +87,17 @@ export function SettingsDrawer({
               Contas e Cartões
             </button>
             <button
+              onClick={() => setActiveTab("open-finance")}
+              className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+                activeTab === "open-finance"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Landmark className="w-4 h-4" />
+              Open Finance
+            </button>
+            <button
               onClick={() => setActiveTab("categories")}
               className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
                 activeTab === "categories"
@@ -118,6 +131,17 @@ export function SettingsDrawer({
               Regras
             </button>
             <button
+              onClick={() => setActiveTab("data-backups")}
+              className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+                activeTab === "data-backups"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              Dados & Backups
+            </button>
+            <button
               onClick={() => setActiveTab("privacy")}
               className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
                 activeTab === "privacy"
@@ -140,6 +164,9 @@ export function SettingsDrawer({
               initialIsAdding={Boolean(initialAccountType)}
             />
           )}
+          {activeTab === "open-finance" && (
+            <OpenFinanceTab accounts={accounts} onRefresh={onRefresh} />
+          )}
           {activeTab === "categories" && (
             <CategoriesTab categories={categories} onRefresh={onRefresh} />
           )}
@@ -148,6 +175,9 @@ export function SettingsDrawer({
           )}
           {activeTab === "rules" && (
             <RulesTab categories={categories} />
+          )}
+          {activeTab === "data-backups" && (
+            <DataBackupsTab />
           )}
           {activeTab === "privacy" && (
             <PrivacyTab />

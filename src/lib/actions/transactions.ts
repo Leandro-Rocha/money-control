@@ -8,6 +8,8 @@ import { formatMonthLabel } from "../format";
 import { revalidatePath } from "next/cache";
 import { isFutureMonth, addMonths } from "../date-helpers";
 import { buildProjectedMonthData, getCarryForwardBalance } from "./projections";
+import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-helpers";
+import { isSameInstallmentSeries } from "../installments-helpers";
 
 export async function getMonthData(month: string): Promise<MonthData> {
   // 1. Fetch all real transactions for the month
@@ -145,15 +147,34 @@ export async function getMonthData(month: string): Promise<MonthData> {
       let totalExpense = 0;
 
       const txWithRunning: TransactionWithCategory[] = combinedTx.map((tx) => {
-        if (tx.amount > 0) totalIncome += tx.amount;
-        else totalExpense += Math.abs(tx.amount);
+        if (acc.type !== "credit_card") {
+          if (tx.amount > 0) totalIncome += tx.amount;
+          else totalExpense += Math.abs(tx.amount);
+        }
         currentRunning += tx.amount;
         currentRunning = Math.round(currentRunning * 100) / 100;
         return { ...tx, runningBalance: currentRunning };
       });
 
-      totalIncome = Math.round(totalIncome * 100) / 100;
-      totalExpense = Math.round(totalExpense * 100) / 100;
+      if (acc.type === "credit_card") {
+        let debits = 0;
+        let credits = 0;
+        for (const tx of combinedTx) {
+          if (tx.amount < 0) debits += Math.abs(tx.amount);
+          else credits += tx.amount;
+        }
+        const net = Math.round((debits - credits) * 100) / 100;
+        if (net >= 0) {
+          totalExpense = net;
+          totalIncome = 0;
+        } else {
+          totalExpense = 0;
+          totalIncome = Math.abs(net);
+        }
+      } else {
+        totalIncome = Math.round(totalIncome * 100) / 100;
+        totalExpense = Math.round(totalExpense * 100) / 100;
+      }
       const netBalance = Math.round((totalIncome - totalExpense) * 100) / 100;
       const finalBalance = Math.round((accInitialBalance + netBalance) * 100) / 100;
 
@@ -344,6 +365,7 @@ export async function createMultipleTransactions(dataArray: {
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
   purchaseDate?: string | null;
+  pluggyTransactionId?: string | null;
 }[], newRules?: { pattern: string; targetDescription: string; categoryId: number | null }[]) {
   if (dataArray.length === 0) return { success: true };
   
@@ -359,15 +381,11 @@ export async function createMultipleTransactions(dataArray: {
       amount: data.amount,
       installmentCurrent: data.installmentCurrent ?? null,
       installmentTotal: data.installmentTotal ?? null,
+      pluggyTransactionId: data.pluggyTransactionId ?? null,
     }))).run();
     
     if (newRules && newRules.length > 0) {
-      tx.insert(transactionRules).values(newRules.map(r => ({
-        pattern: r.pattern.trim(),
-        targetDescription: r.targetDescription.trim(),
-        categoryId: r.categoryId ?? null,
-        active: 1,
-      }))).run();
+      upsertTransactionRulesBatch(tx, newRules);
     }
   });
   
@@ -404,6 +422,7 @@ export async function createTransaction(data: {
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
   notes?: string;
+  pluggyTransactionId?: string | null;
 }) {
   await db.insert(transactions).values({
     accountId: data.accountId,
@@ -415,6 +434,7 @@ export async function createTransaction(data: {
     installmentCurrent: data.installmentCurrent ?? null,
     installmentTotal: data.installmentTotal ?? null,
     notes: data.notes?.trim() || null,
+    pluggyTransactionId: data.pluggyTransactionId ?? null,
   });
   revalidatePath("/");
   return { success: true };
@@ -478,18 +498,31 @@ export async function updateTransaction(
     })
     .where(eq(transactions.id, id));
 
-  if (data.categoryId !== undefined && currentTxn && currentTxn.installmentTotal) {
-    // Cascata de categoria para parcelas irmãs já confirmadas no banco
-    await db
-      .update(transactions)
-      .set({ categoryId: data.categoryId })
+  if (currentTxn && currentTxn.installmentTotal && (data.categoryId !== undefined || data.description !== undefined)) {
+    // Cascata de categoria e descrição para parcelas irmãs já confirmadas no banco
+    const candidates = await db
+      .select()
+      .from(transactions)
       .where(
         and(
           eq(transactions.accountId, currentTxn.accountId),
-          eq(transactions.description, currentTxn.description),
           eq(transactions.installmentTotal, currentTxn.installmentTotal)
         )
       );
+
+    const sisterIds = candidates
+      .filter((t) => t.id !== currentTxn.id && isSameInstallmentSeries(currentTxn, t))
+      .map((t) => t.id);
+
+    if (sisterIds.length > 0) {
+      await db
+        .update(transactions)
+        .set({
+          ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
+          ...(data.description !== undefined ? { description: data.description.trim() } : {}),
+        })
+        .where(inArray(transactions.id, sisterIds));
+    }
   }
 
   revalidatePath("/");
@@ -677,19 +710,159 @@ export async function convertToTransfer(transactionId: number, targetAccountId: 
         financingInstallmentsPaid: curPaid + 1,
       }).where(eq(accounts.id, targetAccountId)).run();
     }
+
+    // If target account is loan_receivable, abate the receivable balance and increment paid installments
+    if (targetAcc && targetAcc.type === "loan_receivable") {
+      const receivedAmount = Math.abs(sourceTxn.amount);
+      const curRemaining = targetAcc.financingRemainingAmount ?? targetAcc.financingTotalAmount ?? 0;
+      const curPaid = targetAcc.financingInstallmentsPaid ?? 0;
+      tx.update(accounts).set({
+        financingRemainingAmount: Math.max(0, Math.round((curRemaining - receivedAmount) * 100) / 100),
+        financingInstallmentsPaid: curPaid + 1,
+      }).where(eq(accounts.id, targetAccountId)).run();
+    }
   });
 
   revalidatePath("/");
   return { success: true };
 }
 
-export async function findTransferCandidates(month: string) {
+export type TransferCandidate = {
+  tx1: {
+    id: number;
+    accountId: number;
+    month: string;
+    day: number;
+    amount: number;
+    description: string;
+    originalDescription: string | null;
+    categoryId: number | null;
+  };
+  tx2: {
+    id: number;
+    accountId: number;
+    month: string;
+    day: number;
+    amount: number;
+    description: string;
+    originalDescription: string | null;
+    categoryId: number | null;
+  };
+  dayDiff: number;
+  confidence: "high" | "review";
+  reasons: string[];
+};
+
+function evaluateTransferConfidence(
+  outTx: {
+    accountId: number;
+    description: string;
+    originalDescription: string | null;
+    categoryId: number | null;
+  },
+  inTx: {
+    accountId: number;
+    description: string;
+    originalDescription: string | null;
+    categoryId: number | null;
+  },
+  dayDiff: number,
+  accMap: Map<number, { id: number; name: string; type: string }>,
+  transferCatId?: number
+): { confidence: "high" | "review"; reasons: string[] } {
+  const reasons: string[] = [];
+  let hasMetadataConfirm = false;
+
+  const t1Desc = (outTx.description + " " + (outTx.originalDescription || "")).toLowerCase();
+  const t2Desc = (inTx.description + " " + (inTx.originalDescription || "")).toLowerCase();
+
+  const acc1 = accMap.get(outTx.accountId);
+  const acc2 = accMap.get(inTx.accountId);
+
+  // 1. Menção da instituição de contraparte
+  const acc1Name = acc1?.name.trim().toLowerCase();
+  const acc2Name = acc2?.name.trim().toLowerCase();
+
+  if (acc2Name && acc2Name.length >= 3 && t1Desc.includes(acc2Name)) {
+    hasMetadataConfirm = true;
+    reasons.push(`Destino "${acc2?.name}" identificado na descrição`);
+  }
+  if (acc1Name && acc1Name.length >= 3 && t2Desc.includes(acc1Name)) {
+    hasMetadataConfirm = true;
+    reasons.push(`Origem "${acc1?.name}" identificada na descrição`);
+  }
+
+  // 2. Metadados de mesma titularidade / same person transfer
+  if (
+    t1Desc.includes("same person") || t2Desc.includes("same person") ||
+    t1Desc.includes("mesma titularidade") || t2Desc.includes("mesma titularidade") ||
+    t1Desc.includes("contas próprias") || t2Desc.includes("contas próprias") ||
+    t1Desc.includes("contas proprias") || t2Desc.includes("contas proprias")
+  ) {
+    hasMetadataConfirm = true;
+    reasons.push("Classificado como transferência entre contas próprias");
+  }
+
+  // 3. Categoria de transferência explícita
+  if (transferCatId && (outTx.categoryId === transferCatId || inTx.categoryId === transferCatId)) {
+    hasMetadataConfirm = true;
+    reasons.push("Categoria identificada como Transferência");
+  }
+
+  // 4. Detecção de nome do titular em comum nas descrições
+  const stopwords = new Set([
+    "pix", "enviado", "recebido", "ted", "doc", "tef", "transf", "transferencia", "transferência",
+    "pagamento", "para", "de", "do", "da", "dos", "das", "des", "em", "por", "com", "banco",
+    "ltda", "sa", "me", "epp", "conta", "valor", "docto", "compra", "debito", "credito", "qr", "code",
+    "via", "app", "internet", "banking", "agencia", "terminal", "recebida"
+  ]);
+
+  const extractTokens = (str: string) => {
+    return str
+      .replace(/[^a-z0-9áàâãéèêíïóôõöúçñ\s]/gi, " ")
+      .split(/\s+/)
+      .map((s) => s.toLowerCase().trim())
+      .filter((s) => s.length >= 4 && !stopwords.has(s) && !/^\d+$/.test(s));
+  };
+
+  const t1Tokens = extractTokens(t1Desc);
+  const t2Tokens = new Set(extractTokens(t2Desc));
+  const commonTokens = t1Tokens.filter((tok) => t2Tokens.has(tok));
+
+  if (commonTokens.length > 0) {
+    hasMetadataConfirm = true;
+    const tokenSample = commonTokens.slice(0, 2).map((t) => t.toUpperCase()).join(" ");
+    reasons.push(`Mesmo titular na descrição (${tokenSample})`);
+  }
+
+  // 5. Avaliação temporal
+  if (dayDiff === 0) {
+    reasons.push("Mesmo dia");
+  } else if (dayDiff === 1) {
+    reasons.push("Intervalo de 1 dia (D+1)");
+  } else {
+    reasons.push(`Diferença de ${dayDiff} dias`);
+  }
+
+  // 6. Decisão de confiança
+  if (dayDiff <= 1 && hasMetadataConfirm) {
+    return { confidence: "high", reasons };
+  }
+
+  if (!hasMetadataConfirm) {
+    reasons.push("Sem confirmação direta de titularidade ou instituição");
+  }
+  return { confidence: "review", reasons };
+}
+
+export async function findTransferCandidates(month: string): Promise<TransferCandidate[]> {
   const accs = db
-    .select({ id: accounts.id })
+    .select({ id: accounts.id, name: accounts.name, type: accounts.type })
     .from(accounts)
-    .where(inArray(accounts.type, ["bank_account", "investment", "financing"]))
+    .where(inArray(accounts.type, ["bank_account", "investment", "financing", "loan_receivable"]))
     .all();
   const accIds = accs.map((a) => a.id);
+  const accMap = new Map<number, typeof accs[0]>(accs.map((a) => [a.id, a]));
 
   if (accIds.length === 0) return [];
 
@@ -704,6 +877,8 @@ export async function findTransferCandidates(month: string) {
       day: transactions.day,
       amount: transactions.amount,
       description: transactions.description,
+      originalDescription: transactions.originalDescription,
+      categoryId: transactions.categoryId,
     })
     .from(transactions)
     .where(
@@ -715,6 +890,13 @@ export async function findTransferCandidates(month: string) {
     )
     .all();
 
+  const catTransfer = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.name, "Transferência"))
+    .get();
+  const transferCatId = catTransfer?.id;
+
   const outflows = txs.filter((t) => t.amount < 0);
   const inflows = txs.filter((t) => t.amount > 0);
 
@@ -723,6 +905,8 @@ export async function findTransferCandidates(month: string) {
     tx2: (typeof txs)[0];
     dayDiff: number;
     preferredDirection: boolean;
+    confidence: "high" | "review";
+    reasons: string[];
   };
 
   const candidatePairs: CandidatePair[] = [];
@@ -750,22 +934,36 @@ export async function findTransferCandidates(month: string) {
         // Preferred direction: money arrives on the same day or shortly after leaving
         const preferredDirection = d2 >= d1;
 
+        const { confidence, reasons } = evaluateTransferConfidence(
+          outTx,
+          inTx,
+          dayDiff,
+          accMap,
+          transferCatId
+        );
+
         candidatePairs.push({
           tx1: outTx,
           tx2: inTx,
           dayDiff,
           preferredDirection,
+          confidence,
+          reasons,
         });
       }
     }
   }
 
   // Sort candidate pairs:
-  // 1. Smallest day difference first (same day / next day win)
-  // 2. Preferred direction (arrival on or after departure)
-  // 3. Chronological
-  // 4. Deterministic ID tie-breaker
+  // 1. High confidence first
+  // 2. Smallest day difference first (same day / next day win)
+  // 3. Preferred direction (arrival on or after departure)
+  // 4. Chronological
+  // 5. Deterministic ID tie-breaker
   candidatePairs.sort((a, b) => {
+    if (a.confidence !== b.confidence) {
+      return a.confidence === "high" ? -1 : 1;
+    }
     if (a.dayDiff !== b.dayDiff) return a.dayDiff - b.dayDiff;
     if (a.preferredDirection !== b.preferredDirection) return a.preferredDirection ? -1 : 1;
     if (a.tx1.month !== b.tx1.month) return a.tx1.month.localeCompare(b.tx1.month);
@@ -773,7 +971,7 @@ export async function findTransferCandidates(month: string) {
     return a.tx1.id - b.tx1.id;
   });
 
-  const finalPairs: { tx1: (typeof txs)[0]; tx2: (typeof txs)[0]; dayDiff: number }[] = [];
+  const finalPairs: TransferCandidate[] = [];
   const usedIds = new Set<number>();
 
   for (const cand of candidatePairs) {
@@ -784,6 +982,8 @@ export async function findTransferCandidates(month: string) {
       tx1: cand.tx1,
       tx2: cand.tx2,
       dayDiff: cand.dayDiff,
+      confidence: cand.confidence,
+      reasons: cand.reasons,
     });
   }
 
@@ -795,6 +995,32 @@ export async function findTransferCandidates(month: string) {
   });
 
   return finalPairs;
+}
+
+export async function autoLinkTransfersAction(month: string): Promise<{ success: boolean; linkedCount: number; error?: string }> {
+  try {
+    const candidates = await findTransferCandidates(month);
+    const highPairs = candidates.filter((c) => c.confidence === "high");
+
+    if (highPairs.length === 0) {
+      return { success: true, linkedCount: 0 };
+    }
+
+    await linkTransfersBatch(
+      highPairs.map((p) => ({
+        tx1Id: p.tx1.id,
+        tx2Id: p.tx2.id,
+      }))
+    );
+
+    return { success: true, linkedCount: highPairs.length };
+  } catch (err: any) {
+    return {
+      success: false,
+      linkedCount: 0,
+      error: err?.message || "Erro ao vincular transferências automaticamente.",
+    };
+  }
 }
 
 export async function linkTransfersBatch(pairs: { tx1Id: number, tx2Id: number }[]) {

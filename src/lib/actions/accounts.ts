@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 
 export async function createAccount(data: {
   name: string;
-  type: "bank_account" | "credit_card" | "investment" | "financing" | "other";
+  type: "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | "other";
   color: string;
   defaultPaymentAccountId?: number | null;
   dueDay?: number | null;
@@ -18,6 +18,9 @@ export async function createAccount(data: {
   financingInstallmentAmount?: number | null;
   initialInvestmentBalance?: number | null;
   initialBalance?: number | null;
+  pluggyAccountId?: string | null;
+  pluggyItemId?: string | null;
+  pluggyCredentialId?: string | null;
 }) {
   const [created] = await db.insert(accounts).values({
     name: data.name,
@@ -30,6 +33,9 @@ export async function createAccount(data: {
     financingInstallmentsTotal: data.financingInstallmentsTotal ?? null,
     financingInstallmentsPaid: data.financingInstallmentsPaid ?? null,
     financingInstallmentAmount: data.financingInstallmentAmount ?? null,
+    pluggyAccountId: data.pluggyAccountId ?? null,
+    pluggyItemId: data.pluggyItemId ?? null,
+    pluggyCredentialId: data.pluggyCredentialId ?? null,
     displayOrder: 99,
   }).returning();
 
@@ -43,6 +49,15 @@ export async function createAccount(data: {
       description: "Posição Inicial em Custódia",
       amount: data.initialInvestmentBalance,
     });
+  }
+
+  if (data.type === "investment" && data.pluggyItemId && created) {
+    try {
+      const { syncPluggyInvestmentAccount } = await import("@/lib/actions/pluggy");
+      await syncPluggyInvestmentAccount(created.id);
+    } catch (syncErr) {
+      console.error("Erro ao sincronizar saldo inicial de investimento Pluggy:", syncErr);
+    }
   }
 
   if (data.type === "bank_account" && data.initialBalance && data.initialBalance !== 0 && created) {
@@ -65,6 +80,7 @@ export async function updateAccount(
   id: number,
   data: {
     name?: string;
+    type?: "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | "other";
     color?: string;
     isActive?: number;
     defaultPaymentAccountId?: number | null;
@@ -74,9 +90,22 @@ export async function updateAccount(
     financingInstallmentsTotal?: number | null;
     financingInstallmentsPaid?: number | null;
     financingInstallmentAmount?: number | null;
+    pluggyAccountId?: string | null;
+    pluggyItemId?: string | null;
+    pluggyCredentialId?: string | null;
   }
 ) {
   await db.update(accounts).set(data).where(eq(accounts.id, id));
+
+  if (data.type === "investment" && data.pluggyItemId) {
+    try {
+      const { syncPluggyInvestmentAccount } = await import("@/lib/actions/pluggy");
+      await syncPluggyInvestmentAccount(id);
+    } catch (syncErr) {
+      console.error("Erro ao sincronizar investimento ao atualizar conta:", syncErr);
+    }
+  }
+
   revalidatePath("/");
   return { success: true };
 }
@@ -97,6 +126,32 @@ export async function updateFinancingBalance(
   }
   if (installmentsTotal !== undefined && installmentsTotal !== null) {
     patch.financingInstallmentsTotal = installmentsTotal;
+  }
+  await db.update(accounts).set(patch).where(eq(accounts.id, id));
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function updateReceivableBalance(
+  id: number,
+  remainingAmount: number,
+  installmentsPaid?: number | null,
+  installmentAmount?: number | null,
+  installmentsTotal?: number | null,
+  dueDay?: number | null
+) {
+  const patch: Record<string, any> = { financingRemainingAmount: remainingAmount };
+  if (installmentsPaid !== undefined && installmentsPaid !== null) {
+    patch.financingInstallmentsPaid = installmentsPaid;
+  }
+  if (installmentAmount !== undefined && installmentAmount !== null) {
+    patch.financingInstallmentAmount = installmentAmount;
+  }
+  if (installmentsTotal !== undefined && installmentsTotal !== null) {
+    patch.financingInstallmentsTotal = installmentsTotal;
+  }
+  if (dueDay !== undefined && dueDay !== null) {
+    patch.dueDay = dueDay;
   }
   await db.update(accounts).set(patch).where(eq(accounts.id, id));
   revalidatePath("/");

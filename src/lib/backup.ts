@@ -481,6 +481,7 @@ Repositório isolado de backups gerado automaticamente pela aplicação.
 
     return {
       success: true,
+      error: undefined,
       skipped: false,
       path: dbDestPath,
       dumpPath: jsonDestPath,
@@ -496,6 +497,14 @@ Repositório isolado de backups gerado automaticamente pela aplicação.
       error: error?.message || String(error),
     };
   }
+}
+
+/**
+ * Triggers an immediate backup (forcing snapshot creation even if one already ran today).
+ * Used as a mandatory safety measure before destructive operations.
+ */
+export async function createBackup(options?: BackupOptions): Promise<BackupResult> {
+  return runDailyBackup({ force: true, ...options });
 }
 
 export function startBackupScheduler(options?: {

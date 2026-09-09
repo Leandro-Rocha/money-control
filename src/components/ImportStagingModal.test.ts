@@ -97,7 +97,7 @@ describe("matchExtractedCategory", () => {
   });
 });
 
-import { normalizeDescription, isDbDuplicate } from "./ImportStagingModal";
+import { normalizeDescription, isDbDuplicate, filterStagingRows } from "./ImportStagingModal";
 
 describe("normalizeDescription", () => {
   it("lowercases, trims, removes punctuation and normalizes spacing", () => {
@@ -172,5 +172,61 @@ describe("isDbDuplicate (deduplication)", () => {
       description: "Farmácia Drogasil",
     };
     expect(isDbDuplicate(row, dbTransactions)).toBe(false);
+  });
+
+  it("marks credit card transaction as duplicate when originalDescription or cleaned description matches with installments", () => {
+    const ccTransactions = [
+      {
+        month: "2026-08",
+        day: 10,
+        amount: -150.0,
+        description: "Mercado Livre",
+        originalDescription: "MERCADOLIVRE*COMPRA 02/05",
+      },
+    ];
+
+    const row = {
+      resolvedMonth: "2026-08",
+      day: 10,
+      amount: -150.0,
+      description: "Mercado Livre",
+      originalDescription: "MERCADOLIVRE*COMPRA 02/05",
+    };
+    expect(isDbDuplicate(row, ccTransactions)).toBe(true);
+  });
+});
+
+describe("filterStagingRows (staging filter)", () => {
+  const rows = [
+    { id: "1", description: "Lançamento Novo 1", isDuplicate: false, amount: -50 },
+    { id: "2", description: "Lançamento Duplicado", isDuplicate: true, amount: -100 },
+    { id: "3", description: "Lançamento Novo 2", isDuplicate: false, amount: 200 },
+    { id: "4", description: "Outro Duplicado", isDuplicate: true, amount: -30 },
+  ];
+
+  it("returns all rows when filterMode is 'all'", () => {
+    const result = filterStagingRows(rows, "all");
+    expect(result).toHaveLength(4);
+    expect(result.map((r) => r.id)).toEqual(["1", "2", "3", "4"]);
+  });
+
+  it("returns only unregistered rows (not duplicates) when filterMode is 'unregistered'", () => {
+    const result = filterStagingRows(rows, "unregistered");
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.id)).toEqual(["1", "3"]);
+    expect(result.every((r) => !r.isDuplicate)).toBe(true);
+  });
+
+  it("returns only registered rows (duplicates) when filterMode is 'registered'", () => {
+    const result = filterStagingRows(rows, "registered");
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.id)).toEqual(["2", "4"]);
+    expect(result.every((r) => r.isDuplicate)).toBe(true);
+  });
+
+  it("handles empty list smoothly across all filter modes", () => {
+    expect(filterStagingRows([], "all")).toEqual([]);
+    expect(filterStagingRows([], "unregistered")).toEqual([]);
+    expect(filterStagingRows([], "registered")).toEqual([]);
   });
 });

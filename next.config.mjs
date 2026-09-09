@@ -2,6 +2,22 @@
 const nextConfig = {
   output: "standalone",
   serverExternalPackages: ["better-sqlite3"],
+  allowedDevOrigins: [
+    "money.cafofo.casa",
+    "*.cafofo.casa",
+    "192.168.0.220:3050",
+    "localhost:3050",
+  ],
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        "money.cafofo.casa",
+        "*.cafofo.casa",
+        "192.168.0.220:3050",
+        "localhost:3050",
+      ],
+    },
+  },
   async headers() {
     return [
       {

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Category } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "./EmptyState";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Tags, Pencil, Check, X, Eye, EyeOff, CornerDownRight, FolderPlus } from "lucide-react";
 import { createCategory, deleteCategory, updateCategory } from "@/lib/actions/categories";
@@ -29,6 +31,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
 
   // Estado de edição de categoria ou subcategoria
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, cat: Category | null, msg: string}>({ isOpen: false, cat: null, msg: "" });
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState<"income" | "expense" | "both">("expense");
   const [editBudget, setEditBudget] = useState("");
@@ -91,10 +94,15 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
       ? `A categoria "${cat.name}" possui subcategorias. Excluir o pai também removerá todas as suas subcategorias. Continuar?`
       : `Tem certeza que deseja excluir "${cat.name}"?`;
 
-    if (confirm(msg)) {
-      await deleteCategory(cat.id);
+    setDeleteConfirm({ isOpen: true, cat, msg });
+  };
+
+  const onConfirmDelete = async () => {
+    if (deleteConfirm.cat) {
+      await deleteCategory(deleteConfirm.cat.id);
       onRefresh();
     }
+    setDeleteConfirm({ isOpen: false, cat: null, msg: "" });
   };
 
   const handleUpdate = async (id: number, data: any) => {
@@ -203,7 +211,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
               type="checkbox"
               checked={newParentShow}
               onChange={(e) => setNewParentShow(e.target.checked)}
-              className="rounded border-slate-300 w-4 h-4 accent-primary"
+              className="rounded border-border w-4 h-4 accent-primary"
             />
             Mostrar no Painel de Resumo
           </label>
@@ -222,7 +230,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
           return (
             <div key={parent.id} className="border rounded-lg bg-card overflow-hidden shadow-xs">
               {/* Linha da Categoria Pai */}
-              <div className={`flex items-center justify-between p-3 transition-colors ${parent.showInSummary === 0 ? "bg-slate-50/75 opacity-80" : "hover:bg-slate-50/50"}`}>
+              <div className={`flex items-center justify-between p-3 transition-colors ${parent.showInSummary === 0 ? "bg-muted/75 opacity-80" : "hover:bg-muted/50"}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: parentEffectiveColor }} />
                   <div
@@ -272,9 +280,9 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                     ) : (
                       <>
                         <div className="flex items-center gap-2 group flex-wrap">
-                          <h4 className="font-semibold text-slate-800 text-sm">{parent.name}</h4>
+                          <h4 className="font-semibold text-foreground text-sm">{parent.name}</h4>
                           {children.length > 0 && (
-                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                               {children.length} {children.length === 1 ? "subcategoria" : "subcategorias"}
                             </span>
                           )}
@@ -284,11 +292,11 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                             </span>
                           )}
                           <Pencil
-                            className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-slate-600 transition-opacity"
+                            className="w-3 h-3 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-muted-foreground transition-opacity"
                             onClick={() => startEdit(parent)}
                           />
                         </div>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-muted-foreground">
                           {parent.type === "expense" ? "Despesa" : parent.type === "income" ? "Receita" : "Ambos"}
                           {parent.showInSummary === 0 && " • Oculta no Resumo"}
                         </p>
@@ -301,7 +309,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2.5 text-xs text-slate-700 hover:text-primary gap-1 border-slate-200"
+                    className="h-7 px-2.5 text-xs text-foreground hover:text-primary gap-1 border-border"
                     onClick={() => {
                       if (isAddingSub) {
                         setAddingSubToParentId(null);
@@ -318,7 +326,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
 
                   <button
                     onClick={() => handleUpdate(parent.id, { showInSummary: parent.showInSummary === 1 ? 0 : 1 })}
-                    className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
                     title={parent.showInSummary === 1 ? "Ocultar do Resumo" : "Mostrar no Resumo"}
                   >
                     {parent.showInSummary === 1 ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -351,8 +359,8 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
 
               {/* Formulário Inline para Adicionar Subcategoria */}
               {isAddingSub && (
-                <div className="bg-slate-50 border-t border-b p-3 pl-8 flex items-center gap-2">
-                  <CornerDownRight className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="bg-muted/40 border-t border-b p-3 pl-8 flex items-center gap-2">
+                  <CornerDownRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   <Input
                     value={newSubName}
                     onChange={(e) => setNewSubName(e.target.value)}
@@ -391,16 +399,16 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
 
               {/* Subcategorias Filhas */}
               {children.length > 0 && (
-                <div className="bg-slate-50/50 border-t divide-y divide-slate-100">
+                <div className="bg-muted/50 border-t divide-y divide-border">
                   {children.map((sub) => {
                     const subEffectiveColor = sub.color || parentEffectiveColor;
                     return (
                       <div
                         key={sub.id}
-                        className="flex items-center justify-between py-2 px-4 pl-10 hover:bg-slate-100/50 transition-colors"
+                        className="flex items-center justify-between py-2 px-4 pl-10 hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex items-center gap-2.5">
-                          <CornerDownRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                          <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
                           <div
                             className="w-2.5 h-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: subEffectiveColor }}
@@ -434,12 +442,12 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 group">
-                              <span className="text-xs font-medium text-slate-700">{sub.name}</span>
-                              <span className="text-[10px] text-slate-400 font-normal">
+                              <span className="text-xs font-medium text-foreground">{sub.name}</span>
+                              <span className="text-[10px] text-muted-foreground font-normal">
                                 ({sub.type === "expense" ? "Saída" : sub.type === "income" ? "Entrada" : "Ambos"})
                               </span>
                               <Pencil
-                                className="w-2.5 h-2.5 text-slate-300 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-slate-500 transition-opacity"
+                                className="w-2.5 h-2.5 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-muted-foreground transition-opacity"
                                 onClick={() => startEdit(sub)}
                               />
                             </div>
@@ -455,7 +463,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                               className="w-4 h-4 rounded cursor-pointer border-none p-0 opacity-0 absolute inset-0 z-10"
                             />
                             <div
-                              className="w-3.5 h-3.5 rounded border border-slate-300 cursor-pointer"
+                              className="w-3.5 h-3.5 rounded border border-border cursor-pointer"
                               style={{ backgroundColor: subEffectiveColor }}
                             />
                           </div>
@@ -464,7 +472,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(sub)}
-                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 h-6 w-6"
+                            className="text-muted-foreground hover:text-rose-600 hover:bg-rose-50 h-6 w-6"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -479,11 +487,21 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
         })}
 
         {parentCategories.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground text-sm border border-dashed rounded-lg">
-            Nenhuma categoria cadastrada. Clique em "Nova Categoria Pai" para começar.
-          </div>
+          <EmptyState
+            icon={Tags}
+            title="Nenhuma categoria"
+            description="Nenhuma categoria cadastrada. Clique em 'Nova Categoria Pai' para começar."
+          />
         )}
       </div>
-    </div>
+    
+      <ConfirmDialog
+        open={deleteConfirm.isOpen}
+        onOpenChange={(open) => setDeleteConfirm(prev => ({ ...prev, isOpen: open }))}
+        title="Excluir Categoria"
+        description={deleteConfirm.msg}
+        onConfirm={onConfirmDelete}
+      />
+</div>
   );
 }

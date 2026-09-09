@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { RecurringEntryUI, Account, Category } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "./EmptyState";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Repeat } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Pencil, Check, X } from "lucide-react";
 import { CategoryPicker } from "./CategoryPicker";
@@ -31,6 +34,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [newMonth, setNewMonth] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [editDesc, setEditDesc] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editDay, setEditDay] = useState("");
@@ -57,11 +61,16 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
     onRefresh();
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm("Remover esta despesa recorrente?")) {
-      await deleteRecurringEntry(id);
+  const handleDelete = (id: number) => {
+    setDeleteConfirmId(id);
+  };
+
+  const onConfirmDelete = async () => {
+    if (deleteConfirmId) {
+      await deleteRecurringEntry(deleteConfirmId);
       onRefresh();
     }
+    setDeleteConfirmId(null);
   };
 
   const startEdit = (e: RecurringEntryUI) => {
@@ -142,13 +151,15 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
 
       <div className="space-y-3">
         {entries.length === 0 && !isAdding && (
-          <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg border-dashed">
-            Nenhuma despesa recorrente cadastrada.
-          </div>
+          <EmptyState
+            icon={Repeat}
+            title="Nenhuma despesa recorrente"
+            description="Nenhuma despesa recorrente cadastrada."
+          />
         )}
         
         {entries.map((entry) => (
-          <div key={entry.id} className="p-3 border rounded-lg hover:border-slate-300 transition-colors bg-card">
+          <div key={entry.id} className="p-3 border rounded-lg hover:border-border transition-colors bg-card">
             {editingId === entry.id ? (
               <div className="space-y-3">
                 <Input value={editDesc} onChange={e => setEditDesc(e.target.value)} className="h-8" />
@@ -190,13 +201,13 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Dia {entry.day}</span>
+                    <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Dia {entry.day}</span>
                     {entry.month ? (
                       <span className="text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
                         {MONTH_NAMES[entry.month - 1]} (Anual)
                       </span>
                     ) : (
-                      <span className="text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         Mensal
                       </span>
                     )}
@@ -225,6 +236,14 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
           </div>
         ))}
       </div>
-    </div>
+    
+      <ConfirmDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+        title="Remover Despesa"
+        description="Remover esta despesa recorrente?"
+        onConfirm={onConfirmDelete}
+      />
+</div>
   );
 }

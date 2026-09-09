@@ -1,0 +1,22 @@
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+# Dependências de sistema para compilação nativa (better-sqlite3) e utilitários
+RUN apt-get update && apt-get install -y python3 make g++ git tzdata curl && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=America/Sao_Paulo
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Instalação limpa de dependências
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Código base da aplicação
+COPY . .
+
+EXPOSE 3000
+
+# Execução em modo de desenvolvimento com hot-reload ativo
+CMD ["npm", "run", "dev"]

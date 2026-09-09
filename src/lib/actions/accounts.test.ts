@@ -83,4 +83,28 @@ describe('account lifecycle management and initial balance', () => {
     expect(juneAccountIds).not.toContain(2);
     expect(juneAccountIds).not.toContain(3);
   });
+
+  it('persists and updates pluggyAccountId and pluggyItemId', async () => {
+    await accountActions.createAccount({
+      name: 'Conta Pluggy Itaú',
+      type: 'bank_account',
+      color: 'orange',
+      pluggyAccountId: 'pluggy-acc-999',
+      pluggyItemId: 'pluggy-item-888',
+    });
+
+    const [created] = await testDb.select().from(accounts).where(eq(accounts.name, 'Conta Pluggy Itaú'));
+    expect(created).toBeDefined();
+    expect(created.pluggyAccountId).toBe('pluggy-acc-999');
+    expect(created.pluggyItemId).toBe('pluggy-item-888');
+
+    await accountActions.updateAccount(created.id, {
+      pluggyAccountId: 'pluggy-acc-updated',
+      pluggyItemId: null,
+    });
+
+    const [updated] = await testDb.select().from(accounts).where(eq(accounts.id, created.id));
+    expect(updated.pluggyAccountId).toBe('pluggy-acc-updated');
+    expect(updated.pluggyItemId).toBeNull();
+  });
 });

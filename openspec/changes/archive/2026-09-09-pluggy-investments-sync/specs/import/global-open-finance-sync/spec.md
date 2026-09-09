@@ -1,0 +1,19 @@
+## MODIFIED Requirements
+
+### Requirement: Ação global de sincronização no menu Ações
+O sistema SHALL disponibilizar a opção "Sincronizar Todas as Contas" no menu de "Ações" do cabeçalho quando houver pelo menos uma conta vinculada ao Pluggy (`pluggyAccountId IS NOT NULL` ou `pluggyItemId IS NOT NULL`).
+
+#### Scenario: Acionamento da sincronização global
+- **WHEN** o usuário clica em "Sincronizar Todas as Contas" no menu Ações
+- **THEN** o sistema dispara a busca de transações para contas bancárias e cartões vinculados a `pluggyAccountId`, e a sincronização de saldo de custódia para contas de investimento vinculadas a `pluggyItemId`, exibindo modal ou toast com barra de progresso por conta
+
+### Requirement: Resiliência a falhas parciais por conta
+O sistema SHALL processar a sincronização de cada conta de forma isolada, garantindo que a falha em uma instituição não interrompa a sincronização das demais.
+
+#### Scenario: Falha de conexão em um banco específico
+- **WHEN** uma conta falha durante o processo de sincronização global (ex.: token expirado ou erro de rede ao buscar transações ou investimentos)
+- **THEN** o sistema registra o erro para aquela conta específica, continua sincronizando as demais e ao final apresenta um resumo claro das contas atualizadas com sucesso e das que apresentaram erro
+
+#### Scenario: Nenhuma conta conectada
+- **WHEN** não há nenhuma conta bancária, cartão ou investimento cadastrado com vínculo ao Pluggy
+- **THEN** a opção de sincronizar todas exibe dica informativa orientando a vincular uma conta nas Configurações

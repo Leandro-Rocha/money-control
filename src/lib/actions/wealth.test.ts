@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createTestDb } from '../test-db';
 import { accounts, transactions, categories } from '@/db/schema';
 import { getWealthData } from './wealth';
-import { updateFinancingBalance } from './accounts';
+import { updateFinancingBalance, updateReceivableBalance } from './accounts';
 import { convertToTransfer } from './transactions';
 import { eq } from 'drizzle-orm';
 
@@ -164,5 +164,120 @@ describe('wealth actions and calculations', () => {
     expect(wealth.investments[0].netContributed).toBe(10000);
     expect(wealth.investments[0].totalGainLoss).toBe(450);
     expect(wealth.investments[0].gainLossPercent).toBe(4.5);
+  });
+
+  it('calculates totalReceivables and includes it in netWorth', async () => {
+    // Investment
+    testDb.insert(accounts).values({
+      id: 30,
+      name: 'Rico',
+      type: 'investment',
+      color: '#10b981',
+    }).run();
+    testDb.insert(transactions).values([
+      { accountId: 30, month: '2026-09', day: 1, description: 'Aporte', amount: 5000 },
+    ]).run();
+
+    // Financing (debt)
+    testDb.insert(accounts).values({
+      id: 31,
+      name: 'Empréstimo Caixa',
+      type: 'financing',
+      color: '#f43f5e',
+      financingTotalAmount: 10000,
+      financingRemainingAmount: 6000,
+      financingInstallmentsTotal: 10,
+      financingInstallmentsPaid: 4,
+      financingInstallmentAmount: 1000,
+    }).run();
+
+    // Loan receivable (asset)
+    testDb.insert(accounts).values({
+      id: 32,
+      name: 'Empréstimo Amigo',
+      type: 'loan_receivable',
+      color: '#0ea5e9',
+      financingTotalAmount: 8000,
+      financingRemainingAmount: 4800,
+      financingInstallmentsTotal: 8,
+      financingInstallmentsPaid: 3,
+      financingInstallmentAmount: 1000,
+      dueDay: 20,
+    }).run();
+
+    const wealth = await getWealthData('2026-09');
+
+    expect(wealth.totalInvested).toBe(5000);
+    expect(wealth.totalDebts).toBe(6000);
+    expect(wealth.totalReceivables).toBe(4800);
+    // Net worth = 5000 + 4800 - 6000 = 3800
+    expect(wealth.netWorth).toBe(3800);
+
+    expect(wealth.receivables).toHaveLength(1);
+    const rec = wealth.receivables[0];
+    expect(rec.account.name).toBe('Empréstimo Amigo');
+    expect(rec.remainingAmount).toBe(4800);
+    expect(rec.receivedAmount).toBe(3200);
+    expect(rec.progressPercent).toBe(38); // 3 / 8 = 37.5 -> 38%
+    expect(rec.dueDay).toBe(20);
+  });
+
+  it('abates loan_receivable remaining balance when a transfer is converted from bank_account', async () => {
+    testDb.insert(categories).values({
+      name: 'Transferência',
+      type: 'both',
+    }).run();
+
+    testDb.insert(accounts).values([
+      { id: 40, name: 'Inter', type: 'bank_account', color: '#ff7a00' },
+      {
+        id: 41,
+        name: 'Empréstimo Irmão',
+        type: 'loan_receivable',
+        color: '#0ea5e9',
+        financingTotalAmount: 5000,
+        financingRemainingAmount: 4000,
+        financingInstallmentsTotal: 5,
+        financingInstallmentsPaid: 1,
+        financingInstallmentAmount: 1000,
+      },
+    ]).run();
+
+    // Inflow into checking account (brother paid installment)
+    const tx = testDb.insert(transactions).values({
+      accountId: 40,
+      month: '2026-09',
+      day: 10,
+      description: 'Pix Irmão Devolução',
+      amount: 1000,
+    }).returning().get();
+
+    // Convert to transfer pointing to loan_receivable account
+    await convertToTransfer(tx.id, 41);
+
+    const recAcc = testDb.select().from(accounts).where(eq(accounts.id, 41)).get();
+    expect(recAcc.financingRemainingAmount).toBe(3000);
+    expect(recAcc.financingInstallmentsPaid).toBe(2);
+  });
+
+  it('updates receivable balance with updateReceivableBalance', async () => {
+    testDb.insert(accounts).values({
+      id: 50,
+      name: 'Empréstimo Colega',
+      type: 'loan_receivable',
+      color: '#0ea5e9',
+      financingTotalAmount: 2000,
+      financingRemainingAmount: 2000,
+      financingInstallmentsTotal: 4,
+      financingInstallmentsPaid: 0,
+      financingInstallmentAmount: 500,
+    }).run();
+
+    await updateReceivableBalance(50, 1500, 1, 500, 4, 15);
+
+    const updated = testDb.select().from(accounts).where(eq(accounts.id, 50)).get();
+    expect(updated.financingRemainingAmount).toBe(1500);
+    expect(updated.financingInstallmentsPaid).toBe(1);
+    expect(updated.dueDay).toBe(15);
   });
 });

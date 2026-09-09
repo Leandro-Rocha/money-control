@@ -131,3 +131,25 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 
 Overall average: **60-90% token reduction** on common development operations.
 <!-- /rtk-instructions -->
+
+---
+
+# Workflow de Desenvolvimento & Servidor (Porta 3050 / NPMPlus)
+
+O container `money-control` está configurado em **modo desenvolvimento com volumes montados** e política `restart: unless-stopped`.
+
+* **Reinicializações e Quedas de Energia:** O container sobe **automaticamente no boot do servidor**.
+* **Hot-Reload:** Qualquer alteração em arquivos `.tsx`, `.ts` ou `.css` no host reflete **instantaneamente** no navegador sem precisar reiniciar o container.
+* **Alterações no `.env`:** Basta rodar `docker compose up -d` para recriar o container com as novas variáveis.
+* **Novas dependências (`package.json`):** Rode `docker compose up -d --build`.
+
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

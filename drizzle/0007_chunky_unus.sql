@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `pluggy_credential_id` text;

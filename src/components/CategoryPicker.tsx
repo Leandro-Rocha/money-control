@@ -1,10 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import { Category } from "@/lib/types";
 import { ChevronRight, ArrowLeft, Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export function normalizeText(text: string): string {
+  if (!text) return "";
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 export interface CategoryPickerProps {
   categories: Category[];
@@ -21,30 +30,49 @@ export interface CategoryPickerProps {
   categoryColor?: string | null;
   parentCategoryId?: number | null;
   parentCategoryName?: string | null;
+  tabIndex?: number;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
 }
 
-export function CategoryPicker({
-  categories,
-  value,
-  onSelect,
-  mode = "badge",
-  placeholder,
-  nullOptionLabel,
-  showNullOption = true,
-  disabled = false,
-  align = "left",
-  className,
-  categoryName,
-  categoryColor,
-  parentCategoryId,
-  parentCategoryName,
-}: CategoryPickerProps) {
+export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>(
+  function CategoryPicker(
+    {
+      categories,
+      value,
+      onSelect,
+      mode = "badge",
+      placeholder,
+      nullOptionLabel,
+      showNullOption = true,
+      disabled = false,
+      align = "left",
+      className,
+      categoryName,
+      categoryColor,
+      parentCategoryId,
+      parentCategoryName,
+      tabIndex,
+      onKeyDown: onKeyDownProp,
+    },
+    forwardedRef
+  ) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedParent, setSelectedParent] = useState<Category | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const triggerRef = useRef<HTMLElement>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const internalTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const setTriggerRef = (node: HTMLButtonElement | null) => {
+    internalTriggerRef.current = node;
+    if (typeof forwardedRef === "function") {
+      forwardedRef(node);
+    } else if (forwardedRef) {
+      (forwardedRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+    }
+  };
 
   const [coords, setCoords] = useState<{ top: number; left: number; openAbove: boolean }>({
     top: 0,
@@ -96,7 +124,7 @@ export function CategoryPicker({
     return { parentCategories: parents, subcategoriesByParent: subsMap };
   }, [categories]);
 
-  // Lista plana para busca direta rápida
+  // Lista plana para busca direta rápida (com normalização de acentos)
   const searchableList = useMemo(() => {
     const parentMap = new Map(categories.map((c) => [c.id, c]));
     return categories.map((cat) => {
@@ -106,6 +134,8 @@ export function CategoryPicker({
         id: cat.id,
         name: cat.name,
         fullLabel,
+        normalizedFullLabel: normalizeText(fullLabel),
+        normalizedName: normalizeText(cat.name),
         isSubcategory: !!cat.parentId,
         color: cat.color || parent?.color || "#64748b",
       };
@@ -113,15 +143,22 @@ export function CategoryPicker({
   }, [categories]);
 
   const filteredSearchResults = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = normalizeText(searchQuery);
     if (!q) return [];
-    return searchableList.filter((item) => item.fullLabel.toLowerCase().includes(q));
+    const queryWords = q.split(/\s+/).filter(Boolean);
+    return searchableList.filter((item) =>
+      queryWords.every(
+        (word) =>
+          item.normalizedFullLabel.includes(word) ||
+          item.normalizedName.includes(word)
+      )
+    );
   }, [searchQuery, searchableList]);
 
   // Atualização dinâmica de posição
   const updatePosition = () => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
+    if (!internalTriggerRef.current) return;
+    const rect = internalTriggerRef.current.getBoundingClientRect();
     const menuWidth = Math.min(320, typeof window !== "undefined" ? window.innerWidth - 24 : 320);
     const menuHeight = 340;
 
@@ -149,8 +186,8 @@ export function CategoryPicker({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
-        triggerRef.current &&
-        !triggerRef.current.contains(target) &&
+        internalTriggerRef.current &&
+        !internalTriggerRef.current.contains(target) &&
         menuRef.current &&
         !menuRef.current.contains(target)
       ) {
@@ -161,6 +198,7 @@ export function CategoryPicker({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsOpen(false);
+        internalTriggerRef.current?.focus();
       }
     };
 
@@ -181,15 +219,56 @@ export function CategoryPicker({
     };
   }, [isOpen, align]);
 
-  const handleOpen = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      const input = searchInputRef.current;
+      input.focus();
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    }
+  }, [isOpen]);
+
+  const handleOpen = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (disabled) return;
     setStep(1);
     setSelectedParent(null);
     setSearchQuery("");
+    setHighlightedIndex(0);
     updatePosition();
-    setIsOpen(!isOpen);
+    setIsOpen((prev) => !prev);
+  };
+
+  const handleOpenWithChar = (initialChar: string) => {
+    if (disabled) return;
+    setStep(1);
+    setSelectedParent(null);
+    setSearchQuery(initialChar);
+    setHighlightedIndex(0);
+    updatePosition();
+    setIsOpen(true);
+  };
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (onKeyDownProp) {
+      onKeyDownProp(e);
+      if (e.defaultPrevented) return;
+    }
+
+    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      e.preventDefault();
+      handleOpen(e);
+      return;
+    }
+
+    // Ao digitar qualquer caractere de texto imprimível (letras, números, acentos), abre buscando direto
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      handleOpenWithChar(e.key);
+    }
   };
 
   const handleSelectOption = (categoryId: number | null) => {
@@ -198,6 +277,8 @@ export function CategoryPicker({
     setStep(1);
     setSelectedParent(null);
     setSearchQuery("");
+    setHighlightedIndex(0);
+    internalTriggerRef.current?.focus();
   };
 
   const resolvedNullLabel = nullOptionLabel || "Sem categoria";
@@ -211,7 +292,7 @@ export function CategoryPicker({
   // Identificação do container de portal (para respeitar Dialogs e Sheets sem fechar)
   const portalTarget =
     typeof document !== "undefined"
-      ? (triggerRef.current?.closest('[role="dialog"]') as HTMLElement) || document.body
+      ? (internalTriggerRef.current?.closest('[role="dialog"]') as HTMLElement) || document.body
       : null;
 
   return (
@@ -219,9 +300,11 @@ export function CategoryPicker({
       {/* 1. MODO FILTRO */}
       {mode === "filter" && (
         <button
-          ref={triggerRef as any}
+          ref={setTriggerRef}
           type="button"
+          tabIndex={tabIndex}
           onClick={handleOpen}
+          onKeyDown={handleTriggerKeyDown}
           disabled={disabled}
           className={cn(
             "w-full sm:w-[190px] h-9 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 select-none",
@@ -257,9 +340,11 @@ export function CategoryPicker({
       {/* 2. MODO FORMULÁRIO (SELECT) */}
       {mode === "select" && (
         <button
-          ref={triggerRef as any}
+          ref={setTriggerRef}
           type="button"
+          tabIndex={tabIndex}
           onClick={handleOpen}
+          onKeyDown={handleTriggerKeyDown}
           disabled={disabled}
           className={cn(
             "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-xs sm:text-sm shadow-xs transition-colors hover:bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-primary/20 select-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -289,11 +374,15 @@ export function CategoryPicker({
 
       {/* 3. MODO BADGE (TABELAS DENSAS) */}
       {mode === "badge" && (
-        <span
-          ref={triggerRef as any}
+        <button
+          ref={setTriggerRef}
+          type="button"
+          tabIndex={tabIndex}
+          disabled={disabled}
           onClick={handleOpen}
+          onKeyDown={handleTriggerKeyDown}
           className={cn(
-            "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-[10px] uppercase font-semibold transition-all select-none",
+            "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-[10px] uppercase font-semibold transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
             disabled
               ? "cursor-default opacity-85"
               : "cursor-pointer hover:ring-1 hover:ring-slate-300 hover:shadow-xs",
@@ -306,7 +395,7 @@ export function CategoryPicker({
           title={tooltipText}
         >
           {resolvedName || "Sem categoria"}
-        </span>
+        </button>
       )}
 
       {/* DROPDOWN EM PORTAL */}
@@ -329,9 +418,36 @@ export function CategoryPicker({
               <div className="relative flex items-center">
                 <Search className="w-3.5 h-3.5 absolute left-2 text-slate-400 pointer-events-none" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      if (filteredSearchResults.length > 0) {
+                        setHighlightedIndex((prev) => (prev + 1) % filteredSearchResults.length);
+                      }
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      if (filteredSearchResults.length > 0) {
+                        setHighlightedIndex((prev) => (prev - 1 + filteredSearchResults.length) % filteredSearchResults.length);
+                      }
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (filteredSearchResults.length > 0) {
+                        handleSelectOption(filteredSearchResults[highlightedIndex]?.id ?? filteredSearchResults[0].id);
+                      }
+                    } else if (e.key === "Tab") {
+                      if (filteredSearchResults.length > 0) {
+                        handleSelectOption(filteredSearchResults[highlightedIndex]?.id ?? filteredSearchResults[0].id);
+                      }
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setIsOpen(false);
+                      internalTriggerRef.current?.focus();
+                    }
+                  }}
                   placeholder="Buscar categoria..."
                   className="w-full h-7 pl-7 pr-6 bg-slate-50 border border-slate-200 rounded text-xs placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                   autoFocus
@@ -356,16 +472,20 @@ export function CategoryPicker({
                     Nenhuma categoria encontrada para "{searchQuery}".
                   </div>
                 ) : (
-                  filteredSearchResults.map((item) => {
+                  filteredSearchResults.map((item, idx) => {
                     const isSelected = numValue === item.id;
+                    const isHighlighted = idx === highlightedIndex;
                     return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => handleSelectOption(item.id)}
+                        onMouseEnter={() => setHighlightedIndex(idx)}
                         className={cn(
-                          "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-800 hover:bg-slate-100 transition-colors",
-                          isSelected && "bg-slate-50 font-medium text-primary"
+                          "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-800 transition-colors",
+                          (isHighlighted || isSelected)
+                            ? "bg-slate-100 font-medium text-primary"
+                            : "hover:bg-slate-50"
                         )}
                       >
                         <div className="flex items-center gap-2 truncate flex-1 min-w-0 pr-2">
@@ -565,5 +685,7 @@ export function CategoryPicker({
         )}
     </div>
   );
-}
+});
+
+CategoryPicker.displayName = "CategoryPicker";
 

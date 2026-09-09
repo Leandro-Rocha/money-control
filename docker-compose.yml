@@ -2,23 +2,27 @@ name: money-control
 
 services:
   money-control:
-    image: money-control:local
+    image: money-control:dev
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: money-control
     restart: unless-stopped
     ports:
       - "${MONEY_CONTROL_PORT:-3050}:3000"
     environment:
       - TZ=America/Sao_Paulo
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - .:/app
+      - /app/node_modules
+      - /app/.next
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/login', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })\""]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 25s

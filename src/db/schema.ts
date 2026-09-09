@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 export const accounts = sqliteTable("accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
-  type: text("type", { enum: ["bank_account", "credit_card", "investment", "financing", "other"] }).notNull(),
+  type: text("type", { enum: ["bank_account", "credit_card", "investment", "financing", "loan_receivable", "other"] }).notNull(),
   color: text("color").notNull().default("orange"),
   displayOrder: integer("display_order").notNull().default(0),
   isActive: integer("is_active").notNull().default(1),
@@ -15,6 +15,9 @@ export const accounts = sqliteTable("accounts", {
   financingInstallmentsTotal: integer("financing_installments_total"),
   financingInstallmentsPaid: integer("financing_installments_paid"),
   financingInstallmentAmount: real("financing_installment_amount"),
+  pluggyAccountId: text("pluggy_account_id"),
+  pluggyItemId: text("pluggy_item_id"),
+  pluggyCredentialId: text("pluggy_credential_id"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -52,6 +55,7 @@ export const transactions = sqliteTable("transactions", {
   linkedTransactionId: integer("linked_transaction_id"),
   sourceType: text("source_type", { enum: ["installment", "recurring", "credit_card_bill"] }),
   sourceId: integer("source_id"),
+  pluggyTransactionId: text("pluggy_transaction_id"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 

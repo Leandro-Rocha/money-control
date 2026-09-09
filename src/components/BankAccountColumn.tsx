@@ -6,14 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
-import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, Building, Repeat } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, Building, Repeat, RefreshCw } from "lucide-react";
 import { createTransaction, deleteTransaction, updateTransaction, convertToTransfer, transformToRecurring } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 import { TransactionContextMenu } from "./TransactionContextMenu";
 import { CategoryPicker } from "./CategoryPicker";
+import { CurrencyInput } from "./CurrencyInput";
+import { cn } from "@/lib/utils";
+import { TableDensity } from "@/hooks/useDashboard";
 
 interface BankAccountColumnProps {
   data: AccountData;
@@ -21,11 +24,14 @@ interface BankAccountColumnProps {
   categories: Category[];
   allAccounts: Account[];
   onRefresh: () => void;
+  onSyncPluggy?: (accountId: number) => void;
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
+  highlightedTxId?: number | null;
+  density?: TableDensity;
 }
 
 type EditingCell = {
@@ -39,11 +45,14 @@ export default function BankAccountColumn({
   categories,
   allAccounts,
   onRefresh,
+  onSyncPluggy,
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
   isExpanded: propIsExpanded,
   onToggleExpanded,
+  highlightedTxId,
+  density = "compact",
 }: BankAccountColumnProps) {
   const [internalExpanded, setInternalExpanded] = useState(true);
   const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
@@ -56,11 +65,32 @@ export default function BankAccountColumn({
   };
 
   // Quick new transaction inputs
+  const [isAdding, setIsAdding] = useState(false);
   const [newDay, setNewDay] = useState(new Date().getDate().toString());
   const [newDescription, setNewDescription] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<number | "">("");
   const [newAmount, setNewAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const newDayInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAdding) {
+      newDayInputRef.current?.focus();
+      newDayInputRef.current?.select();
+    }
+  }, [isAdding]);
+
+  useEffect(() => {
+    if (highlightedTxId) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`tx-bank-${highlightedTxId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedTxId]);
 
   // Active cell editing
   const [editingCell, setEditingCell] = useState<EditingCell>(null);
@@ -99,7 +129,11 @@ export default function BankAccountColumn({
     else if (field === "description") setTempValue(tx.description);
     else if (field === "category") setTempValue(tx.categoryId ? tx.categoryId.toString() : "");
     else if (field === "amount") {
-      setTempValue(tx.amount < 0 ? `-${Math.abs(tx.amount)}` : tx.amount.toString());
+      const formatted = Math.abs(tx.amount).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      setTempValue(tx.amount < 0 ? `-${formatted}` : formatted);
     }
   };
 
@@ -146,15 +180,21 @@ export default function BankAccountColumn({
     }
   };
 
+  const handleCancelAdd = () => {
+    setIsAdding(false);
+    setNewDescription("");
+    setNewAmount("");
+    setNewCategoryId("");
+    setNewDay(new Date().getDate().toString());
+  };
+
   const handleAddTransaction = async (e?: React.FormEvent | React.KeyboardEvent) => {
-    if (e) if (e) e.preventDefault();
-    if (!newDescription.trim() || !newAmount) return;
+    if (e) e.preventDefault();
+    if (!newDescription.trim() || !newAmount || newAmount === "-") return;
 
     const parsedDay = parseInt(newDay, 10) || 1;
     const parsedAmount = parseNumberInput(newAmount);
     if (parsedAmount === null || parsedAmount === 0) return;
-
-    
 
     setIsSubmitting(true);
     try {
@@ -169,6 +209,8 @@ export default function BankAccountColumn({
 
       setNewDescription("");
       setNewAmount("");
+      setNewCategoryId("");
+      setIsAdding(false);
       onRefresh();
     } finally {
       setIsSubmitting(false);
@@ -309,6 +351,19 @@ export default function BankAccountColumn({
                   <Building className="w-4 h-4 text-slate-500" />
                   {data.account.name}
                 </CardTitle>
+                {data.account.pluggyAccountId && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSyncPluggy?.(data.account.id);
+                    }}
+                    title="Atualizar lançamentos via Pluggy"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 {hasActiveFilter && (
                   <Badge variant="outline" className="text-[11px] font-normal font-sans py-0 h-5 bg-background/80">
                     {filteredTransactions.length} de {data.transactions.length} lançamentos
@@ -355,21 +410,24 @@ export default function BankAccountColumn({
           <div className="overflow-x-auto flex-1">
             <Table className="w-full text-sm text-left border-collapse table-fixed">
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-12 text-center">Dia</TableHead>
-                  <TableHead className="pl-7">Descrição</TableHead>
-                  <TableHead className="w-32">Categoria</TableHead>
-                  <TableHead className="text-right w-28 pr-7">Valor</TableHead>
-                  <TableHead className="text-right w-28">Saldo</TableHead>
+                <TableRow className={cn("hover:bg-transparent border-b", density === "compact" ? "h-8" : "h-9")}>
+                  <TableHead className={cn("w-12 text-center", density === "compact" && "py-1 text-xs")}>Dia</TableHead>
+                  <TableHead className={cn("pl-7", density === "compact" && "py-1 text-xs")}>Descrição</TableHead>
+                  <TableHead className={cn("w-32", density === "compact" && "py-1 text-xs")}>Categoria</TableHead>
+                  <TableHead className={cn("text-right w-28 pr-7", density === "compact" && "py-1 text-xs")}>Valor</TableHead>
+                  <TableHead className={cn("text-right w-28", density === "compact" && "py-1 text-xs")}>Saldo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-slate-100">
                 {/* Saldo anterior row */}
-                <TableRow className="h-12 bg-muted/50 hover:bg-muted font-medium text-muted-foreground">
-                  <TableCell className="text-center text-slate-500">1</TableCell>
-                  <TableCell className="text-slate-800 font-semibold">Saldo anterior</TableCell>
-                  <TableCell className="text-slate-400">-</TableCell>
-                  <TableCell className="text-right font-semibold font-mono tabular-nums">
+                <TableRow className={cn(
+                  "bg-muted/50 hover:bg-muted font-medium text-muted-foreground",
+                  density === "compact" ? "h-[34px] text-xs" : "h-12"
+                )}>
+                  <TableCell className={cn("text-center text-slate-500", density === "compact" && "py-1 px-2 text-xs")}>1</TableCell>
+                  <TableCell className={cn("text-slate-800 font-semibold", density === "compact" && "py-1 px-2 text-xs")}>Saldo anterior</TableCell>
+                  <TableCell className={cn("text-slate-400", density === "compact" && "py-1 px-2 text-xs")}>-</TableCell>
+                  <TableCell className={cn("text-right font-semibold font-mono tabular-nums", density === "compact" && "py-1 px-2 text-xs")}>
                     <span
                       className="font-medium text-slate-500"
                       title="Saldo anterior calculado automaticamente"
@@ -377,9 +435,11 @@ export default function BankAccountColumn({
                       {formatCurrency(data.initialBalance)}
                     </span>
                   </TableCell>
-                  <TableCell className={`text-right font-bold font-mono tabular-nums ${
+                  <TableCell className={cn(
+                    "text-right font-bold font-mono tabular-nums",
+                    density === "compact" && "py-1 px-2 text-xs",
                     data.initialBalance >= 0 ? "text-emerald-700" : "text-rose-600"
-                  }`}>
+                  )}>
                     {formatCurrency(data.initialBalance)}
                   </TableCell>
                 </TableRow>
@@ -400,13 +460,18 @@ export default function BankAccountColumn({
                   return (
                     <TableRow
                       key={tx.id}
-                      className={`h-12 transition-colors border-b group ${
-                        isInstallmentShadow
+                      id={`tx-bank-${tx.id}`}
+                      className={cn(
+                        "transition-colors border-b group",
+                        density === "compact" ? "h-[34px]" : "h-12",
+                        tx.id === highlightedTxId
+                          ? "bg-amber-500/20 dark:bg-amber-500/30 ring-2 ring-amber-500/60 border-amber-400 animate-pulse"
+                          : isInstallmentShadow
                           ? "bg-slate-50/50 hover:bg-slate-100/60 border-slate-100"
                           : isRecurringProjected
                           ? "bg-amber-50/20 hover:bg-amber-50/40 border-dashed border-slate-200"
                           : "hover:bg-slate-50 border-slate-100"
-                      }`}
+                      )}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({ tx, x: e.clientX, y: e.clientY });
@@ -414,7 +479,7 @@ export default function BankAccountColumn({
                     >
                       {/* Dia Cell */}
                       <TableCell 
-                        className={`text-center px-2 ${!isEditingDay ? "cursor-pointer" : ""}`}
+                        className={cn("text-center px-2", density === "compact" && "py-0.5 text-xs", !isEditingDay ? "cursor-pointer" : "")}
                         onClick={() => !isEditingDay && handleStartCellEdit(tx, "day")}
                       >
                         {isEditingDay ? (
@@ -428,7 +493,7 @@ export default function BankAccountColumn({
                               if (e.key === "Enter") saveCell(tx);
                               if (e.key === "Escape") setEditingCell(null);
                             }}
-                            className="w-full h-8 px-1 text-center text-sm"
+                            className={cn("w-full px-1 text-center font-mono", density === "compact" ? "h-6 text-xs" : "h-8 text-sm")}
                             autoFocus
                           />
                         ) : (
@@ -444,7 +509,7 @@ export default function BankAccountColumn({
 
                       {/* Descrição Cell */}
                       <TableCell
-                        className={!isEditingDesc && !isInstallmentShadow ? "cursor-pointer" : ""}
+                        className={cn(density === "compact" ? "py-0.5 px-2" : "", !isEditingDesc && !isInstallmentShadow ? "cursor-pointer" : "")}
                         onClick={() => !isEditingDesc && !isInstallmentShadow && handleStartCellEdit(tx, "description")}
                       >
                         {isEditingDesc ? (
@@ -457,18 +522,20 @@ export default function BankAccountColumn({
                               if (e.key === "Enter") saveCell(tx);
                               if (e.key === "Escape") setEditingCell(null);
                             }}
-                            className="w-full text-sm"
+                            className={cn("w-full", density === "compact" ? "h-7 text-xs px-2" : "text-sm")}
                             autoFocus
                           />
                         ) : (
                           <span
-                            className={`inline-flex items-center gap-1.5 h-9 px-3 border border-transparent rounded truncate ${
+                            className={cn(
+                              "inline-flex items-center gap-1.5 border border-transparent rounded truncate",
+                              density === "compact" ? "h-7 px-1.5 text-xs" : "h-9 px-3 text-sm",
                               isInstallmentShadow
                                 ? "cursor-default text-slate-600"
                                 : isRecurringProjected
                                 ? "cursor-pointer text-amber-700 font-medium"
                                 : "cursor-pointer text-slate-800"
-                            }`}
+                            )}
                             title={
                               isInstallmentShadow
                                 ? "Lançamento automático (edite a original para alterar)"
@@ -509,7 +576,7 @@ export default function BankAccountColumn({
                       </TableCell>
 
                       {/* Categoria Cell */}
-                      <TableCell className="text-center px-1">
+                      <TableCell className={cn("text-center px-1", density === "compact" && "py-0.5")}>
                         <CategoryPicker
                           categories={categories}
                           value={tx.categoryId}
@@ -518,36 +585,43 @@ export default function BankAccountColumn({
                           parentCategoryId={tx.parentCategoryId}
                           parentCategoryName={tx.parentCategoryName}
                           onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
+                          tabIndex={-1}
                         />
                       </TableCell>
 
                       {/* Valor Cell */}
                       <TableCell
-                        className={`text-right font-semibold font-mono tabular-nums ${!isEditingAmount && !isInstallmentShadow ? "cursor-pointer" : ""}`}
+                        className={cn(
+                          "text-right font-semibold font-mono tabular-nums",
+                          density === "compact" ? "py-0.5 px-2 text-xs" : "",
+                          !isEditingAmount && !isInstallmentShadow ? "cursor-pointer" : ""
+                        )}
                         onClick={() => !isEditingAmount && !isInstallmentShadow && handleStartCellEdit(tx, "amount")}
                       >
                         {isEditingAmount ? (
-                          <Input
-                            type="text"
+                          <CurrencyInput
                             value={tempValue}
-                            onChange={(e) => setTempValue(e.target.value)}
+                            onChangeValue={setTempValue}
+                            allowNegative={true}
                             onBlur={() => saveCell(tx)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") saveCell(tx);
                               if (e.key === "Escape") setEditingCell(null);
                             }}
-                            className="w-full text-right text-sm font-mono tabular-nums"
+                            className={cn("w-full", density === "compact" ? "h-7 text-xs" : "text-sm")}
                             autoFocus
                           />
                         ) : (
                           <span
-                            className={`relative text-xs w-full flex items-center justify-end font-mono tabular-nums border p-1.5 rounded ${
+                            className={cn(
+                              "relative text-xs w-full flex items-center justify-end font-mono tabular-nums border rounded",
+                              density === "compact" ? "py-0.5 px-1" : "p-1.5",
                               isInstallmentShadow
                                 ? "border-transparent text-slate-600 cursor-default"
                                 : isRecurringProjected
                                 ? "border-amber-500/50 text-amber-600 font-medium hover:bg-amber-50 cursor-pointer"
                                 : `border-transparent cursor-pointer hover:bg-slate-100/60 ${isPositive ? "text-emerald-600" : "text-rose-600"}`
-                            }`}
+                            )}
                             title={
                               isInstallmentShadow
                                 ? "Lançamento automático"
@@ -563,9 +637,12 @@ export default function BankAccountColumn({
 
                       {/* Saldo Cell */}
                       <TableCell
-                        className={`text-right font-medium font-mono tabular-nums ${
-                          isRunningPositive ? "text-emerald-600" : "text-rose-600 font-bold"
-                        } ${isProjected ? "opacity-60" : ""}`}
+                        className={cn(
+                          "text-right font-medium font-mono tabular-nums",
+                          density === "compact" ? "py-0.5 px-2 text-xs" : "",
+                          isRunningPositive ? "text-emerald-600" : "text-rose-600 font-bold",
+                          isProjected ? "opacity-60" : ""
+                        )}
                       >
                         {formatCurrency(tx.runningBalance || 0)}
                       </TableCell>
@@ -574,63 +651,100 @@ export default function BankAccountColumn({
                   );
                 })}
 
-              {/* Quick Add Row */}
-                <TableRow className="h-12 bg-slate-50 border-t-2 border-slate-200">
-                  <TableCell className="text-center">
+              {/* Quick Add Row / Collapsible Trigger */}
+              {!isAdding ? (
+                <TableRow className={cn("hover:bg-slate-50/75 transition-colors border-t border-dashed border-slate-200", density === "compact" ? "h-8" : "h-10")}>
+                  <TableCell colSpan={5} className={cn(density === "compact" ? "py-1 px-4" : "py-2 px-4")}>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdding(true)}
+                      className="group inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors py-1 px-2 rounded-md hover:bg-slate-100"
+                    >
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md border border-slate-200 bg-white group-hover:border-slate-300 group-hover:bg-slate-50 text-slate-500 group-hover:text-slate-900 transition-colors shadow-2xs">
+                        <Plus className="w-3 h-3" />
+                      </span>
+                      <span>Novo lançamento</span>
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                <TableRow className={cn("bg-slate-50/90 border-t-2 border-indigo-200 animate-in fade-in duration-150", density === "compact" ? "h-9" : "h-12")}>
+                  <TableCell className={cn("text-center px-1", density === "compact" && "py-1")}>
                     <Input
+                      ref={newDayInputRef}
                       type="text"
                       maxLength={2}
                       placeholder="Dia"
                       value={newDay}
                       onChange={(e) => setNewDay(e.target.value)}
-                      className="w-full text-center text-sm font-mono"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddTransaction(e);
+                        if (e.key === "Escape") handleCancelAdd();
+                      }}
+                      className={cn("w-full text-center font-mono bg-white", density === "compact" ? "h-7 text-xs" : "h-8 text-sm")}
                       required
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={cn("px-2", density === "compact" && "py-1")}>
                     <Input
                       type="text"
                       placeholder="Descrição"
                       value={newDescription}
                       onChange={(e) => setNewDescription(e.target.value)}
-                      className="w-full text-sm"
+                      className={cn("w-full bg-white", density === "compact" ? "h-7 text-xs" : "h-8 text-sm")}
                       required
-                      onKeyDown={(e) => e.key === "Enter" && handleAddTransaction()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddTransaction(e);
+                        if (e.key === "Escape") handleCancelAdd();
+                      }}
                     />
                   </TableCell>
-                  <TableCell className="text-center px-1">
+                  <TableCell className={cn("text-center px-1", density === "compact" && "py-1")}>
                     <CategoryPicker
                       categories={categories}
                       value={newCategoryId === "" ? null : Number(newCategoryId)}
                       onSelect={(catId) => setNewCategoryId(catId !== null ? catId : "")}
+                      tabIndex={0}
                     />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 -my-1">
-
-                      <Input
-                        type="text"
-                        placeholder="0,00"
-                        value={newAmount}
-                        onChange={(e) => setNewAmount(e.target.value)}
-                        className="w-full text-right text-sm font-mono tabular-nums"
-                        required
-                        onKeyDown={(e) => e.key === "Enter" && handleAddTransaction()}
-                      />
+                  <TableCell className={cn("text-right px-2", density === "compact" && "py-1")}>
+                    <CurrencyInput
+                      placeholder="0,00"
+                      value={newAmount}
+                      onChangeValue={setNewAmount}
+                      allowNegative={true}
+                      className={cn("w-full bg-white", density === "compact" ? "h-7 text-xs" : "h-8 text-sm")}
+                      required
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddTransaction(e);
+                        if (e.key === "Escape") handleCancelAdd();
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell className={cn("text-right pr-4", density === "compact" && "py-1")}>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        onClick={() => handleAddTransaction()}
+                        disabled={isSubmitting || !newDescription.trim() || !newAmount || newAmount === "-"}
+                        size="icon"
+                        className={cn("flex", density === "compact" ? "h-6 w-6" : "h-7 w-7")}
+                        title="Salvar lançamento (Enter)"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={handleCancelAdd}
+                        size="icon"
+                        className={cn("flex text-slate-400 hover:text-slate-600 hover:bg-slate-200/60", density === "compact" ? "h-6 w-6" : "h-7 w-7")}
+                        title="Cancelar (Esc)"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right pl-6">
-                    <Button
-                      onClick={() => handleAddTransaction()}
-                      disabled={isSubmitting}
-                      size="icon"
-                      className="h-7 w-7 flex"
-                      title="Adicionar transação"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
-                  </TableCell>
                 </TableRow>
+              )}
               </TableBody>
             </Table>
           </div>

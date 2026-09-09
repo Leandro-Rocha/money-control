@@ -28,11 +28,25 @@ export interface WealthFinancingItem {
   dueDay?: number | null;
 }
 
+export interface WealthReceivableItem {
+  account: Account;
+  remainingAmount: number;
+  totalAmount: number;
+  installmentsTotal: number;
+  installmentsPaid: number;
+  installmentAmount: number;
+  receivedAmount: number;
+  progressPercent: number;
+  dueDay?: number | null;
+}
+
 export interface WealthData {
   totalInvested: number;
+  totalReceivables: number;
   totalDebts: number;
   netWorth: number;
   investments: WealthInvestmentItem[];
+  receivables: WealthReceivableItem[];
   financings: WealthFinancingItem[];
   currentMonth: string;
 }
@@ -43,14 +57,15 @@ export async function getWealthData(targetMonth?: string): Promise<WealthData> {
     targetMonth ||
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // 1. Fetch all active accounts of type 'investment' and 'financing'
+  // 1. Fetch all active accounts of type 'investment', 'loan_receivable' and 'financing'
   const allAccounts = (await db
     .select()
     .from(accounts)
-    .where(and(eq(accounts.isActive, 1), inArray(accounts.type, ["investment", "financing"])))
+    .where(and(eq(accounts.isActive, 1), inArray(accounts.type, ["investment", "loan_receivable", "financing"])))
     .all()) as Account[];
 
   const investmentAccounts = allAccounts.filter((a) => a.type === "investment");
+  const receivableAccounts = allAccounts.filter((a) => a.type === "loan_receivable");
   const financingAccounts = allAccounts.filter((a) => a.type === "financing");
 
   // 2. Compute balances for investment accounts (living position)
@@ -161,15 +176,63 @@ export async function getWealthData(targetMonth?: string): Promise<WealthData> {
     });
   }
 
+  // 4. Compute loan receivable items (assets)
+  const receivables: WealthReceivableItem[] = [];
+  let totalReceivables = 0;
+
+  for (const acc of receivableAccounts) {
+    const totalAmount = acc.financingTotalAmount ?? 0;
+    const installmentsTotal = acc.financingInstallmentsTotal ?? 1;
+    const installmentsPaid = acc.financingInstallmentsPaid ?? 0;
+    const installmentAmount = acc.financingInstallmentAmount ?? 0;
+
+    let remainingAmount =
+      acc.financingRemainingAmount !== null && acc.financingRemainingAmount !== undefined
+        ? acc.financingRemainingAmount
+        : Math.max(0, totalAmount - installmentsPaid * installmentAmount);
+
+    remainingAmount = Math.round(remainingAmount * 100) / 100;
+
+    let progressPercent = 0;
+    if (installmentsTotal > 0 && installmentsPaid > 0) {
+      progressPercent = Math.min(100, Math.max(0, Math.round((installmentsPaid / installmentsTotal) * 100)));
+    } else if (totalAmount > 0 && totalAmount > remainingAmount) {
+      progressPercent = Math.min(100, Math.max(0, Math.round(((totalAmount - remainingAmount) / totalAmount) * 100)));
+    }
+
+    let receivedAmount = 0;
+    if (totalAmount > 0 && totalAmount >= remainingAmount) {
+      receivedAmount = Math.max(0, Math.round((totalAmount - remainingAmount) * 100) / 100);
+    } else if (installmentsPaid > 0 && installmentAmount > 0) {
+      receivedAmount = Math.round(installmentsPaid * installmentAmount * 100) / 100;
+    }
+
+    totalReceivables += remainingAmount;
+    receivables.push({
+      account: acc,
+      remainingAmount,
+      totalAmount,
+      installmentsTotal,
+      installmentsPaid,
+      installmentAmount,
+      receivedAmount,
+      progressPercent,
+      dueDay: acc.dueDay,
+    });
+  }
+
   totalInvested = Math.round(totalInvested * 100) / 100;
+  totalReceivables = Math.round(totalReceivables * 100) / 100;
   totalDebts = Math.round(totalDebts * 100) / 100;
-  const netWorth = Math.round((totalInvested - totalDebts) * 100) / 100;
+  const netWorth = Math.round((totalInvested + totalReceivables - totalDebts) * 100) / 100;
 
   return {
     totalInvested,
+    totalReceivables,
     totalDebts,
     netWorth,
     investments,
+    receivables,
     financings,
     currentMonth: month,
   };
@@ -209,6 +272,10 @@ export async function adjustInvestmentBalance(
     });
   }
 
-  revalidatePath("/");
+  try {
+    revalidatePath("/");
+  } catch {
+    // Contexto fora de requisição Next.js (ex: CLI / testes)
+  }
   return { success: true, diff };
 }

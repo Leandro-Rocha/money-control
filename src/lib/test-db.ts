@@ -12,7 +12,7 @@ export function createTestDb() {
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('bank_account', 'credit_card', 'investment', 'financing', 'other')),
+      type TEXT NOT NULL CHECK(type IN ('bank_account', 'credit_card', 'investment', 'financing', 'loan_receivable', 'other')),
       color TEXT NOT NULL DEFAULT 'orange',
       display_order INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
@@ -23,7 +23,10 @@ export function createTestDb() {
       financing_remaining_amount REAL,
       financing_installments_total INTEGER,
       financing_installments_paid INTEGER,
-      financing_installment_amount REAL
+      financing_installment_amount REAL,
+      pluggy_account_id TEXT,
+      pluggy_item_id TEXT,
+      pluggy_credential_id TEXT
     );
 
     CREATE TABLE IF NOT EXISTS monthly_initial_balances (
@@ -61,6 +64,7 @@ export function createTestDb() {
       original_description TEXT,
       source_type TEXT,
       source_id INTEGER,
+      pluggy_transaction_id TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 

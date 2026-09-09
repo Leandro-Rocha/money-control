@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X, ArrowLeft } from "lucide-react";
@@ -14,13 +15,13 @@ interface ModalShellProps {
   maxWidth?: string;
   title: string;
   subtitle?: string;
-  /** Icon rendered next to the title (e.g. <ArrowRightLeft className="w-5 h-5" />) */
-  icon?: React.ReactNode;
+  /** Icon rendered next to the title (e.g. <ArrowRightLeft className="w-5 h-5" /> or ArrowRightLeft) */
+  icon?: React.ReactNode | React.ComponentType<{ className?: string }>;
   /** Color class applied to the title, e.g. "text-blue-600" */
   titleColor?: string;
   /** Slot for the footer row (buttons etc.) */
   footer?: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /**
    * When true (default), pressing Escape triggers onClose.
    * Pass false to override (e.g. ImportStagingModal has its own confirm logic).
@@ -45,6 +46,15 @@ export function ModalShell({
   children,
   escapeCloses = true,
 }: ModalShellProps) {
+  const renderedIcon = (() => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) return icon;
+    if (typeof icon === "function" || (typeof icon === "object" && icon !== null)) {
+      const Comp = icon as React.ComponentType<{ className?: string }>;
+      return <Comp className="w-5 h-5" />;
+    }
+    return icon as React.ReactNode;
+  })();
   useEffect(() => {
     if (!escapeCloses) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,7 +87,7 @@ export function ModalShell({
             )}
             <div>
               <h2 className={`text-xl font-bold flex items-center gap-2 ${titleColor}`}>
-                {icon}
+                {renderedIcon}
                 {title}
               </h2>
               {subtitle && (

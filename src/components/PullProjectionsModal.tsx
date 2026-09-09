@@ -7,6 +7,7 @@ import { ListPlus, Check, Loader2 } from "lucide-react";
 import { getPendingProjections, confirmMultipleProjectedRows } from "@/lib/actions/projections";
 import { formatCurrency } from "@/lib/format";
 import { ModalShell } from "./ModalShell";
+import { EmptyState } from "./EmptyState";
 
 interface PullProjectionsModalProps {
   month: string;
@@ -99,7 +100,7 @@ export function PullProjectionsModal({
       ) : (
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1">
-            <span className="text-sm font-semibold text-slate-700">Projeções pendentes ({projections.length})</span>
+            <span className="text-sm font-semibold text-foreground">Projeções pendentes ({projections.length})</span>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleSelectAll} className="h-7 text-xs">Selecionar Todas</Button>
               <Button variant="outline" size="sm" onClick={handleSelectNone} className="h-7 text-xs">Nenhuma</Button>
@@ -107,9 +108,11 @@ export function PullProjectionsModal({
           </div>
 
           {projections.length === 0 ? (
-            <div className="border rounded-lg overflow-hidden bg-white shadow-sm p-12 text-center text-slate-500">
-              Nenhuma projeção pendente para este mês. Tudo certo!
-            </div>
+            <EmptyState
+              icon={Check}
+              title="Tudo certo!"
+              description="Nenhuma projeção pendente para este mês."
+            />
           ) : (
             <div className="space-y-6">
               {Object.entries(
@@ -121,15 +124,15 @@ export function PullProjectionsModal({
               ).map(([accountId, rows]) => {
                 const accName = getAccountName(Number(accountId));
                 return (
-                  <div key={accountId} className="border rounded-lg overflow-hidden bg-white shadow-sm">
-                    <div className="bg-slate-100 px-4 py-2.5 border-b font-bold text-slate-800 flex items-center justify-between">
+                  <div key={accountId} className="border rounded-lg overflow-hidden bg-card shadow-sm">
+                    <div className="bg-muted px-4 py-2.5 border-b font-bold text-foreground flex items-center justify-between">
                       <span>{accName}</span>
-                      <span className="text-xs font-medium text-slate-500">{rows.length} itens</span>
+                      <span className="text-xs font-medium text-muted-foreground">{rows.length} itens</span>
                     </div>
                     <table className="w-full text-sm text-left">
                       <thead className="bg-muted/30 border-b">
                         <tr>
-                          <th className="px-4 py-2 w-10 text-center"><Check className="w-4 h-4 mx-auto text-slate-500" /></th>
+                          <th className="px-4 py-2 w-10 text-center"><Check className="w-4 h-4 mx-auto text-muted-foreground" /></th>
                           <th className="px-4 py-2 font-semibold">Dia</th>
                           <th className="px-4 py-2 font-semibold">Descrição</th>
                           <th className="px-4 py-2 font-semibold">Parcela</th>
@@ -137,20 +140,20 @@ export function PullProjectionsModal({
                           <th className="px-4 py-2 font-semibold text-right">Valor</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y divide-border">
                         {rows.map(row => {
                           const isIgnored = ignoredIds.has(row.id);
                           return (
-                            <tr key={row.id} className={isIgnored ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50 transition-colors'}>
+                            <tr key={row.id} className={isIgnored ? 'opacity-50 bg-muted/40' : 'hover:bg-muted/40 transition-colors'}>
                               <td className="px-4 py-2 text-center align-middle">
                                 <input
                                   type="checkbox"
                                   checked={!isIgnored}
                                   onChange={() => toggleIgnore(row.id)}
-                                  className="w-4 h-4 rounded border-slate-300 accent-primary cursor-pointer"
+                                  className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
                                 />
                               </td>
-                              <td className="px-4 py-2 align-middle font-medium text-slate-700">{row.day}</td>
+                              <td className="px-4 py-2 align-middle font-medium text-foreground">{row.day}</td>
                               <td className="px-4 py-2 align-middle font-medium">{row.description}</td>
                               <td className="px-4 py-2 align-middle">
                                 {row.projectedInstallmentCurrent ? (

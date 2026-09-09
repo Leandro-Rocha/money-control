@@ -1,12 +1,30 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Category, TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, AlertTriangle, ArrowRight, UploadCloud } from "lucide-react";
+import {
+  Copy,
+  Check,
+  AlertTriangle,
+  ArrowRight,
+  UploadCloud,
+  RefreshCw,
+  DownloadCloud,
+  CheckCircle2,
+  AlertCircle,
+  Building,
+  CreditCard,
+  FileText,
+  Sparkles,
+  Filter,
+} from "lucide-react";
 import { ModalShell } from "./ModalShell";
+import { EmptyState } from "./EmptyState";
+import { cn } from "@/lib/utils";
 import { createMultipleTransactions, getAccountTransactionsForMonths } from "@/lib/actions/transactions";
 import { getTransactionRules } from "@/lib/actions/transaction-rules";
+import { fetchPluggyTransactionsForMonth, importTransactionsWithReplaceAction } from "@/lib/actions/pluggy";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatMonthLabel } from "@/lib/format";
 import { CategoryPicker } from "./CategoryPicker";
@@ -18,6 +36,9 @@ interface ImportStagingModalProps {
   existingTransactions: TransactionWithCategory[];
   onClose: () => void;
   onSuccess: () => void;
+  initialAccountId?: number;
+  initialSourceMode?: "manual" | "pluggy";
+  autoFetch?: boolean;
 }
 
 interface ParsedRow {
@@ -27,170 +48,42 @@ interface ParsedRow {
   originalDescription?: string;
   createRule?: boolean;
   rulePattern?: string;
-  installmentCurrent?: number;
-  installmentTotal?: number;
+  installmentCurrent?: number | null;
+  installmentTotal?: number | null;
   amount: number;
   categoryId: number | null;
   categoryNameExtracted: string;
   isDuplicate: boolean;
+  isAlreadyImported?: boolean;
+  isDuplicateInBatch?: boolean;
   ignored: boolean;
   isPastMonth: boolean;
   resolvedMonth: string; // effective month this transaction will be saved to
   purchaseDate?: string;
+  matchedRuleId?: number | null;
+  matchedRulePattern?: string | null;
+  pluggyTransactionId?: string | null;
 }
 
-/**
- * Determines the effective month for a transaction based on account type.
- *
- * - credit_card / investment / financing / other: always use the UI month (fatura logic — all
- *   transactions belong to the billing month regardless of their date).
- * - bank_account: route to the month of the transaction date.
- *   If extractedYear is provided (from DD/MM/YYYY or purchaseDate), uses that year directly.
- *   Otherwise infers the year relative to uiMonth, handling year roll-overs.
- */
-export function resolveTargetMonth(
-  uiMonth: string,
-  extractedMonth: number | null,
-  accountType: string,
-  extractedYear?: number | null,
-): string {
-  if (accountType !== "bank_account" || extractedMonth === null) return uiMonth;
+import {
+  resolveTargetMonth,
+  buildCategoryPromptList,
+  matchExtractedCategory,
+  normalizeDescription,
+  isDbDuplicate,
+  filterStagingRows,
+  type StagingFilterMode,
+} from "@/lib/staging-utils";
 
-  if (extractedYear && extractedYear >= 2000 && extractedYear <= 2100) {
-    return `${extractedYear}-${String(extractedMonth).padStart(2, "0")}`;
-  }
-
-  const [yearStr, monthStr] = uiMonth.split("-");
-  const uiYear = parseInt(yearStr, 10);
-  const uiMonthNum = parseInt(monthStr, 10);
-
-  if (extractedMonth === uiMonthNum) return uiMonth;
-
-  // Year roll-over: e.g. December (12) in a January (1) statement → previous year
-  if (extractedMonth > uiMonthNum && extractedMonth - uiMonthNum > 6) {
-    return `${uiYear - 1}-${String(extractedMonth).padStart(2, "0")}`;
-  }
-
-  // Year roll-over: e.g. January (1) in a December (12) statement → next year
-  if (uiMonthNum > extractedMonth && uiMonthNum - extractedMonth > 6) {
-    return `${uiYear + 1}-${String(extractedMonth).padStart(2, "0")}`;
-  }
-
-  // Same year as uiMonth
-  return `${uiYear}-${String(extractedMonth).padStart(2, "0")}`;
-}
-
-export function buildCategoryPromptList(categories: Category[]): string {
-  const parentCategories = categories.filter((c) => !c.parentId);
-  const subByParent = new Map<number, Category[]>();
-  for (const cat of categories) {
-    if (cat.parentId) {
-      const list = subByParent.get(cat.parentId) || [];
-      list.push(cat);
-      subByParent.set(cat.parentId, list);
-    }
-  }
-
-  return parentCategories
-    .map((parent) => {
-      const subs = subByParent.get(parent.id) || [];
-      if (subs.length > 0) {
-        return `- ${parent.name} (Subcategorias: ${subs.map((s) => s.name).join(", ")})`;
-      }
-      return `- ${parent.name}`;
-    })
-    .join("\n");
-}
-
-export function matchExtractedCategory(
-  catExtracted: string | undefined | null,
-  categories: Category[]
-): number | null {
-  if (!catExtracted) return null;
-  const rawClean = catExtracted.trim();
-  const lower = rawClean.toLowerCase();
-  if (!rawClean || lower === "sem categoria" || lower === "outros" || lower === "outro") return null;
-
-  // 1. Tentar correspondência exata de nome (seja pai ou filha)
-  const exact = categories.find((c) => c.name.toLowerCase() === rawClean.toLowerCase());
-  if (exact) return exact.id;
-
-  // 2. Se tiver separadores como ">", "->", "/", ":", " - " (ex: "Alimentação > Supermercado")
-  const separators = [">", "->", ":", "/", " - "];
-  for (const sep of separators) {
-    if (rawClean.includes(sep)) {
-      const parts = rawClean.split(sep).map((s) => s.trim());
-      const parentName = parts[0]?.toLowerCase();
-      const childName = parts[parts.length - 1]?.toLowerCase();
-
-      // Busca o pai
-      const parentCat = categories.find((c) => !c.parentId && c.name.toLowerCase() === parentName);
-      if (parentCat) {
-        const childCat = categories.find(
-          (c) => c.parentId === parentCat.id && c.name.toLowerCase() === childName
-        );
-        if (childCat) return childCat.id;
-        return parentCat.id;
-      }
-
-      // Se não achou o pai com esse nome, procura se childName existe como categoria
-      const childDirect = categories.find((c) => c.name.toLowerCase() === childName);
-      if (childDirect) return childDirect.id;
-    }
-  }
-
-  // 3. Se a IA retornou algo como "Supermercado (Alimentação)"
-  if (rawClean.includes("(") && rawClean.includes(")")) {
-    const match = rawClean.match(/^([^(]+)\s*\(([^)]+)\)/);
-    if (match) {
-      const part1 = match[1].trim().toLowerCase();
-      const part2 = match[2].trim().toLowerCase();
-      const found = categories.find((c) => c.name.toLowerCase() === part1 || c.name.toLowerCase() === part2);
-      if (found) return found.id;
-    }
-  }
-
-  // 4. Correspondência parcial
-  const partial = categories.find((c) => rawClean.toLowerCase().includes(c.name.toLowerCase()));
-  if (partial) return partial.id;
-
-  return null;
-}
-
-/**
- * Normalizes a transaction description:
- * lowercases, trims whitespace, removes basic punctuation, and collapses multiple spaces.
- */
-export function normalizeDescription(str: string): string {
-  return (str || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()?[\]]/g, "")
-    .replace(/\s+/g, " ");
-}
-
-/**
- * Checks if a transaction already exists in the database list based on:
- * same month, day, amount (within 0.009), and matching normalized description
- * (against either description or originalDescription).
- */
-export function isDbDuplicate(
-  row: { resolvedMonth: string; day: number; amount: number; description: string; originalDescription?: string },
-  dbTransactions: { month: string; day: number; amount: number; description?: string }[]
-): boolean {
-  const normDesc = normalizeDescription(row.description);
-  const normOrigDesc = row.originalDescription ? normalizeDescription(row.originalDescription) : "";
-
-  return dbTransactions.some((t) => {
-    if (t.month !== row.resolvedMonth || t.day !== row.day || Math.abs(t.amount - row.amount) >= 0.009) {
-      return false;
-    }
-    const normDbDesc = normalizeDescription(t.description || "");
-    return normDbDesc === normDesc || (normOrigDesc !== "" && normDbDesc === normOrigDesc);
-  });
-}
+export {
+  resolveTargetMonth,
+  buildCategoryPromptList,
+  matchExtractedCategory,
+  normalizeDescription,
+  isDbDuplicate,
+  filterStagingRows,
+  type StagingFilterMode,
+};
 
 export function ImportStagingModal({
   month,
@@ -199,18 +92,33 @@ export function ImportStagingModal({
   existingTransactions,
   onClose,
   onSuccess,
+  initialAccountId,
+  initialSourceMode = "pluggy",
+  autoFetch = false,
 }: ImportStagingModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [accountId, setAccountId] = useState<number>(accounts[0]?.id || 0);
+  const [sourceMode, setSourceMode] = useState<"manual" | "pluggy">(initialSourceMode);
+  const [accountId, setAccountId] = useState<number>(() => {
+    if (initialAccountId && accounts.some((a) => a.id === initialAccountId)) {
+      return initialAccountId;
+    }
+    return accounts[0]?.id || 0;
+  });
   const [pastedText, setPastedText] = useState("");
   const [rules, setRules] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [filterMode, setFilterMode] = useState<StagingFilterMode>("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
+  const [isFetchingPluggy, setIsFetchingPluggy] = useState(false);
+  const [pluggyError, setPluggyError] = useState<string | null>(null);
+  const [replaceExisting, setReplaceExisting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const isBankAccount = (selectedAccount?.type ?? "bank_account") === "bank_account";
+  const isSupportedByPluggy = selectedAccount?.type === "bank_account" || selectedAccount?.type === "credit_card";
 
   // -- Prompt Generation
   const promptText = useMemo(() => {
@@ -278,19 +186,98 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
   // -- Reset parsed rows when the account changes (task 6.1) --
   // resolvedMonth is computed at parse time using the account type; if the user
   // switches account the cached rows would carry stale month routing.
+  const prevAccountIdRef = useRef(accountId);
   useEffect(() => {
-    if (parsedRows.length > 0 || step === 2) {
-      setParsedRows([]);
-      setStep(1);
+    if (prevAccountIdRef.current !== accountId) {
+      prevAccountIdRef.current = accountId;
+      if (parsedRows.length > 0 || step === 2) {
+        setParsedRows([]);
+        setStep(1);
+      }
+      setFilterMode("all");
+      setPluggyError(null);
+      setCommitError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
+  }, [accountId, parsedRows.length, step]);
 
   const handleCopyPrompt = async () => {
     const success = await copyToClipboard(promptText);
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // -- Fetch directly from Pluggy Open Finance --
+  const handleFetchPluggy = async (targetAccountId?: number) => {
+    const accId = typeof targetAccountId === "number" ? targetAccountId : accountId;
+    if (!accId) return;
+    setIsFetchingPluggy(true);
+    setPluggyError(null);
+
+    try {
+      const res = await fetchPluggyTransactionsForMonth(accId, month);
+      if (!res.success) {
+        setPluggyError(res.error);
+        setIsFetchingPluggy(false);
+        return;
+      }
+
+      const rows: ParsedRow[] = res.transactions.map((t) => ({
+        id: t.id,
+        day: t.day,
+        description: t.description,
+        originalDescription: t.originalDescription,
+        amount: t.amount,
+        categoryId: t.categoryId,
+        categoryNameExtracted: t.categoryNameExtracted,
+        isDuplicate: t.isDuplicate,
+        isAlreadyImported: t.isAlreadyImported ?? t.isDuplicate,
+        isDuplicateInBatch: t.isDuplicateInBatch ?? false,
+        ignored: t.ignored,
+        isPastMonth: t.isPastMonth,
+        resolvedMonth: t.resolvedMonth,
+        purchaseDate: t.purchaseDate,
+        installmentCurrent: t.installmentCurrent ?? null,
+        installmentTotal: t.installmentTotal ?? null,
+        createRule: false,
+        rulePattern: t.matchedRulePattern || t.originalDescription,
+        matchedRuleId: t.matchedRuleId ?? null,
+        matchedRulePattern: t.matchedRulePattern ?? null,
+        pluggyTransactionId: t.pluggyTransactionId ?? null,
+      }));
+
+      const unregCount = rows.filter((r) => !r.isDuplicate).length;
+      const dupCount = rows.filter((r) => r.isDuplicate).length;
+
+      // Se houver lançamentos novos e também lançamentos já importados, abrir inicialmente na visão "Não registrados"
+      if (unregCount > 0 && dupCount > 0) {
+        setFilterMode("unregistered");
+      } else {
+        setFilterMode("all");
+      }
+
+      setParsedRows(rows);
+      setIsFetchingPluggy(false);
+      setStep(2);
+    } catch (err: any) {
+      setPluggyError(err?.message || "Erro inesperado ao consultar transações no Pluggy.");
+      setIsFetchingPluggy(false);
+    }
+  };
+
+  const autoFetchedRef = useRef(false);
+  useEffect(() => {
+    if (autoFetch && !autoFetchedRef.current && accountId) {
+      autoFetchedRef.current = true;
+      handleFetchPluggy(accountId);
+    }
+  }, [autoFetch, accountId]);
+
+  const handleToggleReplaceExisting = (checked: boolean) => {
+    setReplaceExisting(checked);
+    if (checked) {
+      setParsedRows((prev) => prev.map((r) => ({ ...r, ignored: false })));
     }
   };
 
@@ -313,6 +300,8 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       instCur?: number;
       instTot?: number;
       purchaseDate?: string;
+      matchedRuleId?: number | null;
+      matchedRulePattern?: string | null;
     }[] = [];
 
     lines.forEach((line, idx) => {
@@ -372,7 +361,11 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       
       rules.forEach(rule => {
         if (lowerOrig.includes(rule.pattern.toLowerCase())) {
-          if (!matchedRule || rule.pattern.length > matchedRule.pattern.length) {
+          if (
+            !matchedRule ||
+            rule.pattern.length > matchedRule.pattern.length ||
+            (rule.pattern.length === matchedRule.pattern.length && (rule.id ?? 0) > (matchedRule.id ?? 0))
+          ) {
             matchedRule = rule;
           }
         }
@@ -431,6 +424,8 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
         instCur,
         instTot,
         purchaseDate,
+        matchedRuleId: matchedRule?.id ?? null,
+        matchedRulePattern: matchedRule?.pattern ?? null,
       });
     });
 
@@ -470,14 +465,19 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
         categoryId: r.categoryId,
         categoryNameExtracted: r.categoryId ? "" : r.catExtracted,
         isDuplicate: isDup,
+        isAlreadyImported: existsInDb,
+        isDuplicateInBatch: duplicateInBatch,
         ignored: isDup,
         isPastMonth: r.isPastMonth,
         resolvedMonth: r.resolvedMonth,
         createRule: false,
-        rulePattern: r.originalDescription,
+        rulePattern: r.matchedRulePattern || r.originalDescription,
+        matchedRuleId: r.matchedRuleId ?? null,
+        matchedRulePattern: r.matchedRulePattern ?? null,
         installmentCurrent: r.instCur,
         installmentTotal: r.instTot,
         purchaseDate: r.purchaseDate,
+        pluggyTransactionId: null,
       });
     }
 
@@ -491,28 +491,125 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
     setParsedRows(prev => prev.map(r => r.id === id ? { ...r, ignored: !r.ignored } : r));
   };
 
+  const handleToggleCreateRule = (id: string, checked: boolean) => {
+    setParsedRows(prev => {
+      const target = prev.find(r => r.id === id);
+      if (!target) return prev;
+      const targetPattern = (target.rulePattern || target.originalDescription || "").trim().toLowerCase();
+
+      return prev.map(r => {
+        const rPattern = (r.rulePattern || r.originalDescription || "").trim().toLowerCase();
+        if (targetPattern && rPattern === targetPattern) {
+          return {
+            ...r,
+            createRule: checked,
+            description: checked ? target.description : r.description,
+            categoryId: checked ? target.categoryId : r.categoryId,
+            categoryNameExtracted: checked ? "" : r.categoryNameExtracted,
+          };
+        }
+        return r;
+      });
+    });
+  };
+
+  const duplicateCount = useMemo(
+    () => parsedRows.filter((r) => r.isDuplicate).length,
+    [parsedRows]
+  );
+  const unregisteredCount = useMemo(
+    () => parsedRows.filter((r) => !r.isDuplicate).length,
+    [parsedRows]
+  );
+  const alreadyImportedCount = useMemo(
+    () => parsedRows.filter((r) => r.isAlreadyImported ?? (sourceMode === "pluggy" ? r.isDuplicate : false)).length,
+    [parsedRows, sourceMode]
+  );
+  const batchDuplicateCount = useMemo(
+    () => parsedRows.filter((r) => r.isDuplicateInBatch).length,
+    [parsedRows]
+  );
+
+  const filteredRows = useMemo(
+    () => filterStagingRows(parsedRows, filterMode),
+    [parsedRows, filterMode]
+  );
+
   const handleSelectAll = () => {
-    setParsedRows(prev => prev.map(r => ({ ...r, ignored: false })));
+    const visibleIds = new Set(filteredRows.map((r) => r.id));
+    setParsedRows((prev) =>
+      prev.map((r) => (visibleIds.has(r.id) ? { ...r, ignored: false } : r))
+    );
   };
 
   const handleSelectNone = () => {
-    setParsedRows(prev => prev.map(r => ({ ...r, ignored: true })));
+    const visibleIds = new Set(filteredRows.map((r) => r.id));
+    setParsedRows((prev) =>
+      prev.map((r) => (visibleIds.has(r.id) ? { ...r, ignored: true } : r))
+    );
   };
 
   const updateRowCategory = (id: string, catId: number | null) => {
-    setParsedRows(prev => prev.map(r => r.id === id ? { ...r, categoryId: catId, categoryNameExtracted: "" } : r));
+    setParsedRows(prev => {
+      const target = prev.find(r => r.id === id);
+      if (!target) return prev;
+      const targetPattern = (target.rulePattern || target.originalDescription || "").trim().toLowerCase();
+
+      return prev.map(r => {
+        if (r.id === id) return { ...r, categoryId: catId, categoryNameExtracted: "" };
+        if (target.createRule && targetPattern) {
+          const rPattern = (r.rulePattern || r.originalDescription || "").trim().toLowerCase();
+          if (rPattern === targetPattern) {
+            return { ...r, categoryId: catId, categoryNameExtracted: "" };
+          }
+        }
+        return r;
+      });
+    });
   };
   
   const updateRowDescription = (id: string, desc: string) => {
-    setParsedRows(prev => prev.map(r => r.id === id ? { ...r, description: desc } : r));
+    setParsedRows(prev => {
+      const target = prev.find(r => r.id === id);
+      if (!target) return prev;
+      const targetPattern = (target.rulePattern || target.originalDescription || "").trim().toLowerCase();
+
+      return prev.map(r => {
+        if (r.id === id) return { ...r, description: desc };
+        if (target.createRule && targetPattern) {
+          const rPattern = (r.rulePattern || r.originalDescription || "").trim().toLowerCase();
+          if (rPattern === targetPattern) {
+            return { ...r, description: desc };
+          }
+        }
+        return r;
+      });
+    });
+  };
+
+  const updateRowRulePattern = (id: string, pattern: string) => {
+    setParsedRows(prev => {
+      const target = prev.find(r => r.id === id);
+      if (!target) return prev;
+      const oldPattern = (target.rulePattern || target.originalDescription || "").trim().toLowerCase();
+
+      return prev.map(r => {
+        if (r.id === id) return { ...r, rulePattern: pattern };
+        const rPattern = (r.rulePattern || r.originalDescription || "").trim().toLowerCase();
+        if (oldPattern && rPattern === oldPattern) {
+          return { ...r, rulePattern: pattern };
+        }
+        return r;
+      });
+    });
   };
 
   // Group rows for Step 2: by resolvedMonth for bank accounts, or target vs past for credit cards
   const tableGroups = useMemo(() => {
     if (isBankAccount) {
-      const months = Array.from(new Set(parsedRows.map(r => r.resolvedMonth))).sort();
-      return months.map(m => {
-        const rows = parsedRows.filter(r => r.resolvedMonth === m);
+      const months = Array.from(new Set(filteredRows.map((r) => r.resolvedMonth))).sort();
+      return months.map((m) => {
+        const rows = filteredRows.filter((r) => r.resolvedMonth === m);
         const label = formatMonthLabel(m);
         return {
           title: `${label} (${rows.length} ${rows.length === 1 ? "transação" : "transações"})`,
@@ -522,10 +619,10 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
     }
 
     return [
-      { title: "Transações do Mês da Fatura", rows: parsedRows.filter(r => !r.isPastMonth) },
-      { title: "Parcelas e Compras Anteriores", rows: parsedRows.filter(r => r.isPastMonth) },
-    ].filter(g => g.rows.length > 0);
-  }, [isBankAccount, parsedRows]);
+      { title: "Transações do Mês da Fatura", rows: filteredRows.filter((r) => !r.isPastMonth) },
+      { title: "Parcelas e Compras Anteriores", rows: filteredRows.filter((r) => r.isPastMonth) },
+    ].filter((g) => g.rows.length > 0);
+  }, [isBankAccount, filteredRows]);
 
   // -- Commit
   const handleCommit = async () => {
@@ -540,6 +637,7 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       installmentCurrent: r.installmentCurrent,
       installmentTotal: r.installmentTotal,
       purchaseDate: r.purchaseDate,
+      pluggyTransactionId: r.pluggyTransactionId ?? null,
     }));
 
     if (toInsert.length === 0) {
@@ -547,45 +645,110 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       return;
     }
 
-    const newRules = parsedRows
-      .filter(r => !r.ignored && r.createRule && r.rulePattern?.trim())
-      .map(r => ({
-        pattern: r.rulePattern!.trim(),
-        targetDescription: r.description,
-        categoryId: r.categoryId,
-      }));
+    // Deduplicar regras por padrão (case-insensitive, mantendo a última versão editada)
+    const rulesMap = new Map<string, { pattern: string; targetDescription: string; categoryId: number | null }>();
+    for (const r of parsedRows) {
+      if (!r.ignored && r.createRule && r.rulePattern?.trim()) {
+        const pattern = r.rulePattern.trim();
+        rulesMap.set(pattern.toLowerCase(), {
+          pattern,
+          targetDescription: r.description.trim(),
+          categoryId: r.categoryId,
+        });
+      }
+    }
+    const newRules = Array.from(rulesMap.values());
 
     setIsSubmitting(true);
-    await createMultipleTransactions(toInsert, newRules);
-    onSuccess();
-    onClose();
+    setCommitError(null);
+
+    try {
+      if (replaceExisting) {
+        const res = await importTransactionsWithReplaceAction({
+          accountId,
+          month,
+          transactions: toInsert,
+          newRules,
+        });
+
+        if (!res.success) {
+          setCommitError(res.error);
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        await createMultipleTransactions(toInsert, newRules);
+      }
+
+      setIsSubmitting(false);
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setCommitError(err?.message || "Erro inesperado ao salvar lançamentos.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <ModalShell
       onClose={onClose}
       maxWidth="max-w-6xl"
-      title="Importar Transações via IA"
-      subtitle={step === 1 ? "Passo 1: Gere os dados estruturados no Gemini e cole aqui." : "Passo 2: Revise os dados e identifique duplicatas antes de salvar."}
-      icon={<UploadCloud className="w-5 h-5 text-primary" />}
+      title={sourceMode === "pluggy" ? "Sincronização Bancária" : "Importação Manual (TSV)"}
+      subtitle={
+        step === 1
+          ? sourceMode === "pluggy"
+            ? "Consulte os lançamentos do mês diretamente via Open Finance."
+            : "Cole os dados TSV gerados por IA a partir do seu extrato."
+          : "Passo 2: Revise os dados e identifique duplicatas antes de salvar."
+      }
+      icon={sourceMode === "pluggy" ? <RefreshCw className="w-5 h-5 text-primary" /> : <UploadCloud className="w-5 h-5 text-primary" />}
       escapeCloses={false}
       footer={
         step === 1 ? (
-          <>
-            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleParse} disabled={!pastedText.trim() || isParsing}>
-              {isParsing ? "Processando..." : (
-                <>
-                  Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
-                </>
-              )}
-            </Button>
-          </>
+          sourceMode === "manual" ? (
+            <>
+              <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+              <Button onClick={handleParse} disabled={!pastedText.trim() || isParsing}>
+                {isParsing ? "Processando..." : (
+                  <>
+                    Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </>
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={onClose} disabled={isFetchingPluggy}>Cancelar</Button>
+              <Button
+                onClick={() => handleFetchPluggy()}
+                disabled={isFetchingPluggy || !isSupportedByPluggy || !selectedAccount?.pluggyAccountId}
+              >
+                {isFetchingPluggy ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin mr-1.5" />
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    Buscar no Pluggy <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </>
+                )}
+              </Button>
+            </>
+          )
         ) : (
           <>
-            <Button variant="ghost" onClick={() => setStep(1)} disabled={isSubmitting}>Voltar</Button>
-            <Button onClick={handleCommit} disabled={isSubmitting || parsedRows.filter(r => !r.ignored).length === 0} className="bg-primary text-primary-foreground">
-              {isSubmitting ? "Salvando..." : `Salvar ${parsedRows.filter(r => !r.ignored).length} Transações`}
+            <Button variant="ghost" onClick={() => { setStep(1); setCommitError(null); }} disabled={isSubmitting}>Voltar</Button>
+            <Button
+              onClick={handleCommit}
+              disabled={isSubmitting || parsedRows.filter(r => !r.ignored).length === 0}
+              className={replaceExisting ? "bg-amber-600 hover:bg-amber-700 text-white" : "bg-primary text-primary-foreground"}
+            >
+              {isSubmitting
+                ? (replaceExisting ? "Gerando Backup e Substituindo..." : "Salvando...")
+                : replaceExisting
+                  ? `Substituir e Salvar ${parsedRows.filter(r => !r.ignored).length} Transações`
+                  : `Salvar ${parsedRows.filter(r => !r.ignored).length} Transações`}
             </Button>
           </>
         )
@@ -593,20 +756,32 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
     >
       {step === 1 ? (
         <div className="space-y-4">
-          <div className="bg-muted/50 p-3 rounded-lg border border-border">
-            <div className="flex items-center justify-between gap-4 mb-2">
-              <div>
-                <h3 className="font-semibold text-sm">Instruções para a IA</h3>
-                <p className="text-xs text-muted-foreground">Copie o prompt e cole no Gemini ou ChatGPT junto com seu PDF/Extrato.</p>
-              </div>
-              <Button size="sm" variant="outline" onClick={handleCopyPrompt} className="shrink-0 h-8 text-xs">
-                {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-                {copied ? "Copiado!" : "Copiar Prompt"}
-              </Button>
-            </div>
-            <div className="bg-background p-2.5 rounded text-xs font-mono text-slate-700 whitespace-pre-wrap border max-h-24 overflow-y-auto">
-              {promptText}
-            </div>
+          {/* Seletor de Origem: Manual vs Pluggy */}
+          <div className="flex border-b border-border">
+            <button
+              type="button"
+              onClick={() => { setSourceMode("pluggy"); setPluggyError(null); }}
+              className={`pb-2.5 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                sourceMode === "pluggy"
+                  ? "border-primary text-primary font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Sincronização Bancária
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSourceMode("manual"); setPluggyError(null); }}
+              className={`pb-2.5 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                sourceMode === "manual"
+                  ? "border-primary text-primary font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Importação Manual
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -622,45 +797,375 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
             </div>
             <div>
               <label className="text-sm font-medium mb-1.5 block">
-                {isBankAccount ? "Mês dos Lançamentos" : "Mês da Fatura"}
+                {sourceMode === "pluggy" ? (selectedAccount?.type === "credit_card" ? "Fatura da Consulta" : "Mês da Consulta") : (isBankAccount ? "Mês dos Lançamentos" : "Mês da Fatura")}
               </label>
               <div className="h-10 rounded-md border border-input bg-muted px-3 flex items-center text-xs sm:text-sm font-medium text-muted-foreground">
-                {isBankAccount ? "Automático (definido pela data de cada lançamento)" : month}
+                {sourceMode === "pluggy"
+                  ? (selectedAccount?.type === "credit_card" ? `Fatura de ${formatMonthLabel(month)}` : formatMonthLabel(month))
+                  : (isBankAccount ? "Automático (definido pela data de cada lançamento)" : month)}
               </div>
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium mb-1.5 flex items-center justify-between">
-              <span>Cole o TSV gerado aqui</span>
-            </label>
-            <textarea
-              value={pastedText}
-              onChange={e => setPastedText(e.target.value)}
-              className="w-full h-48 rounded-md border border-input bg-background p-3 text-sm font-mono placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder={
-                isBankAccount
-                  ? `02/07/2026\tPIX TRANSF LEANDRO\tPix Transf Leandro\t5917.92\tTransferência\t\t\t02/07/2026\n03/08/2026\tPIX TRANSF D20 SOC\tPix Transf D20 Soc\t-5800.00\tTransferência\t\t\t03/08/2026`
-                  : `12\tPGTO *MERCADO EXTRA\tMercado Extra\t-150.00\tMercado\n15\tTED SALARIO\tSalário\t5000.00\tReceita`
-              }
-            />
-          </div>
+          {sourceMode === "manual" ? (
+            <>
+              <div className="bg-muted/50 p-3 rounded-lg border border-border">
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <div>
+                    <h3 className="font-semibold text-sm">Instruções para a IA</h3>
+                    <p className="text-xs text-muted-foreground">Copie o prompt e cole no Gemini ou ChatGPT junto com seu PDF/Extrato.</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleCopyPrompt} className="shrink-0 h-8 text-xs">
+                    {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                    {copied ? "Copiado!" : "Copiar Prompt"}
+                  </Button>
+                </div>
+                <div className="bg-background p-2.5 rounded text-xs font-mono text-slate-700 whitespace-pre-wrap border max-h-24 overflow-y-auto">
+                  {promptText}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1.5 flex items-center justify-between">
+                  <span>Cole o TSV gerado aqui</span>
+                </label>
+                <textarea
+                  value={pastedText}
+                  onChange={e => setPastedText(e.target.value)}
+                  className="w-full h-48 rounded-md border border-input bg-background p-3 text-sm font-mono placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder={
+                    isBankAccount
+                      ? `02/07/2026\tPIX TRANSF LEANDRO\tPix Transf Leandro\t5917.92\tTransferência\t\t\t02/07/2026\n03/08/2026\tPIX TRANSF D20 SOC\tPix Transf D20 Soc\t-5800.00\tTransferência\t\t\t03/08/2026`
+                      : `12\tPGTO *MERCADO EXTRA\tMercado Extra\t-150.00\tMercado\n15\tTED SALARIO\tSalário\t5000.00\tReceita`
+                  }
+                />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              {!isSupportedByPluggy ? (
+                <div className="p-4 rounded-lg border border-amber-200 bg-amber-50/80 dark:bg-amber-950/30 dark:border-amber-900/50 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+                        Tipo de Conta Incompatível
+                      </h4>
+                      <p className="text-xs text-amber-800 dark:text-amber-400 mt-1 leading-relaxed">
+                        A sincronização bancária via Pluggy está disponível exclusivamente para contas do tipo <strong>Conta Corrente</strong> e <strong>Cartão de Crédito</strong>. A conta selecionada ({selectedAccount?.name}) é do tipo {selectedAccount?.type === 'investment' ? 'Conta de Investimento' : selectedAccount?.type === 'financing' ? 'Financiamento / Dívida' : selectedAccount?.type === 'loan_receivable' ? 'Crédito a Receber' : 'outro'}. Selecione uma Conta Corrente ou Cartão de Crédito para continuar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : !selectedAccount?.pluggyAccountId ? (
+                <div className="p-4 rounded-lg border border-amber-200 bg-amber-50/80 dark:bg-amber-950/30 dark:border-amber-900/50 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+                        Conta sem vínculo com o Pluggy
+                      </h4>
+                      <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
+                        A conta <strong>{selectedAccount?.name}</strong> ainda não possui um identificador do Pluggy (<code>pluggyAccountId</code>) configurado.
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-500">
+                        Para sincronizar automaticamente, acesse a aba <strong>Contas</strong>, clique no ícone de lápis para editar esta conta e informe ou busque o <strong>Pluggy Account ID</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg border border-border bg-card space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                        {selectedAccount.type === "credit_card" ? (
+                          <CreditCard className="w-5 h-5" />
+                        ) : (
+                          <Building className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-foreground">{selectedAccount.name}</h4>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            Vinculada ao Pluggy
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                          Account ID: {selectedAccount.pluggyAccountId}
+                          {selectedAccount.pluggyItemId ? ` • Item: ${selectedAccount.pluggyItemId}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/40 p-3 rounded-md text-xs text-muted-foreground space-y-1">
+                    {selectedAccount.type === "credit_card" ? (
+                      <>
+                        <p>• O sistema buscará as transações da fatura de <strong>{formatMonthLabel(month)}</strong> na API do Pluggy.</p>
+                        <p>• Compras serão registradas como despesas, estornos como créditos e pagamentos de fatura serão ignorados compulsoriamente.</p>
+                        <p>• Parcelamentos e metadados de compra serão extraídos e duplicatas detectadas.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>• O sistema buscará as transações de <strong>{formatMonthLabel(month)}</strong> diretamente na API do Pluggy.</p>
+                        <p>• As descrições serão limpas e categorizadas automaticamente com base nas regras cadastradas.</p>
+                        <p>• Duplicatas já gravadas no banco de dados serão identificadas para conferência.</p>
+                      </>
+                    )}
+                  </div>
+
+                  {pluggyError && (
+                    <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">Erro ao consultar o Pluggy:</p>
+                        <p>{pluggyError}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => handleFetchPluggy()}
+                    disabled={isFetchingPluggy}
+                    className="w-full gap-2"
+                    size="lg"
+                  >
+                    {isFetchingPluggy ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Buscando lançamentos no Pluggy...
+                      </>
+                    ) : (
+                      <>
+                        <DownloadCloud className="w-4 h-4" />
+                        {selectedAccount.type === "credit_card"
+                          ? `Buscar Fatura de ${formatMonthLabel(month)} no Pluggy`
+                          : `Buscar Lançamentos de ${formatMonthLabel(month)} no Pluggy`}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-800">
-              <p className="font-semibold">Atenção a duplicatas!</p>
-              <p>Linhas amarelas indicam transações que já parecem existir neste mês (mesmo dia, valor e descrição). Elas foram marcadas para ser ignoradas por padrão, mas você pode desmarcá-las se forem legítimas.</p>
-            </div>
+          {/* Opção de Substituição Destrutiva Segura */}
+          <div className={`p-3.5 rounded-lg border transition-all ${replaceExisting ? 'bg-amber-50/80 border-amber-300' : 'bg-muted/40 border-border'}`}>
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={replaceExisting}
+                onChange={(e) => handleToggleReplaceExisting(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+              />
+              <div className="space-y-0.5">
+                <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  Substituir lançamentos existentes desta conta no mês (faz backup automático antes)
+                </span>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {replaceExisting ? (
+                    <span className="text-amber-900 font-medium">
+                      Atenção: Todas as transações existentes de <strong>{selectedAccount?.name}</strong> em <strong>{formatMonthLabel(month)}</strong> serão excluídas e substituídas pelas <strong>{parsedRows.filter(r => !r.ignored).length}</strong> transações selecionadas abaixo. Um backup completo do banco de dados será gerado automaticamente antes da exclusão.
+                    </span>
+                  ) : (
+                    "Modo aditivo padrão: Salva apenas os lançamentos selecionados abaixo, sem remover dados preexistentes."
+                  )}
+                </p>
+              </div>
+            </label>
           </div>
 
-          <div className="flex justify-between items-center px-1">
-            <span className="text-sm font-semibold text-slate-700">Transações extraídas ({parsedRows.length})</span>
+          {commitError && (
+            <div className="p-3 rounded-md bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Erro ao salvar lançamentos:</p>
+                <p>{commitError}</p>
+              </div>
+            </div>
+          )}
+
+          {replaceExisting ? (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800 dark:text-amber-200 flex-1">
+                <p className="font-semibold">Modo de substituição ativo</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  As transações abaixo substituirão o histórico do mês. Você pode desmarcar transações que não deseja importar.
+                </p>
+              </div>
+            </div>
+          ) : sourceMode === "pluggy" && batchDuplicateCount === 0 ? (
+            <div className="bg-card border border-border p-3 rounded-lg flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-foreground flex-1">
+                <p className="font-semibold">
+                  {unregisteredCount > 0
+                    ? "Novos lançamentos encontrados"
+                    : "Lançamentos já sincronizados"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {unregisteredCount > 0
+                    ? `${unregisteredCount} transação(ões) nova(s) pronta(s) para conferência. ${alreadyImportedCount} lançamento(s) já existente(s) foram desconsiderados da seleção por já estarem registrados no sistema.`
+                    : `Todas as ${parsedRows.length} transações deste período já estão registradas no sistema.`}
+                </p>
+                {unregisteredCount > 0 && filterMode !== "unregistered" && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode("unregistered")}
+                    className="mt-1.5 text-xs font-semibold text-primary underline hover:no-underline inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    Exibir apenas as {unregisteredCount} transações não registradas
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : batchDuplicateCount > 0 ? (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800 dark:text-amber-200 flex-1">
+                <p className="font-semibold">Atenção a duplicatas no lote!</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  Identificamos {batchDuplicateCount} transação(ões) com dia, valor e descrição repetidos dentro do próprio lote. Elas vêm desmarcadas por padrão para evitar duplicidade.
+                </p>
+                {unregisteredCount > 0 && filterMode !== "unregistered" && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode("unregistered")}
+                    className="mt-1.5 text-xs font-semibold text-amber-900 dark:text-amber-100 underline hover:no-underline inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    Exibir apenas as {unregisteredCount} transações não registradas
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800 dark:text-amber-200 flex-1">
+                <p className="font-semibold">Atenção a duplicatas!</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  {duplicateCount > 0
+                    ? `Identificamos ${duplicateCount} transação(ões) já existente(s) neste mês (mesmo dia, valor e descrição). Elas vêm desmarcadas por padrão para evitar duplicidade.`
+                    : "Nenhuma duplicata identificada. Todas as transações extraídas são novos lançamentos."}
+                </p>
+                {duplicateCount > 0 && filterMode !== "unregistered" && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode("unregistered")}
+                    className="mt-1.5 text-xs font-semibold text-amber-900 dark:text-amber-100 underline hover:no-underline inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    Filtrar para exibir apenas as {unregisteredCount} transações não registradas
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-1">
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleSelectAll} className="h-7 text-xs">Selecionar Todas</Button>
-              <Button variant="outline" size="sm" onClick={handleSelectNone} className="h-7 text-xs">Nenhuma</Button>
+              <span className="text-sm font-semibold text-foreground">
+                Transações extraídas
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                {filteredRows.length !== parsedRows.length
+                  ? `(${filteredRows.length} de ${parsedRows.length})`
+                  : `(${parsedRows.length})`}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+              {/* Segmented Filter Pills */}
+              <div className="inline-flex items-center p-0.5 bg-muted/80 rounded-lg border border-border text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFilterMode("all")}
+                  className={cn(
+                    "px-2.5 py-1 font-medium rounded-md transition-all cursor-pointer",
+                    filterMode === "all"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Todos ({parsedRows.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode("unregistered")}
+                  className={cn(
+                    "px-2.5 py-1 font-medium rounded-md transition-all inline-flex items-center gap-1.5 cursor-pointer",
+                    filterMode === "unregistered"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Mostrar apenas lançamentos que ainda não foram registrados"
+                >
+                  <span>Não registrados</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 text-[10px] rounded-full font-semibold",
+                      unregisteredCount > 0
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {unregisteredCount}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode("registered")}
+                  className={cn(
+                    "px-2.5 py-1 font-medium rounded-md transition-all inline-flex items-center gap-1.5 cursor-pointer",
+                    filterMode === "registered"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Mostrar apenas lançamentos já registrados no banco de dados"
+                >
+                  <span>Já registrados</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 text-[10px] rounded-full font-semibold",
+                      duplicateCount > 0
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {duplicateCount}
+                  </span>
+                </button>
+              </div>
+
+              {/* Ações em lote sobre a visão filtrada */}
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  className="h-7 text-xs"
+                  title="Marcar todos os lançamentos visíveis para importação"
+                >
+                  Selecionar Todas
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectNone}
+                  className="h-7 text-xs"
+                  title="Desmarcar todos os lançamentos visíveis"
+                >
+                  Nenhuma
+                </Button>
+              </div>
             </div>
           </div>
           <div className="border rounded-lg overflow-x-auto bg-card">
@@ -685,8 +1190,21 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
                         </td>
                       </tr>
                     )}
-                    {group.rows.map(row => (
-                      <tr key={row.id} className={`${row.ignored ? 'opacity-50 bg-slate-50' : row.isDuplicate ? 'bg-amber-50/50' : 'hover:bg-slate-50'}`}>
+                    {group.rows.map(row => {
+                      const rowPattern = (row.rulePattern || row.originalDescription || "").trim().toLowerCase();
+                      const existingRule = rules.find((r: any) => {
+                        const p = r.pattern?.trim().toLowerCase();
+                        return p && (p === rowPattern || (row.originalDescription || "").toLowerCase().includes(p) || r.id === row.matchedRuleId);
+                      });
+                      const samePatternCount = parsedRows.filter(
+                        r => !r.ignored && (r.rulePattern || r.originalDescription || "").trim().toLowerCase() === rowPattern
+                      ).length;
+
+                      const isAlreadyImported = row.isAlreadyImported ?? (sourceMode === "pluggy" ? row.isDuplicate : false);
+                      const isBatchDuplicate = row.isDuplicateInBatch ?? false;
+
+                      return (
+                      <tr key={row.id} className={`${row.ignored ? 'opacity-50 bg-slate-50 dark:bg-muted/20' : isBatchDuplicate ? 'bg-amber-50/50 dark:bg-amber-950/20' : row.isDuplicate ? 'bg-slate-50/60 dark:bg-muted/30' : 'hover:bg-slate-50 dark:hover:bg-muted/40'}`}>
                         <td className="px-4 py-2 text-center align-middle">
                           <input
                             type="checkbox"
@@ -695,7 +1213,7 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
                             className="w-4 h-4 rounded border-slate-300 accent-primary cursor-pointer"
                           />
                         </td>
-                        <td className="px-4 py-2 align-middle font-medium text-slate-700 whitespace-nowrap" title={row.purchaseDate || undefined}>
+                        <td className="px-4 py-2 align-middle font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap" title={row.purchaseDate || undefined}>
                           {row.day}
                         </td>
                         <td className="px-4 py-2 align-middle">
@@ -703,46 +1221,72 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
                             type="text"
                             value={row.description}
                             onChange={e => updateRowDescription(row.id, e.target.value)}
-                            className={`w-full font-medium bg-transparent border-none p-0 h-auto focus:ring-0 ${!row.ignored && row.isDuplicate ? 'text-amber-700' : ''}`}
+                            className={`w-full font-medium bg-transparent border-none p-0 h-auto focus:ring-0 ${!row.ignored && isBatchDuplicate ? 'text-amber-700 dark:text-amber-300' : ''}`}
                             disabled={row.ignored}
                           />
-                          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-2">
+                          <div className="text-[10px] text-slate-400 mt-1 flex flex-wrap items-center gap-2">
                             <span>{row.originalDescription}</span>
-                            {row.isDuplicate && (
-                              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">
-                                Duplicata detectada
+                            {isBatchDuplicate ? (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium">
+                                Duplicata no lote
+                              </span>
+                            ) : row.isDuplicate ? (
+                              <span className="text-[10px] bg-slate-100 text-slate-600 dark:bg-muted dark:text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium">
+                                Já importada
+                              </span>
+                            ) : null}
+                            {existingRule && (
+                              <span
+                                className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
+                                title={`Regra ativa no sistema: "${existingRule.pattern}" → "${existingRule.targetDescription}"`}
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+                                Regra ativa: "{existingRule.pattern}"
+                              </span>
+                            )}
+                            {samePatternCount > 1 && (
+                              <span
+                                className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border font-medium"
+                                title={`Existem ${samePatternCount} transações com este texto no lote`}
+                              >
+                                {samePatternCount} no lote
                               </span>
                             )}
                             {!row.ignored && (
-                              <label className="flex items-center gap-1 cursor-pointer hover:text-indigo-500 transition-colors">
+                              <label className={`flex items-center gap-1 cursor-pointer transition-colors ${existingRule ? 'text-amber-700 hover:text-amber-800 font-semibold' : 'hover:text-indigo-500'}`}>
                                 <input
                                   type="checkbox"
                                   className="w-3 h-3 rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                   checked={row.createRule}
-                                  onChange={e => {
-                                    setParsedRows(prev => prev.map(r => r.id === row.id ? { ...r, createRule: e.target.checked } : r));
-                                  }}
+                                  onChange={e => handleToggleCreateRule(row.id, e.target.checked)}
                                 />
-                                Salvar como regra
+                                {existingRule ? "Substituir regra existente" : "Salvar como regra"}
                               </label>
                             )}
                           </div>
                           {row.createRule && (
-                            <div className="mt-1 flex items-center gap-2">
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
                               <span className="text-[10px] font-bold uppercase text-indigo-400">Match:</span>
                               <input
                                 type="text"
                                 value={row.rulePattern}
-                                onChange={e => {
-                                  setParsedRows(prev => prev.map(r => r.id === row.id ? { ...r, rulePattern: e.target.value } : r));
-                                }}
-                                className="h-5 text-[10px] px-1 py-0 w-32 border border-indigo-200 rounded text-indigo-700 bg-indigo-50/50"
+                                onChange={e => updateRowRulePattern(row.id, e.target.value)}
+                                className="h-5 text-[10px] px-1.5 py-0 w-36 border border-indigo-200 rounded text-indigo-700 bg-indigo-50/50"
                                 title="Edite o pedaço de texto que servirá como regra (ex: remova datas)"
                               />
+                              {existingRule ? (
+                                <span className="text-[10px] text-amber-700 font-medium bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  Substituirá a regra "{existingRule.pattern}" ({existingRule.targetDescription}) por "{row.description}"
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground italic">
+                                  Nova regra: "{row.rulePattern}" → "{row.description}"
+                                </span>
+                              )}
                             </div>
                           )}
                         </td>
-                        <td className={`px-4 py-2 text-right font-semibold align-middle whitespace-nowrap ${row.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <td className={`px-4 py-2 text-right font-semibold align-middle whitespace-nowrap tabular-nums ${row.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           {row.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </td>
                         <td className="px-4 py-2 align-middle w-56 min-w-[200px]">
@@ -773,9 +1317,40 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
                           </td>
                         )}
                       </tr>
-                    ))}
+                    );
+                  })}
                   </React.Fragment>
                 ))}
+                {filteredRows.length === 0 && parsedRows.length > 0 && (
+                  <tr>
+                    <td colSpan={!isBankAccount ? 6 : 5} className="p-8">
+                      <EmptyState
+                        compact
+                        icon={filterMode === "unregistered" ? CheckCircle2 : AlertTriangle}
+                        title={
+                          filterMode === "unregistered"
+                            ? "Nenhum lançamento pendente"
+                            : "Nenhum lançamento já registrado"
+                        }
+                        description={
+                          filterMode === "unregistered"
+                            ? "Todos os lançamentos extraídos já constam como registrados no banco de dados."
+                            : "Nenhum dos lançamentos extraídos possui duplicata no banco de dados."
+                        }
+                        action={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setFilterMode("all")}
+                            className="h-8 text-xs cursor-pointer"
+                          >
+                            Exibir todos os lançamentos ({parsedRows.length})
+                          </Button>
+                        }
+                      />
+                    </td>
+                  </tr>
+                )}
                 {parsedRows.length === 0 && (
                   <tr>
                     <td colSpan={!isBankAccount ? 6 : 5} className="px-4 py-8 text-center text-muted-foreground">Nenhuma transação extraída.</td>

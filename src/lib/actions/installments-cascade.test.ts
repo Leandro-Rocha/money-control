@@ -3,7 +3,7 @@ import { createTestDb } from '../test-db';
 import { accounts, categories, transactions, dismissedProjections } from '../../db/schema';
 import { updateTransaction, deleteTransaction } from './transactions';
 import { confirmProjectedRow } from './projections';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 
 let testDb: any;
 
@@ -68,6 +68,46 @@ describe('installment cascading and projection confirmation', () => {
     const all = await testDb.select().from(transactions).where(eq(transactions.accountId, 1));
     expect(all).toHaveLength(2);
     expect(all[0].categoryId).toBe(2);
+    expect(all[1].categoryId).toBe(2);
+  });
+
+  it('cascades description and category update to all installments even if sister installment had raw original description', async () => {
+    // Month 1: Imported with raw description
+    const [p1] = await testDb.insert(transactions).values({
+      accountId: 1,
+      month: '2026-07',
+      day: 4,
+      description: 'MERCADOLIVRE*MERCADOLI',
+      originalDescription: 'MERCADOLIVRE*MERCADOLI',
+      categoryId: 1,
+      amount: -108.07,
+      installmentCurrent: 2,
+      installmentTotal: 6,
+      purchaseDate: '04/06/2026',
+    }).returning();
+
+    // Month 2: Also confirmed
+    const [p2] = await testDb.insert(transactions).values({
+      accountId: 1,
+      month: '2026-08',
+      day: 4,
+      description: 'MERCADOLIVRE*MERCADOLI',
+      originalDescription: 'MERCADOLIVRE*MERCADOLI',
+      categoryId: 1,
+      amount: -108.07,
+      installmentCurrent: 3,
+      installmentTotal: 6,
+      purchaseDate: '04/06/2026',
+    }).returning();
+
+    // User renames installment 3 to 'Microondas' and sets category to 2
+    await updateTransaction(p2.id, { description: 'Microondas', categoryId: 2 });
+
+    const all = await testDb.select().from(transactions).where(eq(transactions.accountId, 1)).orderBy(asc(transactions.id));
+    expect(all).toHaveLength(2);
+    expect(all[0].description).toBe('Microondas');
+    expect(all[0].categoryId).toBe(2);
+    expect(all[1].description).toBe('Microondas');
     expect(all[1].categoryId).toBe(2);
   });
 
