@@ -32,6 +32,7 @@ export interface CategoryPickerProps {
   parentCategoryName?: string | null;
   tabIndex?: number;
   onKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLButtonElement>) => void;
 }
 
 export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>(
@@ -53,6 +54,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
       parentCategoryName,
       tabIndex,
       onKeyDown: onKeyDownProp,
+      onFocus,
     },
     forwardedRef
   ) {
@@ -305,6 +307,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           tabIndex={tabIndex}
           onClick={handleOpen}
           onKeyDown={handleTriggerKeyDown}
+          onFocus={onFocus}
           disabled={disabled}
           className={cn(
             "w-full sm:w-[190px] h-9 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 select-none",
@@ -345,6 +348,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           tabIndex={tabIndex}
           onClick={handleOpen}
           onKeyDown={handleTriggerKeyDown}
+          onFocus={onFocus}
           disabled={disabled}
           className={cn(
             "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-xs sm:text-sm shadow-xs transition-colors hover:bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-primary/20 select-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -381,6 +385,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           disabled={disabled}
           onClick={handleOpen}
           onKeyDown={handleTriggerKeyDown}
+          onFocus={onFocus}
           className={cn(
             "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-[10px] uppercase font-semibold transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
             disabled

@@ -95,6 +95,17 @@ export default function BankAccountColumn({
   // Active cell editing
   const [editingCell, setEditingCell] = useState<EditingCell>(null);
   const [tempValue, setTempValue] = useState<string>("");
+  const isNavigatingRef = useRef(false);
+  const categoryPickerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (editingCell?.field === "category") {
+      const t = setTimeout(() => {
+        categoryPickerRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [editingCell]);
 
   // Transfer modal
   const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
@@ -119,7 +130,6 @@ export default function BankAccountColumn({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [transferTxId]);
 
-
   const handleStartCellEdit = (
     tx: TransactionWithCategory,
     field: "day" | "description" | "category" | "amount"
@@ -142,42 +152,89 @@ export default function BankAccountColumn({
     setTempValue("");
   };
 
-  const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
-    if (!editingCell || editingCell.txId !== tx.id) return;
-    const { field } = editingCell;
-    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
-
+  const saveFieldValue = async (
+    tx: TransactionWithCategory,
+    field: "day" | "description" | "category" | "amount",
+    valueToSave: string
+  ) => {
+    if (tx.isProjected) return;
     try {
       if (field === "day") {
-        const val = parseInt(activeValue, 10);
+        const val = parseInt(valueToSave, 10);
         if (!isNaN(val) && val >= 1 && val <= 31 && val !== tx.day) {
           await updateTransaction(tx.id, { day: val });
           onRefresh();
         }
       } else if (field === "description") {
-        const trimmed = activeValue.trim();
+        const trimmed = valueToSave.trim();
         if (trimmed && trimmed !== tx.description) {
           await updateTransaction(tx.id, { description: trimmed });
           onRefresh();
         }
       } else if (field === "category") {
-        const catId = activeValue === "none" || activeValue === "" ? null : Number(activeValue);
+        const catId = valueToSave === "none" || valueToSave === "" ? null : Number(valueToSave);
         if (catId !== tx.categoryId) {
           await updateTransaction(tx.id, { categoryId: catId });
           onRefresh();
         }
       } else if (field === "amount") {
-        const parsed = parseNumberInput(activeValue);
-        if (parsed !== null) {
-          if (parsed !== tx.amount) {
-            await updateTransaction(tx.id, { amount: parsed });
-            onRefresh();
-          }
+        const parsed = parseNumberInput(valueToSave);
+        if (parsed !== null && parsed !== tx.amount) {
+          await updateTransaction(tx.id, { amount: parsed });
+          onRefresh();
         }
       }
-    } finally {
-      setEditingCell(null);
+    } catch (err) {
+      console.error("Error saving transaction field:", err);
     }
+  };
+
+  const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
+    if (!editingCell || editingCell.txId !== tx.id) return;
+    const { field } = editingCell;
+    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
+    setEditingCell(null);
+    setTempValue("");
+    await saveFieldValue(tx, field, activeValue);
+  };
+
+  const BANK_FIELDS: Array<"day" | "description" | "category" | "amount"> = [
+    "day",
+    "description",
+    "category",
+    "amount",
+  ];
+
+  const handleNavigateCell = async (
+    tx: TransactionWithCategory,
+    currentField: "day" | "description" | "category" | "amount",
+    direction: "next" | "prev",
+    currentValue?: string
+  ) => {
+    isNavigatingRef.current = true;
+    const val = currentValue !== undefined ? currentValue : tempValue;
+
+    if (currentField !== "category") {
+      await saveFieldValue(tx, currentField, val);
+    }
+
+    const currentIndex = BANK_FIELDS.indexOf(currentField);
+    const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
+
+    if (nextIndex < 0 || nextIndex >= BANK_FIELDS.length) {
+      setEditingCell(null);
+      setTempValue("");
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 50);
+      return;
+    }
+
+    const nextField = BANK_FIELDS[nextIndex];
+    handleStartCellEdit(tx, nextField);
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 50);
   };
 
   const handleCancelAdd = () => {
@@ -488,10 +545,21 @@ export default function BankAccountColumn({
                             maxLength={2}
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
-                            onBlur={() => saveCell(tx)}
+                            onBlur={() => {
+                              if (isNavigatingRef.current) return;
+                              saveCell(tx);
+                            }}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") saveCell(tx);
-                              if (e.key === "Escape") setEditingCell(null);
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                saveCell(tx);
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setEditingCell(null);
+                              } else if (e.key === "Tab") {
+                                e.preventDefault();
+                                handleNavigateCell(tx, "day", e.shiftKey ? "prev" : "next");
+                              }
                             }}
                             className={cn("w-full px-1 text-center font-mono", density === "compact" ? "h-6 text-xs" : "h-8 text-sm")}
                             autoFocus
@@ -517,10 +585,21 @@ export default function BankAccountColumn({
                             type="text"
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
-                            onBlur={() => saveCell(tx)}
+                            onBlur={() => {
+                              if (isNavigatingRef.current) return;
+                              saveCell(tx);
+                            }}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") saveCell(tx);
-                              if (e.key === "Escape") setEditingCell(null);
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                saveCell(tx);
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setEditingCell(null);
+                              } else if (e.key === "Tab") {
+                                e.preventDefault();
+                                handleNavigateCell(tx, "description", e.shiftKey ? "prev" : "next");
+                              }
                             }}
                             className={cn("w-full", density === "compact" ? "h-7 text-xs px-2" : "text-sm")}
                             autoFocus
@@ -578,6 +657,7 @@ export default function BankAccountColumn({
                       {/* Categoria Cell */}
                       <TableCell className={cn("text-center px-1", density === "compact" && "py-0.5")}>
                         <CategoryPicker
+                          ref={isEditingCat ? categoryPickerRef : undefined}
                           categories={categories}
                           value={tx.categoryId}
                           categoryName={tx.categoryName}
@@ -585,7 +665,23 @@ export default function BankAccountColumn({
                           parentCategoryId={tx.parentCategoryId}
                           parentCategoryName={tx.parentCategoryName}
                           onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
-                          tabIndex={-1}
+                          onFocus={() => {
+                            if (!isProjected && !isInstallmentShadow && !isEditingCat) {
+                              setEditingCell({ txId: tx.id, field: "category" });
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (isEditingCat) {
+                              if (e.key === "Tab") {
+                                e.preventDefault();
+                                handleNavigateCell(tx, "category", e.shiftKey ? "prev" : "next");
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setEditingCell(null);
+                              }
+                            }
+                          }}
+                          tabIndex={isEditingCat ? 0 : -1}
                         />
                       </TableCell>
 
@@ -603,10 +699,21 @@ export default function BankAccountColumn({
                             value={tempValue}
                             onChangeValue={setTempValue}
                             allowNegative={true}
-                            onBlur={() => saveCell(tx)}
+                            onBlur={() => {
+                              if (isNavigatingRef.current) return;
+                              saveCell(tx);
+                            }}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") saveCell(tx);
-                              if (e.key === "Escape") setEditingCell(null);
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                saveCell(tx);
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setEditingCell(null);
+                              } else if (e.key === "Tab") {
+                                e.preventDefault();
+                                handleNavigateCell(tx, "amount", e.shiftKey ? "prev" : "next");
+                              }
                             }}
                             className={cn("w-full", density === "compact" ? "h-7 text-xs" : "text-sm")}
                             autoFocus

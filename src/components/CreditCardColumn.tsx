@@ -84,6 +84,17 @@ export default function CreditCardColumn({
   // Active cell editing
   const [editingCell, setEditingCell] = useState<EditingCell>(null);
   const [tempValue, setTempValue] = useState<string>("");
+  const isNavigatingRef = useRef(false);
+  const categoryPickerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (editingCell?.field === "category") {
+      const t = setTimeout(() => {
+        categoryPickerRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [editingCell]);
   const [contextMenu, setContextMenu] = useState<{ tx: TransactionWithCategory, x: number, y: number } | null>(null);
 
   useEffect(() => {
@@ -156,34 +167,35 @@ export default function CreditCardColumn({
     }
   };
 
-  const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
-    if (!editingCell || editingCell.txId !== tx.id) return;
-    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
-
+  const saveFieldValue = async (
+    tx: TransactionWithCategory,
+    field: "description" | "installment" | "category" | "amount",
+    valueToSave: string
+  ) => {
+    if (tx.isProjected) return;
     try {
-      if (editingCell.field === "description") {
-        const trimmed = activeValue.trim();
+      if (field === "description") {
+        const trimmed = valueToSave.trim();
         if (trimmed && trimmed !== tx.description) {
           await updateTransaction(tx.id, { description: trimmed });
           onRefresh();
         }
-      } else if (editingCell.field === "category") {
-        const catId = activeValue ? Number(activeValue) : null;
+      } else if (field === "category") {
+        const catId = valueToSave ? Number(valueToSave) : null;
         if (catId !== tx.categoryId) {
           await updateTransaction(tx.id, { categoryId: catId });
           onRefresh();
         }
-      } else if (editingCell.field === "amount") {
-        const parsed = parseNumberInput(activeValue);
+      } else if (field === "amount") {
+        const parsed = parseNumberInput(valueToSave);
         if (parsed !== null && parsed !== tx.amount) {
           const sign = Math.sign(tx.amount) || -1;
           const signed = Math.abs(parsed) * sign;
-          
           await updateTransaction(tx.id, { amount: signed });
           onRefresh();
         }
-      } else if (editingCell.field === "installment") {
-        const parts = activeValue.split("/");
+      } else if (field === "installment") {
+        const parts = valueToSave.split("/");
         let cur = null, tot = null;
         if (parts.length === 2) {
           cur = parseInt(parts[0], 10);
@@ -196,9 +208,59 @@ export default function CreditCardColumn({
         await updateTransaction(tx.id, { installmentCurrent: cur, installmentTotal: tot });
         onRefresh();
       }
-    } finally {
-      setEditingCell(null);
+    } catch (err) {
+      console.error("Error saving credit card transaction field:", err);
     }
+  };
+
+  const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
+    if (!editingCell || editingCell.txId !== tx.id) return;
+    const { field } = editingCell;
+    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
+    setEditingCell(null);
+    setTempValue("");
+    await saveFieldValue(tx, field, activeValue);
+  };
+
+  const getCreditCardFields = (tx: TransactionWithCategory) => {
+    const isInstallmentShadow = tx.isProjected && tx.projectionSourceType === "installment";
+    const canEditInstallment = !tx.isProjected && !isInstallmentShadow;
+    return canEditInstallment
+      ? (["description", "installment", "category", "amount"] as const)
+      : (["description", "category", "amount"] as const);
+  };
+
+  const handleNavigateCell = async (
+    tx: TransactionWithCategory,
+    currentField: "description" | "installment" | "category" | "amount",
+    direction: "next" | "prev",
+    currentValue?: string
+  ) => {
+    isNavigatingRef.current = true;
+    const val = currentValue !== undefined ? currentValue : tempValue;
+
+    if (currentField !== "category") {
+      await saveFieldValue(tx, currentField, val);
+    }
+
+    const fields = getCreditCardFields(tx);
+    const currentIndex = fields.indexOf(currentField as any);
+    const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
+
+    if (nextIndex < 0 || nextIndex >= fields.length) {
+      setEditingCell(null);
+      setTempValue("");
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 50);
+      return;
+    }
+
+    const nextField = fields[nextIndex];
+    handleStartCellEdit(tx, nextField);
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 50);
   };
 
   const handleCancelAdd = () => {
@@ -423,6 +485,7 @@ export default function CreditCardColumn({
                     const isRecurring = isRecurringProjected || tx.sourceType === "recurring" || tx.projectionSourceType === "recurring";
                     const isEditingDesc = editingCell?.txId === tx.id && editingCell.field === "description";
                     const isEditingInstallment = editingCell?.txId === tx.id && editingCell.field === "installment";
+                    const isEditingCat = editingCell?.txId === tx.id && editingCell.field === "category";
                     const isEditingAmount = editingCell?.txId === tx.id && editingCell.field === "amount";
                     const saveCell = isProjected ? handleSaveCellProjected : handleSaveCell;
 
@@ -466,10 +529,21 @@ export default function CreditCardColumn({
                               type="text"
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
-                              onBlur={() => saveCell(tx)}
+                              onBlur={() => {
+                                if (isNavigatingRef.current) return;
+                                saveCell(tx);
+                              }}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") saveCell(tx);
-                                if (e.key === "Escape") setEditingCell(null);
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  saveCell(tx);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setEditingCell(null);
+                                } else if (e.key === "Tab") {
+                                  e.preventDefault();
+                                  handleNavigateCell(tx, "description", e.shiftKey ? "prev" : "next");
+                                }
                               }}
                               className={cn("w-full", density === "compact" ? "h-7 text-xs px-2" : "text-sm")}
                               autoFocus
@@ -538,10 +612,21 @@ export default function CreditCardColumn({
                               placeholder="1/10"
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
-                              onBlur={() => saveCell(tx)}
+                              onBlur={() => {
+                                if (isNavigatingRef.current) return;
+                                saveCell(tx);
+                              }}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") saveCell(tx);
-                                if (e.key === "Escape") setEditingCell(null);
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  saveCell(tx);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setEditingCell(null);
+                                } else if (e.key === "Tab") {
+                                  e.preventDefault();
+                                  handleNavigateCell(tx, "installment", e.shiftKey ? "prev" : "next");
+                                }
                               }}
                               className={cn("w-full text-center font-mono", density === "compact" ? "h-6 text-xs" : "text-sm")}
                               autoFocus
@@ -573,6 +658,7 @@ export default function CreditCardColumn({
                         {/* Categoria Cell */}
                         <TableCell className={cn("text-center px-1", density === "compact" && "py-0.5")}>
                           <CategoryPicker
+                            ref={isEditingCat ? categoryPickerRef : undefined}
                             categories={categories}
                             value={tx.categoryId}
                             categoryName={tx.categoryName}
@@ -580,8 +666,24 @@ export default function CreditCardColumn({
                             parentCategoryId={tx.parentCategoryId}
                             parentCategoryName={tx.parentCategoryName}
                             onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
+                            onFocus={() => {
+                              if (!isProjected && !isInstallmentShadow && !isEditingCat) {
+                                setEditingCell({ txId: tx.id, field: "category" });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (isEditingCat) {
+                                if (e.key === "Tab") {
+                                  e.preventDefault();
+                                  handleNavigateCell(tx, "category", e.shiftKey ? "prev" : "next");
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setEditingCell(null);
+                                }
+                              }
+                            }}
                             disabled={isInstallmentShadow}
-                            tabIndex={-1}
+                            tabIndex={isEditingCat ? 0 : -1}
                           />
                         </TableCell>
 
@@ -598,10 +700,21 @@ export default function CreditCardColumn({
                             <CurrencyInput
                               value={tempValue}
                               onChangeValue={setTempValue}
-                              onBlur={() => saveCell(tx)}
+                              onBlur={() => {
+                                if (isNavigatingRef.current) return;
+                                saveCell(tx);
+                              }}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") saveCell(tx);
-                                if (e.key === "Escape") setEditingCell(null);
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  saveCell(tx);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setEditingCell(null);
+                                } else if (e.key === "Tab") {
+                                  e.preventDefault();
+                                  handleNavigateCell(tx, "amount", e.shiftKey ? "prev" : "next");
+                                }
                               }}
                               className={cn("w-full", density === "compact" ? "h-7 text-xs" : "text-sm")}
                               autoFocus
