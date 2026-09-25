@@ -3,9 +3,10 @@
 import { db } from "@/db";
 import { accounts, categories, transactions, recurringEntries, dismissedProjections } from "@/db/schema";
 import { eq, and, asc, gte, lte, lt } from "drizzle-orm";
-import { ProjectionState, TransactionWithCategory } from "../types";
+import { ProjectionState, TransactionWithCategory, AccountData } from "../types";
 import { revalidatePath } from "next/cache";
 import { addMonths, currentMonth, isFutureMonth, monthDiff } from "../date-helpers";
+import { findBillPaymentCandidates, BillPaymentCandidate } from "../due-dates";
 
 import { getProjectedInstallments, getProjectedRecurring } from "../repositories/projections";
 
@@ -319,3 +320,136 @@ export async function undismissProjection(data: {
   revalidatePath("/");
   return { success: true };
 }
+
+export async function payCreditCardBillAction(data: {
+  cardAccountId: number;
+  paymentAccountId: number;
+  month: string;
+  amount: number;
+  day?: number;
+}) {
+  const cardList = await db.select().from(accounts).where(eq(accounts.id, data.cardAccountId));
+  const card = cardList[0];
+  const cardName = card ? card.name : "Cartão";
+
+  const catList = await db.select().from(categories);
+  const cartaoCategory = catList.find(
+    (c) => c.name.toLowerCase() === "cartão" || c.name.toLowerCase() === "cartao"
+  );
+
+  const effectiveDay = data.day ?? card?.dueDay ?? new Date().getDate();
+
+  await db.insert(transactions).values({
+    accountId: data.paymentAccountId,
+    month: data.month,
+    day: effectiveDay,
+    description: `Fatura ${cardName}`,
+    categoryId: cartaoCategory ? cartaoCategory.id : null,
+    amount: -Math.abs(data.amount),
+    sourceType: "credit_card_bill",
+    sourceId: data.cardAccountId,
+  });
+
+  try {
+    await db.insert(dismissedProjections).values({
+      accountId: data.paymentAccountId,
+      month: data.month,
+      sourceType: "credit_card_bill",
+      sourceId: data.cardAccountId,
+    });
+  } catch {
+    // ignore unique constraint
+  }
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function findBillPaymentCandidatesAction(
+  month: string
+): Promise<BillPaymentCandidate[]> {
+  const allAccs = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.isActive, 1));
+  const bankAccounts = allAccs.filter((a) => a.type === "bank_account");
+  const creditCards = allAccs.filter((a) => a.type === "credit_card");
+
+  if (bankAccounts.length === 0 || creditCards.length === 0) return [];
+
+  const catList = await db.select().from(categories);
+  const catMap = new Map(catList.map((c) => [c.id, c.name]));
+
+  const monthTx = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.month, month));
+
+  const bankTxWithCat: TransactionWithCategory[] = monthTx
+    .filter((t) => bankAccounts.some((b) => b.id === t.accountId))
+    .map((t) => ({
+      ...t,
+      categoryName: t.categoryId ? catMap.get(t.categoryId) : undefined,
+    }));
+
+  const creditCardData: AccountData[] = creditCards.map((card) => {
+    const cardTx = monthTx.filter((t) => t.accountId === card.id);
+    const totalExpense = cardTx.reduce(
+      (sum, t) => sum + (t.amount < 0 ? Math.abs(t.amount) : 0),
+      0
+    );
+    return {
+      account: card,
+      initialBalance: 0,
+      transactions: cardTx,
+      totalIncome: 0,
+      totalExpense,
+      netBalance: -totalExpense,
+      finalBalance: -totalExpense,
+    };
+  });
+
+  return findBillPaymentCandidates(bankTxWithCat, creditCardData, month);
+}
+
+export async function confirmBillPaymentCandidateAction(data: {
+  transactionId: number;
+  cardAccountId: number;
+  month: string;
+}) {
+  const [tx] = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.id, data.transactionId));
+  if (!tx) throw new Error("Transação não encontrada");
+
+  const catList = await db.select().from(categories);
+  const cartaoCategory = catList.find(
+    (c) => c.name.toLowerCase() === "cartão" || c.name.toLowerCase() === "cartao"
+  );
+
+  await db
+    .update(transactions)
+    .set({
+      sourceType: "credit_card_bill",
+      sourceId: data.cardAccountId,
+      categoryId: tx.categoryId ?? (cartaoCategory ? cartaoCategory.id : null),
+    })
+    .where(eq(transactions.id, data.transactionId));
+
+  try {
+    await db.insert(dismissedProjections).values({
+      accountId: tx.accountId,
+      month: data.month,
+      sourceType: "credit_card_bill",
+      sourceId: data.cardAccountId,
+    });
+  } catch {
+    // ignore duplicate
+  }
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+

@@ -27,8 +27,9 @@ import {
   normalizeDescription,
   resolveTargetMonth,
 } from "@/lib/staging-utils";
-import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-helpers";
-import { createMultipleTransactions, autoLinkTransfersAction } from "./transactions";
+import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
+import { createMultipleTransactions } from "./transactions";
+import { autoLinkTransfersAction } from "./transfers";
 import { adjustInvestmentBalance } from "./wealth";
 
 export interface PluggyStagingRow {

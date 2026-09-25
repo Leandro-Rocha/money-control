@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, AnySQLiteColumn, primaryKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const accounts = sqliteTable("accounts", {
@@ -90,6 +90,21 @@ export const dismissedProjections = sqliteTable("dismissed_projections", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("slate"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const transactionTags = sqliteTable("transaction_tags", {
+  transactionId: integer("transaction_id").notNull().references(() => transactions.id, { onDelete: "cascade" }),
+  tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  primaryKey({ columns: [table.transactionId, table.tagId] }),
+]);
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type MonthlyInitialBalance = typeof monthlyInitialBalances.$inferSelect;
@@ -103,3 +118,9 @@ export type DismissedProjection = typeof dismissedProjections.$inferSelect;
 
 export type TransactionRule = typeof transactionRules.$inferSelect;
 export type NewTransactionRule = typeof transactionRules.$inferInsert;
+
+export type Tag = typeof tags.$inferSelect;
+export type NewTag = typeof tags.$inferInsert;
+export type TransactionTag = typeof transactionTags.$inferSelect;
+export type NewTransactionTag = typeof transactionTags.$inferInsert;
+

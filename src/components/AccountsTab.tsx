@@ -252,8 +252,14 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
         fetchPluggyInvestmentsForItemAction(targetId),
       ]);
 
-      const credId = accountsRes.credentialId || investmentsRes.credentialId || "";
-      const credLabel = accountsRes.credentialLabel || investmentsRes.credentialLabel || "";
+      const credId =
+        (accountsRes.success ? accountsRes.credentialId : "") ||
+        (investmentsRes.success ? investmentsRes.credentialId : "") ||
+        "";
+      const credLabel =
+        (accountsRes.success ? accountsRes.credentialLabel : "") ||
+        (investmentsRes.success ? investmentsRes.credentialLabel : "") ||
+        "";
       if (credId) {
         setPickerCredentialId(credId);
         setPickerCredentialLabel(credLabel);

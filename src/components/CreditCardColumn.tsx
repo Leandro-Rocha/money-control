@@ -6,63 +6,128 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { useState, useEffect, useRef } from "react";
-import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Account, AccountData, Category, Tag, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
 import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, Repeat, RefreshCw } from "lucide-react";
-import { createTransaction, deleteTransaction, updateTransaction, transformToRecurring } from "@/lib/actions/transactions";
-import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
+import { createTransaction, deleteTransaction, updateTransaction } from "@/lib/actions/transactions";
+import { payCreditCardBillAction } from "@/lib/actions/projections";
+import { isCreditCardBillPaid, calculateDueStatus } from "@/lib/due-dates";
 import { TransactionContextMenu } from "./TransactionContextMenu";
+import { TransactionDetailModal } from "./TransactionDetailModal";
 import { CategoryPicker } from "./CategoryPicker";
 import { CurrencyInput } from "./CurrencyInput";
 import { getFormattedPurchaseDate } from "@/lib/date-helpers";
 import { sortCreditCardTransactions } from "@/lib/sorting";
 import { cn } from "@/lib/utils";
 import { TableDensity } from "@/hooks/useDashboard";
+import { useAccountColumnState } from "@/hooks/useAccountColumnState";
 
 interface CreditCardColumnProps {
   data: AccountData;
   month: string;
   categories: Category[];
   allAccounts: Account[];
+  allAccountsData?: AccountData[];
+  availableTags?: Tag[];
   onRefresh: () => void;
   onSyncPluggy?: (accountId: number) => void;
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
+  filterTagId?: number | "";
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   highlightedTxId?: number | null;
   density?: TableDensity;
 }
 
-type EditingCell = {
-  txId: number;
-  field: "description" | "installment" | "category" | "amount";
-} | null;
+const CARD_FIELDS = ["description", "installment", "category", "amount"] as const;
 
 export default function CreditCardColumn({
   data,
   month,
   categories,
   allAccounts,
+  allAccountsData,
+  availableTags = [],
   onRefresh,
   onSyncPluggy,
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
+  filterTagId = "",
   isExpanded: propIsExpanded,
   onToggleExpanded,
   highlightedTxId,
   density = "compact",
 }: CreditCardColumnProps) {
-  const [internalExpanded, setInternalExpanded] = useState(true);
-  const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
-  const toggleExpanded = () => {
-    if (onToggleExpanded) {
-      onToggleExpanded();
-    } else {
-      setInternalExpanded(!internalExpanded);
+  const {
+    isExpanded,
+    effectiveExpanded,
+    toggleExpanded,
+    hasActiveFilter,
+    hasZeroFilterMatches,
+    filteredTransactions,
+    detailTx,
+    setDetailTx,
+    contextMenu,
+    setContextMenu,
+    editingCell,
+    tempValue,
+    setTempValue,
+    isNavigatingRef,
+    categoryPickerRef,
+    handleStartCellEdit,
+    handleCancelCellEdit,
+    handleSaveCell,
+    handleNavigateCell,
+    handleCellKeyDown,
+    handleSelectCategory,
+    handleConfirmProjected,
+    handleDismissProjected,
+  } = useAccountColumnState({
+    transactions: data.transactions,
+    fields: CARD_FIELDS,
+    onRefresh,
+    filters: { filterText, filterCategoryId, filterHighValue, filterTagId },
+    highlightedTxId,
+    elementIdPrefix: "tx-card-",
+    isExpanded: propIsExpanded,
+    onToggleExpanded,
+    isCreditCard: true,
+  });
+
+  const billStatus = useMemo(() => {
+    if (!data.account.dueDay || data.totalExpense <= 0) return null;
+    const isPaid = allAccountsData ? isCreditCardBillPaid(data.account, allAccountsData, month).isPaid : false;
+    const { status, daysDifference } = calculateDueStatus(data.account.dueDay, month, isPaid);
+    return { isPaid, status, daysDifference };
+  }, [data.account, data.totalExpense, allAccountsData, month]);
+
+  const [isPayingBill, setIsPayingBill] = useState(false);
+  const handlePayBill = async () => {
+    if (!data.account.defaultPaymentAccountId) {
+      alert("Nenhuma conta bancária de pagamento vinculada a este cartão.");
+      return;
+    }
+    if (!confirm(`Confirmar o pagamento da fatura de ${formatCurrency(data.totalExpense)} do cartão ${data.account.name}?`)) {
+      return;
+    }
+    setIsPayingBill(true);
+    try {
+      await payCreditCardBillAction({
+        cardAccountId: data.account.id,
+        paymentAccountId: data.account.defaultPaymentAccountId,
+        month,
+        amount: data.totalExpense,
+        day: data.account.dueDay ?? undefined,
+      });
+      onRefresh();
+    } catch (err: any) {
+      alert(`Erro ao registrar pagamento da fatura: ${err.message}`);
+    } finally {
+      setIsPayingBill(false);
     }
   };
 
@@ -80,188 +145,6 @@ export default function CreditCardColumn({
       newDescInputRef.current?.focus();
     }
   }, [isAdding]);
-
-  // Active cell editing
-  const [editingCell, setEditingCell] = useState<EditingCell>(null);
-  const [tempValue, setTempValue] = useState<string>("");
-  const isNavigatingRef = useRef(false);
-  const categoryPickerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (editingCell?.field === "category") {
-      const t = setTimeout(() => {
-        categoryPickerRef.current?.focus();
-      }, 0);
-      return () => clearTimeout(t);
-    }
-  }, [editingCell]);
-  const [contextMenu, setContextMenu] = useState<{ tx: TransactionWithCategory, x: number, y: number } | null>(null);
-
-  useEffect(() => {
-    const handleGlobalClick = () => setContextMenu(null);
-    window.addEventListener("click", handleGlobalClick);
-    return () => window.removeEventListener("click", handleGlobalClick);
-  }, []);
-
-  useEffect(() => {
-    if (highlightedTxId) {
-      const timer = setTimeout(() => {
-        const el = document.getElementById(`tx-card-${highlightedTxId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightedTxId]);
-
-  const handleStartCellEdit = (
-    tx: TransactionWithCategory,
-    field: "description" | "installment" | "category" | "amount"
-  ) => {
-    // Parcela projetada derivada de compra original é estritamente somente leitura no mês futuro
-    if (tx.isProjected && tx.projectionSourceType === "installment") return;
-    if (tx.isProjected && field === "installment") return;
-
-    setEditingCell({ txId: tx.id, field });
-    if (field === "description") setTempValue(tx.description);
-    else if (field === "category") setTempValue(tx.categoryId ? tx.categoryId.toString() : "");
-    else if (field === "amount") {
-      setTempValue(
-        Math.abs(tx.amount).toLocaleString("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      );
-    } else if (field === "installment") {
-      setTempValue(
-        tx.installmentCurrent && tx.installmentTotal
-          ? `${tx.installmentCurrent}/${tx.installmentTotal}`
-          : ""
-      );
-    }
-  };
-
-  const handleSelectCategory = async (tx: TransactionWithCategory, newCategoryId: number | null) => {
-    if (tx.isProjected) {
-      if (tx.projectionSourceType === "installment") return;
-      await confirmProjectedRow({
-        accountId: tx.accountId,
-        month: tx.month,
-        day: tx.day || 1,
-        description: tx.description,
-        categoryId: newCategoryId,
-        amount: tx.amount,
-        installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
-        installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
-        purchaseDate: tx.purchaseDate,
-        sourceType: tx.projectionSourceType as any,
-        sourceId: tx.projectionSourceId,
-      });
-      onRefresh();
-    } else {
-      if (newCategoryId !== tx.categoryId) {
-        await updateTransaction(tx.id, { categoryId: newCategoryId });
-        onRefresh();
-      }
-    }
-  };
-
-  const saveFieldValue = async (
-    tx: TransactionWithCategory,
-    field: "description" | "installment" | "category" | "amount",
-    valueToSave: string
-  ) => {
-    if (tx.isProjected) return;
-    try {
-      if (field === "description") {
-        const trimmed = valueToSave.trim();
-        if (trimmed && trimmed !== tx.description) {
-          await updateTransaction(tx.id, { description: trimmed });
-          onRefresh();
-        }
-      } else if (field === "category") {
-        const catId = valueToSave ? Number(valueToSave) : null;
-        if (catId !== tx.categoryId) {
-          await updateTransaction(tx.id, { categoryId: catId });
-          onRefresh();
-        }
-      } else if (field === "amount") {
-        const parsed = parseNumberInput(valueToSave);
-        if (parsed !== null && parsed !== tx.amount) {
-          const sign = Math.sign(tx.amount) || -1;
-          const signed = Math.abs(parsed) * sign;
-          await updateTransaction(tx.id, { amount: signed });
-          onRefresh();
-        }
-      } else if (field === "installment") {
-        const parts = valueToSave.split("/");
-        let cur = null, tot = null;
-        if (parts.length === 2) {
-          cur = parseInt(parts[0], 10);
-          tot = parseInt(parts[1], 10);
-          if (isNaN(cur) || isNaN(tot)) {
-            cur = null;
-            tot = null;
-          }
-        }
-        await updateTransaction(tx.id, { installmentCurrent: cur, installmentTotal: tot });
-        onRefresh();
-      }
-    } catch (err) {
-      console.error("Error saving credit card transaction field:", err);
-    }
-  };
-
-  const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
-    if (!editingCell || editingCell.txId !== tx.id) return;
-    const { field } = editingCell;
-    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
-    setEditingCell(null);
-    setTempValue("");
-    await saveFieldValue(tx, field, activeValue);
-  };
-
-  const getCreditCardFields = (tx: TransactionWithCategory) => {
-    const isInstallmentShadow = tx.isProjected && tx.projectionSourceType === "installment";
-    const canEditInstallment = !tx.isProjected && !isInstallmentShadow;
-    return canEditInstallment
-      ? (["description", "installment", "category", "amount"] as const)
-      : (["description", "category", "amount"] as const);
-  };
-
-  const handleNavigateCell = async (
-    tx: TransactionWithCategory,
-    currentField: "description" | "installment" | "category" | "amount",
-    direction: "next" | "prev",
-    currentValue?: string
-  ) => {
-    isNavigatingRef.current = true;
-    const val = currentValue !== undefined ? currentValue : tempValue;
-
-    if (currentField !== "category") {
-      await saveFieldValue(tx, currentField, val);
-    }
-
-    const fields = getCreditCardFields(tx);
-    const currentIndex = fields.indexOf(currentField as any);
-    const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
-
-    if (nextIndex < 0 || nextIndex >= fields.length) {
-      setEditingCell(null);
-      setTempValue("");
-      setTimeout(() => {
-        isNavigatingRef.current = false;
-      }, 50);
-      return;
-    }
-
-    const nextField = fields[nextIndex];
-    handleStartCellEdit(tx, nextField);
-    setTimeout(() => {
-      isNavigatingRef.current = false;
-    }, 50);
-  };
 
   const handleCancelAdd = () => {
     setIsAdding(false);
@@ -319,92 +202,6 @@ export default function CreditCardColumn({
       onRefresh();
     }
   };
-
-  const handleConfirmProjected = async (tx: TransactionWithCategory) => {
-    await confirmProjectedRow({
-      accountId: tx.accountId,
-      month: tx.month,
-      day: tx.day,
-      description: tx.description,
-      categoryId: tx.categoryId,
-      amount: tx.amount,
-      installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
-      installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
-      purchaseDate: tx.purchaseDate,
-      sourceType: tx.projectionSourceType as any,
-      sourceId: tx.projectionSourceId,
-    });
-    onRefresh();
-  };
-
-  const handleDismissProjected = async (tx: TransactionWithCategory) => {
-    if (!tx.projectionSourceType || tx.projectionSourceId == null) return;
-    await dismissProjection({
-      accountId: tx.accountId,
-      month: tx.month,
-      sourceType: tx.projectionSourceType as any,
-      sourceId: tx.projectionSourceId,
-    });
-    onRefresh();
-  };
-
-  const handleSaveCellProjected = async (tx: TransactionWithCategory, overrideValue?: string) => {
-    if (!editingCell || editingCell.txId !== tx.id) return;
-    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
-    
-    let newDesc = tx.description;
-    let newAmount = tx.amount;
-    let newCat = tx.categoryId;
-
-    if (editingCell.field === "description") newDesc = activeValue.trim() || newDesc;
-    if (editingCell.field === "amount") {
-      const parsed = parseNumberInput(activeValue);
-      if (parsed !== null) newAmount = Math.abs(parsed) * (Math.sign(tx.amount) || -1);
-    }
-    if (editingCell.field === "category") {
-      newCat = activeValue ? Number(activeValue) : null;
-    }
-
-    await confirmProjectedRow({
-      accountId: tx.accountId,
-      month: tx.month,
-      day: tx.day,
-      description: newDesc,
-      categoryId: newCat,
-      amount: newAmount,
-      installmentCurrent: tx.projectedInstallmentCurrent ?? tx.installmentCurrent,
-      installmentTotal: tx.projectedInstallmentTotal ?? tx.installmentTotal,
-      purchaseDate: tx.purchaseDate,
-      sourceType: tx.projectionSourceType as any,
-      sourceId: tx.projectionSourceId,
-    });
-    setEditingCell(null);
-    onRefresh();
-  };
-
-  // Filtering logic
-  const filteredTransactions = data.transactions.filter(tx => {
-    if (filterText && !tx.description.toLowerCase().includes(filterText.toLowerCase())) return false;
-    if (filterCategoryId !== "") {
-      if (filterCategoryId === -1) {
-        if (tx.categoryId) return false;
-      } else {
-        const directMatch = tx.categoryId === filterCategoryId;
-        const parentMatch = tx.parentCategoryId === filterCategoryId;
-        if (!directMatch && !parentMatch) return false;
-      }
-    }
-    if (filterHighValue !== "") {
-      const absAmount = Math.abs(tx.amount);
-      if (absAmount <= Number(filterHighValue)) return false;
-    }
-    return true;
-  });
-
-  const hasActiveFilter = Boolean(filterText || filterCategoryId !== "" || filterHighValue !== "");
-  const hasZeroFilterMatches = hasActiveFilter && filteredTransactions.length === 0;
-  const effectiveExpanded = hasZeroFilterMatches ? false : isExpanded;
-
   const sortedTransactions = sortCreditCardTransactions(filteredTransactions);
 
   return (
@@ -438,18 +235,60 @@ export default function CreditCardColumn({
                   </Badge>
                 )}
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">
-                Cartão de Crédito
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                <span>Cartão de Crédito</span>
+                {data.account.dueDay && (
+                  <>
+                    <span>•</span>
+                    <span>
+                      Vence dia <strong className="text-foreground font-semibold">{data.account.dueDay}</strong>
+                    </span>
+                    {billStatus?.isPaid ? (
+                      <Badge variant="outline" className="text-[10px] font-semibold py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                        Fatura Paga
+                      </Badge>
+                    ) : billStatus?.status === "due_today" ? (
+                      <Badge variant="outline" className="text-[10px] font-bold py-0 h-4 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 animate-pulse">
+                        Vence Hoje
+                      </Badge>
+                    ) : billStatus?.status === "overdue" ? (
+                      <Badge variant="outline" className="text-[10px] font-bold py-0 h-4 bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40">
+                        Vencida há {Math.abs(billStatus.daysDifference)}d
+                      </Badge>
+                    ) : billStatus?.daysDifference ? (
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        (em {billStatus.daysDifference}d)
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </div>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="text-right">
+            <div className="text-right flex flex-col items-end">
               <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">Total da Fatura</div>
               <div className="font-bold text-lg font-mono tabular-nums privacy-sensitive text-rose-600 dark:text-rose-400">
                 {formatCurrency(data.totalExpense)}
               </div>
+              {!billStatus?.isPaid && data.totalExpense > 0 && data.account.defaultPaymentAccountId && (
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePayBill();
+                    }}
+                    disabled={isPayingBill}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    title="Registrar pagamento da fatura na conta bancária vinculada"
+                  >
+                    <Check className="w-3 h-3" />
+                    <span>{isPayingBill ? "Pagando..." : "Pagar Fatura"}</span>
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -487,7 +326,7 @@ export default function CreditCardColumn({
                     const isEditingInstallment = editingCell?.txId === tx.id && editingCell.field === "installment";
                     const isEditingCat = editingCell?.txId === tx.id && editingCell.field === "category";
                     const isEditingAmount = editingCell?.txId === tx.id && editingCell.field === "amount";
-                    const saveCell = isProjected ? handleSaveCellProjected : handleSaveCell;
+                    const saveCell = handleSaveCell;
 
                     const current = tx.installmentCurrent ?? tx.projectedInstallmentCurrent;
                     const total = tx.installmentTotal ?? tx.projectedInstallmentTotal;
@@ -518,6 +357,7 @@ export default function CreditCardColumn({
                           e.preventDefault();
                           setContextMenu({ tx, x: e.clientX, y: e.clientY });
                         }}
+                        onDoubleClick={() => !tx.isProjected && setDetailTx(tx)}
                       >
                         {/* Descrição Cell */}
                         <TableCell
@@ -533,18 +373,7 @@ export default function CreditCardColumn({
                                 if (isNavigatingRef.current) return;
                                 saveCell(tx);
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  saveCell(tx);
-                                } else if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  setEditingCell(null);
-                                } else if (e.key === "Tab") {
-                                  e.preventDefault();
-                                  handleNavigateCell(tx, "description", e.shiftKey ? "prev" : "next");
-                                }
-                              }}
+                              onKeyDown={(e) => handleCellKeyDown(e, tx, "description")}
                               className={cn("w-full", density === "compact" ? "h-7 text-xs px-2" : "text-sm")}
                               autoFocus
                             />
@@ -564,10 +393,22 @@ export default function CreditCardColumn({
                                   ? (installmentLabel ? `Parcela ${installmentLabel} vinculada à compra original` : "Parcela vinculada à compra original")
                                   : isRecurringProjected
                                   ? "Projeção recorrente — clique para confirmar com edição"
-                                  : "Clique para editar"
+                                  : "Clique para editar ou dê duplo clique para ver detalhes"
                               }
                             >
                               <span className="truncate">{tx.description}</span>
+                              {tx.tags && tx.tags.length > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
+                                  title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                                  <span className="truncate">#{tx.tags[0].name}</span>
+                                  {tx.tags.length > 1 && (
+                                    <span className="text-[9px] text-muted-foreground shrink-0">+{tx.tags.length - 1}</span>
+                                  )}
+                                </span>
+                              )}
                               {isRecurringProjected && (
                                 <span title="Gasto recorrente projetado">
                                   <Repeat className="w-3 h-3 text-amber-500 shrink-0" />
@@ -616,18 +457,7 @@ export default function CreditCardColumn({
                                 if (isNavigatingRef.current) return;
                                 saveCell(tx);
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  saveCell(tx);
-                                } else if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  setEditingCell(null);
-                                } else if (e.key === "Tab") {
-                                  e.preventDefault();
-                                  handleNavigateCell(tx, "installment", e.shiftKey ? "prev" : "next");
-                                }
-                              }}
+                              onKeyDown={(e) => handleCellKeyDown(e, tx, "installment")}
                               className={cn("w-full text-center font-mono", density === "compact" ? "h-6 text-xs" : "text-sm")}
                               autoFocus
                             />
@@ -668,20 +498,10 @@ export default function CreditCardColumn({
                             onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
                             onFocus={() => {
                               if (!isProjected && !isInstallmentShadow && !isEditingCat) {
-                                setEditingCell({ txId: tx.id, field: "category" });
+                                handleStartCellEdit(tx, "category");
                               }
                             }}
-                            onKeyDown={(e) => {
-                              if (isEditingCat) {
-                                if (e.key === "Tab") {
-                                  e.preventDefault();
-                                  handleNavigateCell(tx, "category", e.shiftKey ? "prev" : "next");
-                                } else if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  setEditingCell(null);
-                                }
-                              }
-                            }}
+                            onKeyDown={(e) => isEditingCat && handleCellKeyDown(e, tx, "category")}
                             disabled={isInstallmentShadow}
                             tabIndex={isEditingCat ? 0 : -1}
                           />
@@ -704,18 +524,7 @@ export default function CreditCardColumn({
                                 if (isNavigatingRef.current) return;
                                 saveCell(tx);
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  saveCell(tx);
-                                } else if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  setEditingCell(null);
-                                } else if (e.key === "Tab") {
-                                  e.preventDefault();
-                                  handleNavigateCell(tx, "amount", e.shiftKey ? "prev" : "next");
-                                }
-                              }}
+                              onKeyDown={(e) => handleCellKeyDown(e, tx, "amount")}
                               className={cn("w-full", density === "compact" ? "h-7 text-xs" : "text-sm")}
                               autoFocus
                             />
@@ -846,11 +655,25 @@ export default function CreditCardColumn({
           tx={contextMenu.tx}
           x={contextMenu.x}
           y={contextMenu.y}
+          onViewDetails={(tx) => { setDetailTx(tx); setContextMenu(null); }}
           onConfirmProjected={(tx) => { handleConfirmProjected(tx); setContextMenu(null); }}
           onDismissProjected={(tx) => { handleDismissProjected(tx); setContextMenu(null); }}
           onTransfer={null}
-          onRecurring={async (tx) => { await transformToRecurring(tx.id); setContextMenu(null); }}
           onDelete={(tx) => { handleDelete(tx.id); setContextMenu(null); }}
+        />
+      )}
+
+      {detailTx && (
+        <TransactionDetailModal
+          open={Boolean(detailTx)}
+          tx={detailTx}
+          categories={categories}
+          availableTags={availableTags}
+          onClose={() => setDetailTx(null)}
+          onSave={async (txId, updatedData) => {
+            await updateTransaction(txId, updatedData);
+            onRefresh();
+          }}
         />
       )}
     </Card>

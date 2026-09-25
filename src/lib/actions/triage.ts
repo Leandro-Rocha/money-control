@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { accounts, categories, transactions } from "@/db/schema";
 import { eq, and, desc, isNull, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-helpers";
+import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
 
 export interface UncategorizedTransaction {
   id: number;

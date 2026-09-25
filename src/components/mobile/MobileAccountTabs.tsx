@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteTransaction } from "@/lib/actions/transactions";
-import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
+import { confirmProjectedRow, dismissProjection, payCreditCardBillAction } from "@/lib/actions/projections";
+import { isCreditCardBillPaid, calculateDueStatus } from "@/lib/due-dates";
 
 interface MobileAccountTabsProps {
   bankAccounts: AccountData[];
@@ -45,6 +46,32 @@ export function MobileAccountTabs({
   const [activeTab, setActiveTab] = useState<"bank" | "credit">("bank");
   const [expandedAccounts, setExpandedAccounts] = useState<Record<number, boolean>>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [payingCardId, setPayingCardId] = useState<number | null>(null);
+
+  const handlePayBillMobile = async (acc: Account, totalExpense: number) => {
+    if (!acc.defaultPaymentAccountId) {
+      alert("Nenhuma conta bancária vinculada a este cartão.");
+      return;
+    }
+    if (!confirm(`Confirmar o pagamento da fatura de ${formatCurrency(totalExpense)} do cartão ${acc.name}?`)) {
+      return;
+    }
+    setPayingCardId(acc.id);
+    try {
+      await payCreditCardBillAction({
+        cardAccountId: acc.id,
+        paymentAccountId: acc.defaultPaymentAccountId,
+        month: currentMonth,
+        amount: totalExpense,
+        day: acc.dueDay ?? undefined,
+      });
+      onRefresh();
+    } catch (err: any) {
+      alert(`Erro ao pagar fatura: ${err.message}`);
+    } finally {
+      setPayingCardId(null);
+    }
+  };
 
   useEffect(() => {
     if (highlightedTxId) {
@@ -243,10 +270,56 @@ export function MobileAccountTabs({
                         </span>
                       </>
                     ) : (
-                      <>
-                        <span>{accData.transactions.length} lançamentos</span>
-                        {acc.dueDay && <span>Vence dia {acc.dueDay}</span>}
-                      </>
+                      (() => {
+                        const billPaid = isCreditCardBillPaid(acc, bankAccounts, currentMonth).isPaid;
+                        const dueStatus = acc.dueDay ? calculateDueStatus(acc.dueDay, currentMonth, billPaid) : null;
+                        return (
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span>{accData.transactions.length} lançamentos</span>
+                              {acc.dueDay && (
+                                <>
+                                  <span>•</span>
+                                  <span>Vence dia {acc.dueDay}</span>
+                                  {billPaid ? (
+                                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                      Paga
+                                    </span>
+                                  ) : dueStatus?.status === "due_today" ? (
+                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded animate-pulse">
+                                      Vence Hoje
+                                    </span>
+                                  ) : dueStatus?.status === "overdue" ? (
+                                    <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/15 px-1.5 py-0.5 rounded">
+                                      Atrasada ({Math.abs(dueStatus.daysDifference)}d)
+                                    </span>
+                                  ) : dueStatus?.daysDifference ? (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      (em {dueStatus.daysDifference}d)
+                                    </span>
+                                  ) : null}
+                                </>
+                              )}
+                            </div>
+                            {!billPaid && accData.totalExpense > 0 && acc.defaultPaymentAccountId && (
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePayBillMobile(acc, accData.totalExpense);
+                                  }}
+                                  disabled={payingCardId === acc.id}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>{payingCardId === acc.id ? "Pagando..." : "Pagar Fatura"}</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 )}

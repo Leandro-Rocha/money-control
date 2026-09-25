@@ -60,6 +60,7 @@ export function useDashboard(
   const [filterText, setFilterText] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState<number | "">("");
   const [filterHighValue, setFilterHighValue] = useState<number | "">("");
+  const [filterTagId, setFilterTagId] = useState<number | "">("");
 
   // Triage modal state
   const [triageOpen, setTriageOpen] = useState(false);
@@ -304,6 +305,7 @@ export function useDashboard(
 
   const allAccounts = data.accountsData.map((a) => a.account);
   const allCategories = data.allCategories;
+  const allTags = data.allTags || [];
 
   let globalIncome = 0;
   let globalExpense = 0;
@@ -424,6 +426,9 @@ export function useDashboard(
     setFilterCategoryId,
     filterHighValue,
     setFilterHighValue,
+    filterTagId,
+    setFilterTagId,
+    allTags,
     expandedMap,
     handleToggleExpanded,
     handleExpandAll,

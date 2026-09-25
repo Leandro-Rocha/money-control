@@ -5,6 +5,11 @@ import { verifySessionToken, isAuthEnabled, SESSION_COOKIE_NAME } from "./lib/au
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Rotas de API de lembretes e webhooks validam seu próprio token
+  if (pathname.startsWith("/api/reminders")) {
+    return NextResponse.next();
+  }
+
   // Se a senha não estiver configurada no .env, não bloqueia o acesso
   if (!isAuthEnabled()) {
     return NextResponse.next();

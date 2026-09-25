@@ -6,7 +6,17 @@ export interface Category {
   showInSummary: number;
   parentId?: number | null;
   budget?: number | null;
+  createdAt?: string | null;
 }
+
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  createdAt?: string | null;
+}
+
+export type NewTag = Omit<Tag, "id" | "createdAt">;
 
 export interface Transaction {
   id: number;
@@ -21,8 +31,10 @@ export interface Transaction {
   installmentTotal?: number | null;
   notes?: string | null;
   linkedTransactionId?: number | null;
+  originalDescription?: string | null;
   sourceType?: "installment" | "recurring" | "credit_card_bill" | null;
   sourceId?: number | null;
+  pluggyTransactionId?: string | null;
   createdAt?: string | null;
 }
 
@@ -33,6 +45,7 @@ export interface TransactionWithCategory extends Transaction {
   parentCategoryName?: string | null;
   runningBalance?: number; // Calculated row by row
   linkedAccountName?: string; // Counterpart account name for linked transfers
+  tags?: Tag[];
   // Projection fields
   isProjected?: boolean;
   projectionSourceType?: "installment" | "recurring" | "credit_card_bill" | null;
@@ -58,6 +71,7 @@ export interface Account {
   pluggyAccountId?: string | null;
   pluggyItemId?: string | null;
   pluggyCredentialId?: string | null;
+  createdAt?: string | null;
 }
 
 export interface AccountData {
@@ -110,6 +124,7 @@ export interface MonthData {
   accountsData: AccountData[];
   categorySummaries: CategorySummaryGroup[];
   allCategories: Category[];
+  allTags?: Tag[];
   projectionState: ProjectionState;
 }
 

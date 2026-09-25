@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { MonthData, RunwayData } from "@/lib/types";
 import { useDashboard, ViewMode } from "@/hooks/useDashboard";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { WealthData } from "@/lib/actions/wealth";
 import { DesktopView } from "./desktop/DesktopView";
 import { MobileView } from "./mobile/MobileView";
@@ -32,16 +34,29 @@ function DashboardContent({
   initialRunwayData,
 }: DashboardProps) {
   const state = useDashboard(initialData, initialView, initialWealthData, initialRunwayData);
+  const [isMounted, setIsMounted] = useState(false);
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <>
-      <div className="hidden md:block">
-        <DesktopView {...state} />
-      </div>
-
-      <div className="block md:hidden">
+      {!isMounted ? (
+        <>
+          <div className="hidden md:block">
+            <DesktopView {...state} />
+          </div>
+          <div className="block md:hidden">
+            <MobileView {...state} />
+          </div>
+        </>
+      ) : isMobile ? (
         <MobileView {...state} />
-      </div>
+      ) : (
+        <DesktopView {...state} />
+      )}
 
       <TransferAssistantModal
         open={state.transfersOpen}

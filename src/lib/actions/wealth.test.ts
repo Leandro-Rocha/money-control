@@ -3,7 +3,7 @@ import { createTestDb } from '../test-db';
 import { accounts, transactions, categories } from '@/db/schema';
 import { getWealthData } from './wealth';
 import { updateFinancingBalance, updateReceivableBalance } from './accounts';
-import { convertToTransfer } from './transactions';
+import { convertToTransfer } from './transfers';
 import { eq } from 'drizzle-orm';
 
 let testDb: any;

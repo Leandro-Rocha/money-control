@@ -8,6 +8,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileQuickAddSheet } from "./MobileQuickAddSheet";
 import WealthDashboard from "../WealthDashboard";
 import RunwayView from "../RunwayView";
+import { DueDatesTimelineWidget } from "../DueDatesTimelineWidget";
 import { Loader2 } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
 
@@ -84,17 +85,24 @@ export function MobileView(state: DashboardState) {
 
       {/* Conteúdo Principal (Fluxo vs Patrimônio) */}
       {viewMode === "cashflow" ? (
-        <MobileAccountTabs
-          bankAccounts={bankAccounts}
-          creditCards={creditCards}
-          categories={allCategories}
-          allAccounts={allAccounts}
-          currentMonth={currentMonth}
-          onRefresh={refreshCurrentMonth}
-          onOpenQuickAdd={handleOpenQuickAdd}
-          onSyncPluggy={(accId) => handleOpenImport(accId, true)}
-          highlightedTxId={highlightedTxId}
-        />
+        <div className="flex flex-col gap-3">
+          <DueDatesTimelineWidget
+            month={currentMonth}
+            accountsData={data.accountsData}
+            onRefresh={refreshCurrentMonth}
+          />
+          <MobileAccountTabs
+            bankAccounts={bankAccounts}
+            creditCards={creditCards}
+            categories={allCategories}
+            allAccounts={allAccounts}
+            currentMonth={currentMonth}
+            onRefresh={refreshCurrentMonth}
+            onOpenQuickAdd={handleOpenQuickAdd}
+            onSyncPluggy={(accId) => handleOpenImport(accId, true)}
+            highlightedTxId={highlightedTxId}
+          />
+        </div>
       ) : viewMode === "wealth" ? (
         wealthData ? (
           <div className="w-full">

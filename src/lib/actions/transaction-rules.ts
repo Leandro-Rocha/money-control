@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { transactionRules } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { upsertTransactionRulesBatch, cleanupDuplicateTransactionRules } from "@/lib/transaction-rules-helpers";
+import { upsertTransactionRulesBatch, cleanupDuplicateTransactionRules } from "@/lib/transaction-rules-server";
 
 export async function getTransactionRules() {
   return await db.select().from(transactionRules).orderBy(asc(transactionRules.pattern));

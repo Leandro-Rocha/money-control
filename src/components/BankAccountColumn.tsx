@@ -7,62 +7,90 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useState, useEffect, useRef } from "react";
-import { Account, AccountData, Category, TransactionWithCategory } from "@/lib/types";
+import { Account, AccountData, Category, Tag, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
 import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUpRight, ArrowDownRight, Check, X, Building, Repeat, RefreshCw } from "lucide-react";
-import { createTransaction, deleteTransaction, updateTransaction, convertToTransfer, transformToRecurring } from "@/lib/actions/transactions";
-import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
+import { createTransaction, deleteTransaction, updateTransaction } from "@/lib/actions/transactions";
+import { convertToTransfer } from "@/lib/actions/transfers";
 import { TransactionContextMenu } from "./TransactionContextMenu";
+import { TransactionDetailModal } from "./TransactionDetailModal";
 import { CategoryPicker } from "./CategoryPicker";
 import { CurrencyInput } from "./CurrencyInput";
 import { cn } from "@/lib/utils";
 import { TableDensity } from "@/hooks/useDashboard";
+import { useAccountColumnState } from "@/hooks/useAccountColumnState";
 
 interface BankAccountColumnProps {
   data: AccountData;
   month: string;
   categories: Category[];
   allAccounts: Account[];
+  availableTags?: Tag[];
   onRefresh: () => void;
   onSyncPluggy?: (accountId: number) => void;
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
+  filterTagId?: number | "";
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   highlightedTxId?: number | null;
   density?: TableDensity;
 }
 
-type EditingCell = {
-  txId: number;
-  field: "day" | "description" | "category" | "amount";
-} | null;
+const BANK_FIELDS = ["day", "description", "category", "amount"] as const;
 
 export default function BankAccountColumn({
   data,
   month,
   categories,
   allAccounts,
+  availableTags = [],
   onRefresh,
   onSyncPluggy,
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
+  filterTagId = "",
   isExpanded: propIsExpanded,
   onToggleExpanded,
   highlightedTxId,
   density = "compact",
 }: BankAccountColumnProps) {
-  const [internalExpanded, setInternalExpanded] = useState(true);
-  const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
-  const toggleExpanded = () => {
-    if (onToggleExpanded) {
-      onToggleExpanded();
-    } else {
-      setInternalExpanded(!internalExpanded);
-    }
-  };
+  const {
+    isExpanded,
+    effectiveExpanded,
+    toggleExpanded,
+    hasActiveFilter,
+    hasZeroFilterMatches,
+    filteredTransactions,
+    detailTx,
+    setDetailTx,
+    contextMenu,
+    setContextMenu,
+    editingCell,
+    tempValue,
+    setTempValue,
+    isNavigatingRef,
+    categoryPickerRef,
+    handleStartCellEdit,
+    handleCancelCellEdit,
+    handleSaveCell,
+    handleNavigateCell,
+    handleCellKeyDown,
+    handleSelectCategory,
+    handleConfirmProjected,
+    handleDismissProjected,
+  } = useAccountColumnState({
+    transactions: data.transactions,
+    fields: BANK_FIELDS,
+    onRefresh,
+    filters: { filterText, filterCategoryId, filterHighValue, filterTagId },
+    highlightedTxId,
+    elementIdPrefix: "tx-bank-",
+    isExpanded: propIsExpanded,
+    onToggleExpanded,
+  });
 
   // Quick new transaction inputs
   const [isAdding, setIsAdding] = useState(false);
@@ -80,43 +108,9 @@ export default function BankAccountColumn({
     }
   }, [isAdding]);
 
-  useEffect(() => {
-    if (highlightedTxId) {
-      const timer = setTimeout(() => {
-        const el = document.getElementById(`tx-bank-${highlightedTxId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightedTxId]);
-
-  // Active cell editing
-  const [editingCell, setEditingCell] = useState<EditingCell>(null);
-  const [tempValue, setTempValue] = useState<string>("");
-  const isNavigatingRef = useRef(false);
-  const categoryPickerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (editingCell?.field === "category") {
-      const t = setTimeout(() => {
-        categoryPickerRef.current?.focus();
-      }, 0);
-      return () => clearTimeout(t);
-    }
-  }, [editingCell]);
-
   // Transfer modal
   const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
   const [transferTxId, setTransferTxId] = useState<number | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ tx: TransactionWithCategory, x: number, y: number } | null>(null);
-
-  useEffect(() => {
-    const handleGlobalClick = () => setContextMenu(null);
-    window.addEventListener("click", handleGlobalClick);
-    return () => window.removeEventListener("click", handleGlobalClick);
-  }, []);
 
   useEffect(() => {
     if (!transferTxId) return;
@@ -129,113 +123,6 @@ export default function BankAccountColumn({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [transferTxId]);
-
-  const handleStartCellEdit = (
-    tx: TransactionWithCategory,
-    field: "day" | "description" | "category" | "amount"
-  ) => {
-    setEditingCell({ txId: tx.id, field });
-    if (field === "day") setTempValue(tx.day.toString());
-    else if (field === "description") setTempValue(tx.description);
-    else if (field === "category") setTempValue(tx.categoryId ? tx.categoryId.toString() : "");
-    else if (field === "amount") {
-      const formatted = Math.abs(tx.amount).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-      setTempValue(tx.amount < 0 ? `-${formatted}` : formatted);
-    }
-  };
-
-  const handleCancelCellEdit = () => {
-    setEditingCell(null);
-    setTempValue("");
-  };
-
-  const saveFieldValue = async (
-    tx: TransactionWithCategory,
-    field: "day" | "description" | "category" | "amount",
-    valueToSave: string
-  ) => {
-    if (tx.isProjected) return;
-    try {
-      if (field === "day") {
-        const val = parseInt(valueToSave, 10);
-        if (!isNaN(val) && val >= 1 && val <= 31 && val !== tx.day) {
-          await updateTransaction(tx.id, { day: val });
-          onRefresh();
-        }
-      } else if (field === "description") {
-        const trimmed = valueToSave.trim();
-        if (trimmed && trimmed !== tx.description) {
-          await updateTransaction(tx.id, { description: trimmed });
-          onRefresh();
-        }
-      } else if (field === "category") {
-        const catId = valueToSave === "none" || valueToSave === "" ? null : Number(valueToSave);
-        if (catId !== tx.categoryId) {
-          await updateTransaction(tx.id, { categoryId: catId });
-          onRefresh();
-        }
-      } else if (field === "amount") {
-        const parsed = parseNumberInput(valueToSave);
-        if (parsed !== null && parsed !== tx.amount) {
-          await updateTransaction(tx.id, { amount: parsed });
-          onRefresh();
-        }
-      }
-    } catch (err) {
-      console.error("Error saving transaction field:", err);
-    }
-  };
-
-  const handleSaveCell = async (tx: TransactionWithCategory, overrideValue?: string) => {
-    if (!editingCell || editingCell.txId !== tx.id) return;
-    const { field } = editingCell;
-    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
-    setEditingCell(null);
-    setTempValue("");
-    await saveFieldValue(tx, field, activeValue);
-  };
-
-  const BANK_FIELDS: Array<"day" | "description" | "category" | "amount"> = [
-    "day",
-    "description",
-    "category",
-    "amount",
-  ];
-
-  const handleNavigateCell = async (
-    tx: TransactionWithCategory,
-    currentField: "day" | "description" | "category" | "amount",
-    direction: "next" | "prev",
-    currentValue?: string
-  ) => {
-    isNavigatingRef.current = true;
-    const val = currentValue !== undefined ? currentValue : tempValue;
-
-    if (currentField !== "category") {
-      await saveFieldValue(tx, currentField, val);
-    }
-
-    const currentIndex = BANK_FIELDS.indexOf(currentField);
-    const nextIndex = direction === "next" ? currentIndex + 1 : currentIndex - 1;
-
-    if (nextIndex < 0 || nextIndex >= BANK_FIELDS.length) {
-      setEditingCell(null);
-      setTempValue("");
-      setTimeout(() => {
-        isNavigatingRef.current = false;
-      }, 50);
-      return;
-    }
-
-    const nextField = BANK_FIELDS[nextIndex];
-    handleStartCellEdit(tx, nextField);
-    setTimeout(() => {
-      isNavigatingRef.current = false;
-    }, 50);
-  };
 
   const handleCancelAdd = () => {
     setIsAdding(false);
@@ -291,110 +178,6 @@ export default function BankAccountColumn({
       alert(err.message);
     }
   };
-
-  const handleConfirmProjected = async (tx: TransactionWithCategory) => {
-    await confirmProjectedRow({
-      accountId: tx.accountId,
-      month: tx.month,
-      day: tx.day,
-      description: tx.description,
-      categoryId: tx.categoryId,
-      amount: tx.amount,
-      installmentCurrent: tx.projectedInstallmentCurrent,
-      installmentTotal: tx.projectedInstallmentTotal,
-      purchaseDate: tx.purchaseDate,
-      sourceType: tx.projectionSourceType as any,
-      sourceId: tx.projectionSourceId,
-    });
-    onRefresh();
-  };
-
-  const handleDismissProjected = async (tx: TransactionWithCategory) => {
-    if (!tx.projectionSourceType || tx.projectionSourceId == null) return;
-    await dismissProjection({
-      accountId: tx.accountId,
-      month: tx.month,
-      sourceType: tx.projectionSourceType,
-      sourceId: tx.projectionSourceId,
-    });
-    onRefresh();
-  };
-
-  // For projected rows: save as confirmed real transaction with edited value
-  const handleSaveCellProjected = async (tx: TransactionWithCategory, overrideValue?: string) => {
-    if (!editingCell || editingCell.txId !== tx.id) return;
-    const { field } = editingCell;
-    const activeValue = overrideValue !== undefined ? overrideValue : tempValue;
-    let amount = tx.amount;
-    if (field === "amount") {
-      const parsed = parseNumberInput(activeValue);
-      if (parsed === null) { setEditingCell(null); return; }
-      amount = parsed;
-    }
-    await confirmProjectedRow({
-      accountId: tx.accountId,
-      month: tx.month,
-      day: field === "day" ? (parseInt(activeValue, 10) || tx.day) : tx.day,
-      description: field === "description" ? (activeValue.trim() || tx.description) : tx.description,
-      categoryId: field === "category" ? (activeValue === "none" || activeValue === "" ? null : Number(activeValue)) : tx.categoryId,
-      amount,
-      installmentCurrent: tx.projectedInstallmentCurrent,
-      installmentTotal: tx.projectedInstallmentTotal,
-      purchaseDate: tx.purchaseDate,
-      sourceType: tx.projectionSourceType as any,
-      sourceId: tx.projectionSourceId,
-    });
-    setEditingCell(null);
-    onRefresh();
-  };
-
-  const handleSelectCategory = async (tx: TransactionWithCategory, newCategoryId: number | null) => {
-    if (tx.isProjected) {
-      await confirmProjectedRow({
-        accountId: tx.accountId,
-        month: tx.month,
-        day: tx.day,
-        description: tx.description,
-        categoryId: newCategoryId,
-        amount: tx.amount,
-        installmentCurrent: tx.projectedInstallmentCurrent,
-        installmentTotal: tx.projectedInstallmentTotal,
-        purchaseDate: tx.purchaseDate,
-        sourceType: tx.projectionSourceType as any,
-        sourceId: tx.projectionSourceId,
-      });
-      onRefresh();
-    } else {
-      if (newCategoryId !== tx.categoryId) {
-        await updateTransaction(tx.id, { categoryId: newCategoryId });
-        onRefresh();
-      }
-    }
-  };
-
-  // Filtering logic
-  const filteredTransactions = data.transactions.filter(tx => {
-    if (filterText && !tx.description.toLowerCase().includes(filterText.toLowerCase())) return false;
-    if (filterCategoryId !== "") {
-      if (filterCategoryId === -1) {
-        if (tx.categoryId) return false;
-      } else {
-        const directMatch = tx.categoryId === filterCategoryId;
-        const parentMatch = tx.parentCategoryId === filterCategoryId;
-        if (!directMatch && !parentMatch) return false;
-      }
-    }
-    if (filterHighValue !== "") {
-      const absAmount = Math.abs(tx.amount);
-      if (absAmount <= Number(filterHighValue)) return false;
-    }
-    return true;
-  });
-
-  const hasActiveFilter = Boolean(filterText || filterCategoryId !== "" || filterHighValue !== "");
-  const hasZeroFilterMatches = hasActiveFilter && filteredTransactions.length === 0;
-  const effectiveExpanded = hasZeroFilterMatches ? false : isExpanded;
-
   return (
     <Card className={`flex flex-col shadow-sm flex-1 min-w-[360px] border-slate-200 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
       {/* Header */}
@@ -508,7 +291,7 @@ export default function BankAccountColumn({
                   const isProjected = tx.isProjected === true;
                     const isInstallmentShadow = isProjected && tx.projectionSourceType === "installment";
                     const isRecurringProjected = isProjected && !isInstallmentShadow;
-                  const saveCell = isProjected ? handleSaveCellProjected : handleSaveCell;
+                  const saveCell = handleSaveCell;
                   const isEditingDay = editingCell?.txId === tx.id && editingCell?.field === "day";
                   const isEditingDesc = editingCell?.txId === tx.id && editingCell?.field === "description";
                   const isEditingCat = editingCell?.txId === tx.id && editingCell?.field === "category";
@@ -533,6 +316,7 @@ export default function BankAccountColumn({
                         e.preventDefault();
                         setContextMenu({ tx, x: e.clientX, y: e.clientY });
                       }}
+                      onDoubleClick={() => !tx.isProjected && setDetailTx(tx)}
                     >
                       {/* Dia Cell */}
                       <TableCell 
@@ -549,18 +333,7 @@ export default function BankAccountColumn({
                               if (isNavigatingRef.current) return;
                               saveCell(tx);
                             }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                saveCell(tx);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                setEditingCell(null);
-                              } else if (e.key === "Tab") {
-                                e.preventDefault();
-                                handleNavigateCell(tx, "day", e.shiftKey ? "prev" : "next");
-                              }
-                            }}
+                            onKeyDown={(e) => handleCellKeyDown(e, tx, "day")}
                             className={cn("w-full px-1 text-center font-mono", density === "compact" ? "h-6 text-xs" : "h-8 text-sm")}
                             autoFocus
                           />
@@ -589,18 +362,7 @@ export default function BankAccountColumn({
                               if (isNavigatingRef.current) return;
                               saveCell(tx);
                             }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                saveCell(tx);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                setEditingCell(null);
-                              } else if (e.key === "Tab") {
-                                e.preventDefault();
-                                handleNavigateCell(tx, "description", e.shiftKey ? "prev" : "next");
-                              }
-                            }}
+                            onKeyDown={(e) => handleCellKeyDown(e, tx, "description")}
                             className={cn("w-full", density === "compact" ? "h-7 text-xs px-2" : "text-sm")}
                             autoFocus
                           />
@@ -620,10 +382,22 @@ export default function BankAccountColumn({
                                 ? "Lançamento automático (edite a original para alterar)"
                                 : isRecurringProjected
                                 ? "Projeção recorrente — clique para confirmar com edição"
-                                : "Clique para editar"
+                                : "Clique para editar ou dê duplo clique para ver detalhes"
                             }
                           >
                             <span className="truncate">{tx.description}</span>
+                            {tx.tags && tx.tags.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
+                                title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                                <span className="truncate">#{tx.tags[0].name}</span>
+                                {tx.tags.length > 1 && (
+                                  <span className="text-[9px] text-muted-foreground shrink-0">+{tx.tags.length - 1}</span>
+                                )}
+                              </span>
+                            )}
                             {isRecurringProjected && (
                               <span title="Gasto recorrente projetado">
                                 <Repeat className="w-3 h-3 text-amber-500 shrink-0" />
@@ -650,6 +424,20 @@ export default function BankAccountColumn({
                                 {tx.projectedInstallmentCurrent}/{tx.projectedInstallmentTotal}
                               </span>
                             )}
+                            {isProjected && tx.projectionSourceType !== "installment" && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfirmProjected(tx);
+                                }}
+                                title="Confirmar pagamento deste lançamento previsto"
+                                className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-1.5 py-0.5 rounded transition-colors"
+                              >
+                                <Check className="w-2.5 h-2.5" />
+                                <span>Confirmar</span>
+                              </button>
+                            )}
                           </span>
                         )}
                       </TableCell>
@@ -667,20 +455,10 @@ export default function BankAccountColumn({
                           onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
                           onFocus={() => {
                             if (!isProjected && !isInstallmentShadow && !isEditingCat) {
-                              setEditingCell({ txId: tx.id, field: "category" });
+                              handleStartCellEdit(tx, "category");
                             }
                           }}
-                          onKeyDown={(e) => {
-                            if (isEditingCat) {
-                              if (e.key === "Tab") {
-                                e.preventDefault();
-                                handleNavigateCell(tx, "category", e.shiftKey ? "prev" : "next");
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                setEditingCell(null);
-                              }
-                            }
-                          }}
+                          onKeyDown={(e) => isEditingCat && handleCellKeyDown(e, tx, "category")}
                           tabIndex={isEditingCat ? 0 : -1}
                         />
                       </TableCell>
@@ -703,18 +481,7 @@ export default function BankAccountColumn({
                               if (isNavigatingRef.current) return;
                               saveCell(tx);
                             }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                saveCell(tx);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                setEditingCell(null);
-                              } else if (e.key === "Tab") {
-                                e.preventDefault();
-                                handleNavigateCell(tx, "amount", e.shiftKey ? "prev" : "next");
-                              }
-                            }}
+                            onKeyDown={(e) => handleCellKeyDown(e, tx, "amount")}
                             className={cn("w-full", density === "compact" ? "h-7 text-xs" : "text-sm")}
                             autoFocus
                           />
@@ -862,11 +629,25 @@ export default function BankAccountColumn({
           tx={contextMenu.tx}
           x={contextMenu.x}
           y={contextMenu.y}
+          onViewDetails={(tx) => { setDetailTx(tx); setContextMenu(null); }}
           onConfirmProjected={(tx) => { handleConfirmProjected(tx); setContextMenu(null); }}
           onDismissProjected={(tx) => { handleDismissProjected(tx); setContextMenu(null); }}
           onTransfer={(tx) => { setTransferTxId(tx.id); setContextMenu(null); }}
-          onRecurring={async (tx) => { await transformToRecurring(tx.id); setContextMenu(null); }}
           onDelete={(tx) => { handleDelete(tx.id, !!tx.linkedTransactionId); setContextMenu(null); }}
+        />
+      )}
+
+      {detailTx && (
+        <TransactionDetailModal
+          open={Boolean(detailTx)}
+          tx={detailTx}
+          categories={categories}
+          availableTags={availableTags}
+          onClose={() => setDetailTx(null)}
+          onSave={async (txId, updatedData) => {
+            await updateTransaction(txId, updatedData);
+            onRefresh();
+          }}
         />
       )}
       

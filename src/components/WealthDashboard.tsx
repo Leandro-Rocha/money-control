@@ -22,17 +22,19 @@ import {
   Archive,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { WealthData, WealthFinancingItem, WealthInvestmentItem, WealthReceivableItem, adjustInvestmentBalance } from "@/lib/actions/wealth";
-import { updateFinancingBalance, updateReceivableBalance, archiveAccount } from "@/lib/actions/accounts";
-import { syncPluggyInvestmentAccount, PluggyInvestmentSummary } from "@/lib/actions/pluggy";
+import { WealthData, WealthFinancingItem, WealthInvestmentItem, WealthReceivableItem } from "@/lib/actions/wealth";
+import { archiveAccount } from "@/lib/actions/accounts";
+import { syncPluggyInvestmentAccount } from "@/lib/actions/pluggy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ModalShell } from "./ModalShell";
 import { EmptyState } from "./EmptyState";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { WealthFinancingModal } from "./wealth/WealthFinancingModal";
+import { WealthInvestmentModal } from "./wealth/WealthInvestmentModal";
+import { WealthReceivableModal } from "./wealth/WealthReceivableModal";
+import { WealthPluggySyncModal, WealthSyncModalData, WealthSyncErrorData } from "./wealth/WealthPluggySyncModal";
 
 interface WealthDashboardProps {
   initialData: WealthData;
@@ -47,110 +49,14 @@ export default function WealthDashboard({
   onOpenSettings,
   onOpenCreateAccount,
 }: WealthDashboardProps) {
-  const [data, setData] = useState<WealthData>(initialData);
   const [editingFinancing, setEditingFinancing] = useState<WealthFinancingItem | null>(null);
-  const [newRemainingAmount, setNewRemainingAmount] = useState<string>("");
-  const [newInstallmentAmount, setNewInstallmentAmount] = useState<string>("");
-  const [newPaidInstallments, setNewPaidInstallments] = useState<string>("");
-  const [newTotalInstallments, setNewTotalInstallments] = useState<string>("");
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-
-  // Receivable adjustment state
   const [editingReceivable, setEditingReceivable] = useState<WealthReceivableItem | null>(null);
-  const [newReceivableRemaining, setNewReceivableRemaining] = useState<string>("");
-  const [newReceivableInstallmentAmount, setNewReceivableInstallmentAmount] = useState<string>("");
-  const [newReceivablePaidInstallments, setNewReceivablePaidInstallments] = useState<string>("");
-  const [newReceivableTotalInstallments, setNewReceivableTotalInstallments] = useState<string>("");
-  const [newReceivableDueDay, setNewReceivableDueDay] = useState<string>("");
-  const [isSavingReceivable, setIsSavingReceivable] = useState<boolean>(false);
-
-  // Investment adjustment state
   const [editingInvestment, setEditingInvestment] = useState<WealthInvestmentItem | null>(null);
-  const [newInvestmentBalance, setNewInvestmentBalance] = useState<string>("");
-  const [isSavingInvestment, setIsSavingInvestment] = useState<boolean>(false);
 
   // Pluggy investment sync state
   const [syncingAccountId, setSyncingAccountId] = useState<number | null>(null);
-  const [syncModalData, setSyncModalData] = useState<{
-    accountName: string;
-    totalBalance: number;
-    previousBalance: number;
-    diff: number;
-    investments: PluggyInvestmentSummary[];
-  } | null>(null);
-  const [syncErrorModal, setSyncErrorModal] = useState<{
-    accountName: string;
-    error: string;
-  } | null>(null);
-
-  // Synchronize internal state with fresh props when refreshed
-  if (initialData !== data && initialData.currentMonth === data.currentMonth) {
-    // If totals or lengths changed, keep in sync
-    if (
-      initialData.totalInvested !== data.totalInvested ||
-      initialData.totalDebts !== data.totalDebts
-    ) {
-      setData(initialData);
-    }
-  }
-
-  const handleOpenAdjust = (item: WealthFinancingItem) => {
-    setEditingFinancing(item);
-    setNewRemainingAmount(String(item.remainingAmount));
-    setNewInstallmentAmount(String(item.installmentAmount || ""));
-    setNewPaidInstallments(String(item.installmentsPaid));
-    setNewTotalInstallments(String(item.installmentsTotal));
-  };
-
-  const handleSaveAdjust = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingFinancing) return;
-
-    const remaining = parseFloat(newRemainingAmount.replace(",", "."));
-    if (isNaN(remaining) || remaining < 0) return;
-
-    const paid = newPaidInstallments ? parseInt(newPaidInstallments, 10) : undefined;
-    const instAmt = newInstallmentAmount ? parseFloat(newInstallmentAmount.replace(",", ".")) : undefined;
-    const totalInst = newTotalInstallments ? parseInt(newTotalInstallments, 10) : undefined;
-
-    setIsSaving(true);
-    try {
-      await updateFinancingBalance(editingFinancing.account.id, remaining, paid, instAmt, totalInst);
-      setEditingFinancing(null);
-      onRefresh();
-    } catch (err) {
-      console.error("Erro ao atualizar financiamento:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleOpenAdjustInvestment = (item: WealthInvestmentItem) => {
-    setEditingInvestment(item);
-    setNewInvestmentBalance(String(item.currentBalance));
-  };
-
-  const handleSaveAdjustInvestment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingInvestment || newInvestmentBalance === "") return;
-
-    const targetVal = parseFloat(newInvestmentBalance.replace(",", "."));
-    if (isNaN(targetVal) || targetVal < 0) return;
-
-    setIsSavingInvestment(true);
-    try {
-      await adjustInvestmentBalance(
-        editingInvestment.account.id,
-        targetVal
-      );
-      setEditingInvestment(null);
-      onRefresh();
-    } catch (err) {
-      console.error("Erro ao ajustar investimento:", err);
-    } finally {
-      setIsSavingInvestment(false);
-    }
-  };
+  const [syncModalData, setSyncModalData] = useState<WealthSyncModalData | null>(null);
+  const [syncErrorModal, setSyncErrorModal] = useState<WealthSyncErrorData | null>(null);
 
   const handleSyncPluggyInvestment = async (item: WealthInvestmentItem) => {
     setSyncingAccountId(item.account.id);
@@ -181,45 +87,6 @@ export default function WealthDashboard({
       setSyncingAccountId(null);
     }
   };
-
-  const handleOpenAdjustReceivable = (item: WealthReceivableItem) => {
-    setEditingReceivable(item);
-    setNewReceivableRemaining(String(item.remainingAmount));
-    setNewReceivableInstallmentAmount(String(item.installmentAmount || ""));
-    setNewReceivablePaidInstallments(String(item.installmentsPaid));
-    setNewReceivableTotalInstallments(String(item.installmentsTotal));
-    setNewReceivableDueDay(item.dueDay ? String(item.dueDay) : "");
-  };
-
-  const handleSaveAdjustReceivable = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingReceivable) return;
-
-    const remaining = parseFloat(newReceivableRemaining.replace(",", "."));
-    if (isNaN(remaining) || remaining < 0) return;
-
-    const paid = newReceivablePaidInstallments ? parseInt(newReceivablePaidInstallments, 10) : undefined;
-    const instAmt = newReceivableInstallmentAmount ? parseFloat(newReceivableInstallmentAmount.replace(",", ".")) : undefined;
-    const totalInst = newReceivableTotalInstallments ? parseInt(newReceivableTotalInstallments, 10) : undefined;
-    const dueDay = newReceivableDueDay ? parseInt(newReceivableDueDay, 10) : undefined;
-
-    setIsSavingReceivable(true);
-    try {
-      await updateReceivableBalance(editingReceivable.account.id, remaining, paid, instAmt, totalInst, dueDay);
-      setEditingReceivable(null);
-      onRefresh();
-    } catch (err) {
-      console.error("Erro ao atualizar crédito a receber:", err);
-    } finally {
-      setIsSavingReceivable(false);
-    }
-  };
-
-  const invTargetVal = parseFloat(newInvestmentBalance.replace(",", "."));
-  const investmentDiff =
-    editingInvestment && !isNaN(invTargetVal)
-      ? Math.round((invTargetVal - editingInvestment.currentBalance) * 100) / 100
-      : null;
 
   const { totalInvested, totalReceivables = 0, totalDebts, netWorth, investments = [], receivables = [], financings = [] } = initialData;
 
@@ -561,7 +428,7 @@ export default function WealthDashboard({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleOpenAdjustInvestment(item)}
+                                  onClick={() => setEditingInvestment(item)}
                                   className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
                                   title="Ajustar saldo em custódia consolidado manualmente"
                                 >
@@ -677,7 +544,7 @@ export default function WealthDashboard({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleOpenAdjustReceivable(item)}
+                              onClick={() => setEditingReceivable(item)}
                               className="h-6 px-1.5 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
                               title="Ajustar saldo a receber e parcelas"
                             >
@@ -796,7 +663,7 @@ export default function WealthDashboard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleOpenAdjust(item)}
+                      onClick={() => setEditingFinancing(item)}
                       className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
                       title="Ajustar saldo devedor e parcelas"
                     >
@@ -857,484 +724,30 @@ export default function WealthDashboard({
         </div>
       </div>
 
-      {/* Modal de Ajuste de Saldo Devedor */}
-      {editingFinancing && (
-        <ModalShell
-          open={!!editingFinancing}
-          onClose={() => setEditingFinancing(null)}
-          title="Ajustar Saldo do Financiamento"
-          subtitle={`${editingFinancing.account.name} • Reconcilie com o extrato bancário`}
-          maxWidth="max-w-md"
-          footer={
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setEditingFinancing(null)}
-                disabled={isSaving}
-                className="h-8 text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                form="form-adjust-financing"
-                size="sm"
-                disabled={isSaving}
-                className="h-8 text-xs gap-1.5"
-              >
-                {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Salvar Alterações</span>
-              </Button>
-            </div>
-          }
-        >
-          <form id="form-adjust-financing" onSubmit={handleSaveAdjust} className="space-y-3">
-            <div>
-              <Label htmlFor="remAmount" className="text-xs font-medium">
-                Novo Saldo Devedor Restante (R$)
-              </Label>
-              <Input
-                id="remAmount"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={newRemainingAmount}
-                onChange={(e) => setNewRemainingAmount(e.target.value)}
-                className="mt-1 h-9 font-mono text-sm"
-                placeholder="Ex: 154200.50"
-              />
-            </div>
+      <WealthFinancingModal
+        item={editingFinancing}
+        onClose={() => setEditingFinancing(null)}
+        onSaved={onRefresh}
+      />
 
-            <div>
-              <Label htmlFor="instAmount" className="text-xs font-medium">
-                Valor Atual da Parcela (R$) <span className="text-muted-foreground font-normal">(Reajuste da parcela)</span>
-              </Label>
-              <Input
-                id="instAmount"
-                type="number"
-                step="0.01"
-                min="0"
-                value={newInstallmentAmount}
-                onChange={(e) => setNewInstallmentAmount(e.target.value)}
-                className="mt-1 h-9 font-mono text-sm"
-                placeholder="Ex: 1850.00"
-              />
-            </div>
+      <WealthInvestmentModal
+        item={editingInvestment}
+        onClose={() => setEditingInvestment(null)}
+        onSaved={onRefresh}
+      />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="paidInstallments" className="text-xs font-medium">
-                  Parcelas Já Pagas
-                </Label>
-                <Input
-                  id="paidInstallments"
-                  type="number"
-                  min="0"
-                  value={newPaidInstallments}
-                  onChange={(e) => setNewPaidInstallments(e.target.value)}
-                  className="mt-1 h-9 font-mono text-sm"
-                  placeholder="Ex: 73"
-                />
-              </div>
+      <WealthReceivableModal
+        item={editingReceivable}
+        onClose={() => setEditingReceivable(null)}
+        onSaved={onRefresh}
+      />
 
-              <div>
-                <Label htmlFor="totalInstallments" className="text-xs font-medium">
-                  Total de Parcelas
-                </Label>
-                <Input
-                  id="totalInstallments"
-                  type="number"
-                  min="1"
-                  value={newTotalInstallments}
-                  onChange={(e) => setNewTotalInstallments(e.target.value)}
-                  className="mt-1 h-9 font-mono text-sm"
-                  placeholder="Ex: 360"
-                />
-              </div>
-            </div>
-          </form>
-        </ModalShell>
-      )}
-
-      {/* Modal de Ajuste de Saldo de Investimento */}
-      {editingInvestment && (
-        <ModalShell
-          open={!!editingInvestment}
-          onClose={() => setEditingInvestment(null)}
-          title="Ajustar Posição do Investimento"
-          subtitle={`${editingInvestment.account.name} • Reconcilie com o extrato da sua corretora`}
-          maxWidth="max-w-md"
-          footer={
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setEditingInvestment(null)}
-                disabled={isSavingInvestment}
-                className="h-8 text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                form="form-adjust-investment"
-                size="sm"
-                disabled={isSavingInvestment || newInvestmentBalance === ""}
-                className="h-8 text-xs gap-1.5"
-              >
-                {isSavingInvestment && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Salvar Posição</span>
-              </Button>
-            </div>
-          }
-        >
-          <form id="form-adjust-investment" onSubmit={handleSaveAdjustInvestment} className="space-y-4">
-            <div className="p-3 bg-muted/40 rounded-lg border border-border/60 text-xs space-y-1.5">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Saldo Atual Registrado:</span>
-                <span className="font-mono font-semibold text-foreground">
-                  {formatCurrency(editingInvestment.currentBalance)}
-                </span>
-              </div>
-              {investmentDiff !== null && (
-                <div className="flex justify-between items-center pt-1 border-t border-border/40">
-                  <span className="text-muted-foreground">Diferença a Reconciliar:</span>
-                  <span
-                    className={cn(
-                      "font-mono font-bold",
-                      investmentDiff > 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : investmentDiff < 0
-                        ? "text-rose-600 dark:text-rose-400"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {investmentDiff > 0 ? "+" : ""}
-                    {formatCurrency(investmentDiff)}
-                    {investmentDiff > 0 ? " (Valorização)" : investmentDiff < 0 ? " (Desvalorização / Ajuste)" : ""}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="invNewBalance" className="text-xs font-medium">
-                Novo Saldo Total em Custódia (R$)
-              </Label>
-              <Input
-                id="invNewBalance"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={newInvestmentBalance}
-                onChange={(e) => setNewInvestmentBalance(e.target.value)}
-                className="mt-1 h-9 font-mono text-sm"
-                placeholder="Ex: 52400.00"
-                autoFocus
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                A posição patrimonial será atualizada de acordo com o extrato consolidado da corretora.
-              </p>
-            </div>
-          </form>
-        </ModalShell>
-      )}
-
-      {/* Modal de Ajuste de Crédito a Receber */}
-      {editingReceivable && (
-        <ModalShell
-          open={!!editingReceivable}
-          onClose={() => setEditingReceivable(null)}
-          title="Ajustar Crédito a Receber"
-          subtitle={`${editingReceivable.account.name} • Reconcilie o saldo restante e parcelas do empréstimo`}
-          maxWidth="max-w-md"
-          footer={
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setEditingReceivable(null)}
-                disabled={isSavingReceivable}
-                className="h-8 text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                form="form-adjust-receivable"
-                size="sm"
-                disabled={isSavingReceivable || newReceivableRemaining === ""}
-                className="h-8 text-xs gap-1.5"
-              >
-                {isSavingReceivable && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Salvar Alterações</span>
-              </Button>
-            </div>
-          }
-        >
-          <form id="form-adjust-receivable" onSubmit={handleSaveAdjustReceivable} className="space-y-4">
-            <div>
-              <Label htmlFor="recRemaining" className="text-xs font-medium">
-                Saldo Restante a Receber (R$)
-              </Label>
-              <Input
-                id="recRemaining"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={newReceivableRemaining}
-                onChange={(e) => setNewReceivableRemaining(e.target.value)}
-                className="mt-1 h-9 font-mono text-sm"
-                placeholder="Ex: 4800.00"
-                autoFocus
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="recInstallmentAmount" className="text-xs font-medium">
-                  Valor da Parcela (R$)
-                </Label>
-                <Input
-                  id="recInstallmentAmount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newReceivableInstallmentAmount}
-                  onChange={(e) => setNewReceivableInstallmentAmount(e.target.value)}
-                  className="mt-1 h-9 font-mono text-sm"
-                  placeholder="Ex: 800.00"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="recDueDay" className="text-xs font-medium">
-                  Dia Previsto Pagamento
-                </Label>
-                <Input
-                  id="recDueDay"
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={newReceivableDueDay}
-                  onChange={(e) => setNewReceivableDueDay(e.target.value)}
-                  className="mt-1 h-9 font-mono text-sm"
-                  placeholder="Ex: 15"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="recPaidInstallments" className="text-xs font-medium">
-                  Parcelas Já Recebidas
-                </Label>
-                <Input
-                  id="recPaidInstallments"
-                  type="number"
-                  min="0"
-                  value={newReceivablePaidInstallments}
-                  onChange={(e) => setNewReceivablePaidInstallments(e.target.value)}
-                  className="mt-1 h-9 font-mono text-sm"
-                  placeholder="Ex: 2"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="recTotalInstallments" className="text-xs font-medium">
-                  Total de Parcelas
-                </Label>
-                <Input
-                  id="recTotalInstallments"
-                  type="number"
-                  min="1"
-                  value={newReceivableTotalInstallments}
-                  onChange={(e) => setNewReceivableTotalInstallments(e.target.value)}
-                  className="mt-1 h-9 font-mono text-sm"
-                  placeholder="Ex: 10"
-                />
-              </div>
-            </div>
-          </form>
-        </ModalShell>
-      )}
-
-      {/* Modal de Conferência de Custódia Pluggy */}
-      {syncModalData && (
-        <ModalShell
-          open={!!syncModalData}
-          onClose={() => setSyncModalData(null)}
-          title={`Conferência de Custódia • ${syncModalData.accountName}`}
-          subtitle="Posição patrimonial consolidada e sincronizada via Pluggy Open Finance"
-          maxWidth="max-w-2xl"
-          icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
-          footer={
-            <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-muted-foreground">
-                {syncModalData.investments.length} {syncModalData.investments.length === 1 ? "ativo retornado" : "ativos retornados"}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setSyncModalData(null)}
-                className="h-8 text-xs font-semibold"
-              >
-                Concluir
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3 rounded-lg border border-border bg-card">
-                <div className="text-[11px] font-medium text-muted-foreground">Saldo Anterior</div>
-                <div className="text-base font-bold font-mono tabular-nums text-foreground mt-0.5">
-                  {formatCurrency(syncModalData.previousBalance)}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Novo Saldo Pluggy</div>
-                <div className="text-base font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {formatCurrency(syncModalData.totalBalance)}
-                </div>
-              </div>
-
-              <div className={cn(
-                "p-3 rounded-lg border",
-                syncModalData.diff === 0
-                  ? "border-border bg-muted/20"
-                  : syncModalData.diff > 0
-                  ? "border-emerald-500/20 bg-emerald-500/5"
-                  : "border-rose-500/20 bg-rose-500/5"
-              )}>
-                <div className="text-[11px] font-medium text-muted-foreground">Ajuste de Custódia</div>
-                <div className={cn(
-                  "text-base font-bold font-mono tabular-nums mt-0.5",
-                  syncModalData.diff === 0
-                    ? "text-muted-foreground"
-                    : syncModalData.diff > 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
-                )}>
-                  {syncModalData.diff === 0
-                    ? "Em Paridade (R$ 0,00)"
-                    : `${syncModalData.diff > 0 ? "+" : ""}${formatCurrency(syncModalData.diff)}`}
-                </div>
-              </div>
-            </div>
-
-            {/* Banner de status */}
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40 border border-border text-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="text-muted-foreground">
-                {syncModalData.diff !== 0
-                  ? `Foi inserido um lançamento de "Reconciliação de Custódia" no valor de ${syncModalData.diff > 0 ? "+" : ""}${formatCurrency(syncModalData.diff)} para equiparar a posição ao extrato da corretora.`
-                  : "O saldo registrado no Money Control já correspondia perfeitamente à soma dos ativos no Pluggy. Nenhum lançamento foi necessário."}
-              </span>
-            </div>
-
-            {/* Listagem dos Ativos */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Composição dos Ativos em Custódia ({syncModalData.investments.length})
-              </h4>
-              {syncModalData.investments.length === 0 ? (
-                <EmptyState
-                  icon={TrendingUp}
-                  title="Nenhum ativo retornado"
-                  description="A instituição não retornou ativos sob este Item."
-                />
-              ) : (
-                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                  {syncModalData.investments.map((inv) => (
-                    <div
-                      key={inv.id}
-                      className="p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors flex items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm text-foreground truncate">{inv.name}</span>
-                          <Badge variant="secondary" className="text-[10px] uppercase font-mono">
-                            {inv.subtype || inv.type}
-                          </Badge>
-                          <span className="text-[10px] text-muted-foreground font-mono">
-                            ID: {inv.id.slice(0, 8)}...
-                          </span>
-                        </div>
-                        {inv.amountProfit != null && inv.amountProfit !== 0 && (
-                          <div className="text-[11px] text-muted-foreground font-mono">
-                            Rendimento acumulado:{" "}
-                            <span className={cn(
-                              "font-semibold tabular-nums",
-                              inv.amountProfit > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                            )}>
-                              {inv.amountProfit > 0 ? "+" : ""}{formatCurrency(inv.amountProfit)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold font-mono tabular-nums text-foreground">
-                          {formatCurrency(inv.balance)}
-                        </div>
-                        {inv.amount != null && inv.amount !== inv.balance && (
-                          <div className="text-[10px] text-muted-foreground font-mono tabular-nums">
-                            Bruto: {formatCurrency(inv.amount)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </ModalShell>
-      )}
-
-      {/* Modal de Erro de Sincronização */}
-      {syncErrorModal && (
-        <ModalShell
-          open={!!syncErrorModal}
-          onClose={() => setSyncErrorModal(null)}
-          title="Falha na Sincronização de Investimento"
-          subtitle={syncErrorModal.accountName}
-          maxWidth="max-w-md"
-          icon={<AlertCircle className="w-5 h-5 text-destructive" />}
-          footer={
-            <div className="flex justify-end w-full">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSyncErrorModal(null)}
-                className="h-8 text-xs"
-              >
-                Fechar
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-3">
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-1">
-              <p className="font-semibold">Não foi possível consultar os investimentos no Pluggy</p>
-              <p className="mt-1">{syncErrorModal.error}</p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Verifique se a instituição bancária ou corretora está conectada e ativa na aba Open Finance das Configurações.
-            </p>
-          </div>
-        </ModalShell>
-      )}
+      <WealthPluggySyncModal
+        syncData={syncModalData}
+        errorData={syncErrorModal}
+        onCloseSync={() => setSyncModalData(null)}
+        onCloseError={() => setSyncErrorModal(null)}
+      />
 
       <ConfirmDialog
         open={confirmDialogState.isOpen}

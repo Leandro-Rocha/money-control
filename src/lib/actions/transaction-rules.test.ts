@@ -10,7 +10,7 @@ import {
 import {
   upsertTransactionRulesBatch,
   cleanupDuplicateTransactionRules,
-} from "../transaction-rules-helpers";
+} from "../transaction-rules-server";
 import { applyTransactionRules } from "../staging-utils";
 
 let testDb: any;

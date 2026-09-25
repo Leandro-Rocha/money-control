@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createTestDb } from '../test-db';
 import { accounts, categories, transactions } from '@/db/schema';
-import * as actions from './transactions';
+import * as transferActions from './transfers';
+import * as transactionActions from './transactions';
+
+const actions = { ...transferActions, ...transactionActions };
 
 let testDb: any;
 

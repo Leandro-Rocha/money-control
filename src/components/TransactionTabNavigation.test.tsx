@@ -15,7 +15,6 @@ vi.mock("@/lib/actions/transactions", () => ({
   createTransaction: vi.fn().mockResolvedValue({ success: true }),
   deleteTransaction: vi.fn().mockResolvedValue({ success: true }),
   convertToTransfer: vi.fn().mockResolvedValue({ success: true }),
-  transformToRecurring: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 vi.mock("@/lib/actions/projections", () => ({
@@ -25,11 +24,12 @@ vi.mock("@/lib/actions/projections", () => ({
 }));
 
 const mockCategories: Category[] = [
-  { id: 1, name: "Alimentação", type: "expense", color: "#ef4444" },
-  { id: 2, name: "Transporte", type: "expense", color: "#3b82f6" },
+  { id: 1, name: "Alimentação", type: "expense", color: "#ef4444", showInSummary: 1 },
+  { id: 2, name: "Transporte", type: "expense", color: "#3b82f6", showInSummary: 1 },
 ];
 
 const mockBankAccountData: AccountData = {
+  netBalance: -150.5,
   account: {
     id: 10,
     name: "Conta Corrente Teste",
@@ -59,6 +59,7 @@ const mockBankAccountData: AccountData = {
 };
 
 const mockCreditCardData: AccountData = {
+  netBalance: -2500,
   account: {
     id: 20,
     name: "Cartão de Crédito Teste",
@@ -73,7 +74,7 @@ const mockCreditCardData: AccountData = {
       month: "2026-09",
       day: 12,
       description: "Notebook Dell",
-      amount: -300.0,
+      amount: -2500.0,
       categoryId: 2,
       categoryName: "Transporte",
       categoryColor: "#3b82f6",
@@ -84,11 +85,12 @@ const mockCreditCardData: AccountData = {
   ] as any,
   initialBalance: 0,
   totalIncome: 0,
-  totalExpense: 300.0,
-  finalBalance: -300.0,
+  totalExpense: 2500,
+  finalBalance: -2500,
 };
 
 const mockCreditCardDataShadow: AccountData = {
+  netBalance: -55.9,
   account: {
     id: 20,
     name: "Cartão de Crédito Teste",
@@ -276,6 +278,7 @@ describe("Transaction Tab Navigation during editing", () => {
           data={mockCreditCardData}
           month="2026-09"
           categories={mockCategories}
+          allAccounts={[mockBankAccountData.account, mockCreditCardData.account]}
           onRefresh={vi.fn()}
         />
       );
@@ -320,6 +323,7 @@ describe("Transaction Tab Navigation during editing", () => {
           data={mockCreditCardDataShadow}
           month="2026-09"
           categories={mockCategories}
+          allAccounts={[mockBankAccountData.account, mockCreditCardData.account]}
           onRefresh={vi.fn()}
         />
       );
