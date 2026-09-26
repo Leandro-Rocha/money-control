@@ -38,6 +38,13 @@ export function initDatabase() {
       } catch (e) {
         console.error("Erro ao inicializar agendador de lembretes:", e);
       }
+
+      try {
+        const { startMorningPluggyScheduler } = require("@/lib/pluggy-sync");
+        startMorningPluggyScheduler();
+      } catch (e) {
+        console.error("Erro ao inicializar agendador de sincronização Pluggy:", e);
+      }
     }, 0);
   }
 }
