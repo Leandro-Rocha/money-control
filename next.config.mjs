@@ -5,8 +5,9 @@ const nextConfig = {
   allowedDevOrigins: [
     "money.cafofo.casa",
     "*.cafofo.casa",
-    "192.168.0.220:3050",
-    "localhost:3050",
+    "192.168.0.220",
+    "100.64.230.53",
+    "localhost",
   ],
   experimental: {
     serverActions: {
@@ -15,6 +16,9 @@ const nextConfig = {
         "*.cafofo.casa",
         "192.168.0.220:3050",
         "localhost:3050",
+        "192.168.0.220:3051",
+        "100.64.230.53:3051",
+        "localhost:3051",
       ],
     },
   },

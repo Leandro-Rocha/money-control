@@ -8,13 +8,9 @@ import { getWealthData, WealthData } from "@/lib/actions/wealth";
 import { getForecastAction, type ForecastPayload } from "@/lib/actions/forecast";
 import type { SettingsTab } from "@/components/SettingsDrawer";
 
-export type ViewMode = "today" | "cashflow" | "plan" | "wealth" | "review";
-export const VIEW_MODES: ViewMode[] = ["today", "cashflow", "plan", "wealth", "review"];
-export const DEFAULT_VIEW: ViewMode = "today";
+import { DEFAULT_VIEW, parseViewMode, type ViewMode } from "@/lib/view-mode";
 
-export function parseViewMode(v: string | null | undefined): ViewMode {
-  return VIEW_MODES.includes(v as ViewMode) ? (v as ViewMode) : DEFAULT_VIEW;
-}
+export { VIEW_MODES, DEFAULT_VIEW, parseViewMode, type ViewMode } from "@/lib/view-mode";
 export type AccountTypeCreation = "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | null;
 export type TableDensity = "compact" | "comfortable";
 

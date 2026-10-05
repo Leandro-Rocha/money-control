@@ -2,7 +2,7 @@ import { getMonthData } from "@/lib/actions/transactions";
 import { getWealthData } from "@/lib/actions/wealth";
 import { getForecastAction } from "@/lib/actions/forecast";
 import Dashboard from "@/components/Dashboard";
-import { parseViewMode } from "@/hooks/useDashboard";
+import { parseViewMode } from "@/lib/view-mode";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
