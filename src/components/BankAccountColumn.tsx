@@ -458,7 +458,7 @@ export default function BankAccountColumn({
                                 {tx.projectedInstallmentCurrent}/{tx.projectedInstallmentTotal}
                               </span>
                             )}
-                            {isProjected && tx.projectionSourceType !== "installment" && (
+                            {isProjected && tx.projectionSourceType != null && tx.projectionSourceType !== "installment" && (
                               <button
                                 type="button"
                                 onClick={(e) => {

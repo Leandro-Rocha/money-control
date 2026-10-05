@@ -68,9 +68,11 @@ export async function updateCategory(
     showInSummary?: number;
     parentId?: number | null;
     budget?: number | null;
+    kind?: "regular" | "transfer" | "investment" | "debt" | "card_payment";
   }
 ) {
   const updateData: Record<string, any> = {};
+  if (data.kind !== undefined) updateData.kind = data.kind;
   if (data.name !== undefined) updateData.name = data.name.trim();
   if (data.type !== undefined) updateData.type = data.type;
   if (data.color !== undefined) updateData.color = data.color;

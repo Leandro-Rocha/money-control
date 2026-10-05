@@ -17,6 +17,106 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
+type Frequency = "monthly" | "yearly" | "every_n_months";
+
+interface Schedule {
+  frequency: Frequency;
+  /** Mês (1-12) da recorrência anual, como string do select. */
+  month: string;
+  interval: string;
+  startMonth: string;
+  endMonth: string;
+}
+
+const emptySchedule: Schedule = { frequency: "monthly", month: "", interval: "2", startMonth: "", endMonth: "" };
+
+function scheduleOf(e: RecurringEntryUI): Schedule {
+  // Modelo antigo: frequência mensal com `month` preenchido = anual.
+  const frequency: Frequency = e.frequency === "monthly" && e.month ? "yearly" : e.frequency ?? "monthly";
+  return {
+    frequency,
+    month: e.month ? String(e.month) : "",
+    interval: String(e.intervalMonths ?? 2),
+    startMonth: e.startMonth ?? "",
+    endMonth: e.endMonth ?? "",
+  };
+}
+
+/** Campos enviados às actions; null em `error` quando válido. */
+function schedulePayload(s: Schedule): { error: string | null; data: Record<string, unknown> } {
+  if (s.frequency === "yearly" && !s.month) return { error: "Escolha o mês da recorrência anual.", data: {} };
+  if (s.frequency === "every_n_months" && !s.startMonth)
+    return { error: "Informe o mês de início para recorrências a cada N meses.", data: {} };
+  if (s.startMonth && s.endMonth && s.endMonth < s.startMonth) return { error: "O fim é antes do início.", data: {} };
+  return {
+    error: null,
+    data: {
+      frequency: s.frequency,
+      month: s.frequency === "yearly" ? parseInt(s.month, 10) : null,
+      intervalMonths: s.frequency === "every_n_months" ? Math.max(2, parseInt(s.interval, 10) || 2) : 1,
+      startMonth: s.startMonth || null,
+      endMonth: s.endMonth || null,
+    },
+  };
+}
+
+function describeSchedule(e: RecurringEntryUI): string {
+  const s = scheduleOf(e);
+  let base =
+    s.frequency === "yearly"
+      ? `Anual em ${MONTH_NAMES[Number(s.month) - 1] ?? "?"}`
+      : s.frequency === "every_n_months"
+        ? `A cada ${s.interval} meses`
+        : "Mensal";
+  if (s.startMonth) base += ` · de ${s.startMonth.slice(5)}/${s.startMonth.slice(0, 4)}`;
+  if (s.endMonth) base += ` · até ${s.endMonth.slice(5)}/${s.endMonth.slice(0, 4)}`;
+  return base;
+}
+
+function ScheduleFields({ value, onChange, compact }: { value: Schedule; onChange: (s: Schedule) => void; compact?: boolean }) {
+  const cls = `w-full ${compact ? "h-8 text-xs" : "h-9 text-sm"} rounded-md border border-input bg-background px-2`;
+  const set = (patch: Partial<Schedule>) => onChange({ ...value, ...patch });
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <select value={value.frequency} onChange={(e) => set({ frequency: e.target.value as Frequency })} className={cls}>
+        <option value="monthly">Mensal</option>
+        <option value="yearly">Anual</option>
+        <option value="every_n_months">A cada N meses</option>
+      </select>
+      {value.frequency === "yearly" ? (
+        <select value={value.month} onChange={(e) => set({ month: e.target.value })} className={cls}>
+          <option value="">Mês...</option>
+          {MONTH_NAMES.map((name, idx) => (
+            <option key={idx + 1} value={idx + 1}>
+              {name}
+            </option>
+          ))}
+        </select>
+      ) : value.frequency === "every_n_months" ? (
+        <Input
+          type="number"
+          min="2"
+          max="24"
+          value={value.interval}
+          onChange={(e) => set({ interval: e.target.value })}
+          className={cls}
+          title="Intervalo em meses"
+        />
+      ) : (
+        <span />
+      )}
+      <Input
+        type="month"
+        value={value.startMonth}
+        onChange={(e) => set({ startMonth: e.target.value })}
+        className={cls}
+        title={value.frequency === "every_n_months" ? "Primeiro mês (obrigatório)" : "Começa em (opcional)"}
+      />
+      <Input type="month" value={value.endMonth} onChange={(e) => set({ endMonth: e.target.value })} className={cls} title="Termina em (opcional)" />
+    </div>
+  );
+}
+
 interface RecurringTabProps {
   entries: RecurringEntryUI[];
   accounts: Account[];
@@ -31,7 +131,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [newDay, setNewDay] = useState("");
   const [newAccountId, setNewAccountId] = useState("");
   const [newCategoryId, setNewCategoryId] = useState("");
-  const [newMonth, setNewMonth] = useState("");
+  const [newSchedule, setNewSchedule] = useState<Schedule>(emptySchedule);
+  const [formError, setFormError] = useState<string | null>(null);
   const [newIsEstimate, setNewIsEstimate] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -41,13 +142,16 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [editDay, setEditDay] = useState("");
   const [editAccountId, setEditAccountId] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
-  const [editMonth, setEditMonth] = useState("");
+  const [editSchedule, setEditSchedule] = useState<Schedule>(emptySchedule);
   const [editIsEstimate, setEditIsEstimate] = useState(false);
 
   const handleAdd = async () => {
     if (!newDesc || !newAmount || !newDay || !newAccountId) return;
     const amountVal = parseFloat(newAmount.replace(/\./g, "").replace(",", "."));
     if (isNaN(amountVal)) return;
+    const sched = schedulePayload(newSchedule);
+    setFormError(sched.error);
+    if (sched.error) return;
 
     await createRecurringEntry({
       accountId: parseInt(newAccountId, 10),
@@ -55,11 +159,11 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       description: newDesc,
       day: parseInt(newDay, 10),
       amount: amountVal,
-      month: newMonth ? parseInt(newMonth, 10) : null,
       isEstimate: newIsEstimate,
+      ...sched.data,
     });
 
-    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewMonth(""); setNewIsEstimate(false);
+    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewSchedule(emptySchedule); setNewIsEstimate(false);
     setIsAdding(false);
     onRefresh();
   };
@@ -83,7 +187,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
     setEditDay(e.day.toString());
     setEditAccountId(e.accountId.toString());
     setEditCategoryId(e.categoryId ? e.categoryId.toString() : "");
-    setEditMonth(e.month ? String(e.month) : "");
+    setEditSchedule(scheduleOf(e));
+    setFormError(null);
     setEditIsEstimate(Boolean(e.isEstimate));
   };
 
@@ -91,6 +196,9 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
     if (!editingId) return;
     const amountVal = parseFloat(editAmount.replace(/\./g, "").replace(",", "."));
     if (isNaN(amountVal)) return;
+    const sched = schedulePayload(editSchedule);
+    setFormError(sched.error);
+    if (sched.error) return;
 
     await updateRecurringEntry(editingId, {
       description: editDesc,
@@ -98,8 +206,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       day: parseInt(editDay, 10),
       accountId: parseInt(editAccountId, 10),
       categoryId: editCategoryId ? parseInt(editCategoryId, 10) : null,
-      month: editMonth ? parseInt(editMonth, 10) : null,
       isEstimate: editIsEstimate,
+      ...sched.data,
     });
     setEditingId(null);
     onRefresh();
@@ -110,7 +218,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-medium">Recorrentes</h3>
-          <p className="text-sm text-muted-foreground">Injetadas automaticamente nos meses futuros.</p>
+          <p className="text-sm text-muted-foreground">Contas e receitas que se repetem. A previsão usa estas datas e valores.</p>
         </div>
         <Button onClick={() => setIsAdding(!isAdding)} size="sm" variant={isAdding ? "secondary" : "default"}>
           {isAdding ? "Cancelar" : <><Plus className="w-4 h-4 mr-1" /> Adicionar</>}
@@ -120,22 +228,12 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       {isAdding && (
         <div className="bg-muted p-4 rounded-lg space-y-4">
           <Input placeholder="Descrição" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input placeholder="Valor (ex: -150,00)" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
             <Input placeholder="Dia (1-31)" type="number" min="1" max="31" value={newDay} onChange={e => setNewDay(e.target.value)} />
-            <select
-              value={newMonth}
-              onChange={e => setNewMonth(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Todo mês (Mensal)</option>
-              {MONTH_NAMES.map((name, idx) => (
-                <option key={idx + 1} value={idx + 1}>
-                  {name} (Anual)
-                </option>
-              ))}
-            </select>
           </div>
+          <ScheduleFields value={newSchedule} onChange={setNewSchedule} />
+          {formError && <p className="text-sm text-rose-600">{formError}</p>}
           <div className="grid grid-cols-2 gap-3">
             <select value={newAccountId} onChange={e => setNewAccountId(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
               <option value="">Selecione a Conta...</option>
@@ -177,22 +275,12 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
             {editingId === entry.id ? (
               <div className="space-y-3">
                 <Input value={editDesc} onChange={e => setEditDesc(e.target.value)} className="h-8" />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Input value={editDay} onChange={e => setEditDay(e.target.value)} className="h-8 text-center" placeholder="Dia" />
                   <Input value={editAmount} onChange={e => setEditAmount(e.target.value)} className="h-8 text-right" placeholder="Valor" />
-                  <select
-                    value={editMonth}
-                    onChange={e => setEditMonth(e.target.value)}
-                    className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
-                  >
-                    <option value="">Todo mês (Mensal)</option>
-                    {MONTH_NAMES.map((name, idx) => (
-                      <option key={idx + 1} value={idx + 1}>
-                        {name} (Anual)
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <ScheduleFields value={editSchedule} onChange={setEditSchedule} compact />
+                {formError && <p className="text-xs text-rose-600">{formError}</p>}
                 <div className="grid grid-cols-2 gap-2">
                   <select value={editAccountId} onChange={e => setEditAccountId(e.target.value)} className="w-full h-8 rounded-md border border-input bg-background px-3 text-sm">
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -225,15 +313,15 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Dia {entry.day}</span>
-                    {entry.month ? (
-                      <span className="text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
-                        {MONTH_NAMES[entry.month - 1]} (Anual)
-                      </span>
-                    ) : (
-                      <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        Mensal
-                      </span>
-                    )}
+                    <span
+                      className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                        scheduleOf(entry).frequency === "monthly" && !entry.startMonth && !entry.endMonth
+                          ? "text-muted-foreground bg-muted"
+                          : "text-indigo-700 bg-indigo-50 border border-indigo-200"
+                      }`}
+                    >
+                      {describeSchedule(entry)}
+                    </span>
                     {entry.isEstimate && (
                       <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                         Estimativa

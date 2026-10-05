@@ -10,6 +10,32 @@ import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Tags, Pencil, Check, X, Eye, EyeOff, CornerDownRight, FolderPlus } from "lucide-react";
 import { createCategory, deleteCategory, updateCategory } from "@/lib/actions/categories";
 
+const KIND_OPTIONS: { value: NonNullable<Category["kind"]>; label: string }[] = [
+  { value: "regular", label: "Gasto/receita" },
+  { value: "transfer", label: "Transferência" },
+  { value: "investment", label: "Investimento" },
+  { value: "debt", label: "Dívida" },
+  { value: "card_payment", label: "Pagto. fatura" },
+];
+
+/** Natureza do movimento: diz à previsão se é gasto do dia a dia ou só dinheiro mudando de lugar. */
+function KindSelect({ cat, onChange }: { cat: Category; onChange: (kind: NonNullable<Category["kind"]>) => void }) {
+  return (
+    <select
+      value={cat.kind ?? "regular"}
+      onChange={(e) => onChange(e.target.value as NonNullable<Category["kind"]>)}
+      className="h-7 px-1 rounded-md border border-input bg-background text-[11px]"
+      title="Natureza (usada na previsão de caixa)"
+    >
+      {KIND_OPTIONS.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 interface CategoriesTabProps {
   categories: Category[];
   onRefresh: () => void;
@@ -324,6 +350,8 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                     <span>+ Sub</span>
                   </Button>
 
+                  <KindSelect cat={parent} onChange={(kind) => handleUpdate(parent.id, { kind })} />
+
                   <button
                     onClick={() => handleUpdate(parent.id, { showInSummary: parent.showInSummary === 1 ? 0 : 1 })}
                     className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
@@ -455,6 +483,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                         </div>
 
                         <div className="flex items-center gap-1">
+                          <KindSelect cat={sub} onChange={(kind) => handleUpdate(sub.id, { kind })} />
                           <div className="relative" title="Cor personalizada (ou herda do pai)">
                             <input
                               type="color"

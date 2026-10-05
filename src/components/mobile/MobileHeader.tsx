@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Settings, Wallet, CreditCard, Landmark, ArrowUpRight, ArrowDownRight, ListFilter, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Settings, Wallet, CreditCard, ArrowUpRight, ArrowDownRight, ListFilter, Search } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { ProjectionState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ interface MobileHeaderProps {
   onMonthChange: (month: string) => void;
   totalBankBalance: number;
   totalCreditCardExpense: number;
-  netCashPosition: number;
+  /** false nas telas que não dependem do mês (Hoje, Plano, Revisar). */
+  showMonth?: boolean;
   bankAccountsCount: number;
   creditCardsCount: number;
   globalIncome: number;
@@ -44,7 +45,7 @@ export function MobileHeader({
   onMonthChange,
   totalBankBalance,
   totalCreditCardExpense,
-  netCashPosition,
+  showMonth = true,
   bankAccountsCount,
   creditCardsCount,
   globalIncome,
@@ -128,6 +129,8 @@ export function MobileHeader({
         </div>
       </div>
 
+      {showMonth && (
+      <>
       {/* Month Stepper - Touch Friendly (min 44px) */}
       <div className="flex items-center justify-between bg-card text-card-foreground px-2 py-1.5 rounded-xl border border-border shadow-xs">
         <Button
@@ -178,52 +181,10 @@ export function MobileHeader({
         </button>
       )}
 
-      {/* Hero Card: Posição Líquida (Disponível Real) */}
-      <div
-        className={`p-4 rounded-xl border shadow-xs transition-colors ${
-          netCashPosition >= 0
-            ? "bg-emerald-500/5 border-emerald-500/20"
-            : "bg-rose-500/5 border-rose-500/20"
-        }`}
-      >
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2">
-            <div
-              className={`p-1.5 rounded-md ${
-                netCashPosition >= 0
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-              }`}
-            >
-              <Landmark className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-semibold text-muted-foreground">Posição Líquida (Disponível)</span>
-          </div>
-
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              netCashPosition >= 0
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-            }`}
-          >
-            {netCashPosition >= 0 ? "Positivo" : "Atenção"}
-          </span>
-        </div>
-
-        <div
-          className={`text-2xl font-bold font-mono tabular-nums privacy-sensitive my-1 ${
-            netCashPosition >= 0
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-rose-600 dark:text-rose-400"
-          }`}
-        >
-          {netCashPosition >= 0 ? "+" : ""}
-          {formatCurrency(netCashPosition)}
-        </div>
-
+      {/* Resumo do mês: contas, cartões, entradas e saídas */}
+      <div className="p-4 rounded-xl border border-border bg-card shadow-xs">
         {/* Breakdown de Saldo vs Cartões */}
-        <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border/60 text-xs">
+        <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Wallet className="w-3 h-3 text-emerald-500" />
@@ -257,6 +218,8 @@ export function MobileHeader({
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

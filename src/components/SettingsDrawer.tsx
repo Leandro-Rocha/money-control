@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, CreditCard, Tags, Repeat, Wand2, Shield, X, Database, Landmark } from "lucide-react";
+import { Settings, CreditCard, Tags, Repeat, Wand2, Shield, X, Database, Landmark, LineChart } from "lucide-react";
 import { Account, Category, RecurringEntryUI } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ import { RulesTab } from "./RulesTab";
 import { PrivacyTab } from "./PrivacyTab";
 import { DataBackupsTab } from "./DataBackupsTab";
 import { OpenFinanceTab } from "./OpenFinanceTab";
+import { ForecastSettingsTab } from "./ForecastSettingsTab";
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -21,9 +22,12 @@ interface SettingsDrawerProps {
   recurring: RecurringEntryUI[];
   onRefresh: () => void;
   initialAccountType?: "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | null;
+  /** Aba aberta ao abrir o painel (ex.: "recurring" pelo menu do celular). */
+  initialTab?: SettingsTab | null;
 }
 
-type TabType = "accounts" | "categories" | "recurring" | "rules" | "data-backups" | "privacy" | "open-finance";
+export type SettingsTab = "accounts" | "categories" | "recurring" | "forecast" | "rules" | "data-backups" | "privacy" | "open-finance";
+type TabType = SettingsTab;
 
 export function SettingsDrawer({
   open,
@@ -33,14 +37,17 @@ export function SettingsDrawer({
   recurring,
   onRefresh,
   initialAccountType,
+  initialTab,
 }: SettingsDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabType>("accounts");
 
   useEffect(() => {
     if (open && initialAccountType) {
       setActiveTab("accounts");
+    } else if (open && initialTab) {
+      setActiveTab(initialTab);
     }
-  }, [open, initialAccountType]);
+  }, [open, initialAccountType, initialTab]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -74,7 +81,7 @@ export function SettingsDrawer({
               </div>
 
           {/* Custom Tabs Navigation */}
-          <div className="flex items-center gap-6 mt-6">
+          <div className="flex items-center gap-6 mt-6 overflow-x-auto whitespace-nowrap">
             <button
               onClick={() => setActiveTab("accounts")}
               className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
@@ -118,6 +125,17 @@ export function SettingsDrawer({
             >
               <Repeat className="w-4 h-4" />
               Recorrentes
+            </button>
+            <button
+              onClick={() => setActiveTab("forecast")}
+              className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 ${
+                activeTab === "forecast"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LineChart className="w-4 h-4" />
+              Previsão
             </button>
             <button
               onClick={() => setActiveTab("rules")}
@@ -173,6 +191,7 @@ export function SettingsDrawer({
           {activeTab === "recurring" && (
             <RecurringTab entries={recurring} accounts={accounts} categories={categories} onRefresh={onRefresh} />
           )}
+          {activeTab === "forecast" && <ForecastSettingsTab onRefresh={onRefresh} />}
           {activeTab === "rules" && (
             <RulesTab categories={categories} />
           )}

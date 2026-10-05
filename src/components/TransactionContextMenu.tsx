@@ -36,7 +36,7 @@ export function TransactionContextMenu({
     >
       {tx.isProjected ? (
         <>
-          {tx.projectionSourceType !== "installment" && (
+          {tx.projectionSourceType != null && tx.projectionSourceType !== "installment" && (
             <button
               className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-green-600"
               onClick={() => onConfirmProjected(tx)}
@@ -44,12 +44,18 @@ export function TransactionContextMenu({
               <Check className="w-4 h-4" /> Confirmar projeção
             </button>
           )}
-          <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-slate-600"
-            onClick={() => onDismissProjected(tx)}
-          >
-            <X className="w-4 h-4" /> Dispensar este mês
-          </button>
+          {tx.projectionSourceType != null ? (
+            <button
+              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-slate-600"
+              onClick={() => onDismissProjected(tx)}
+            >
+              <X className="w-4 h-4" /> Dispensar este mês
+            </button>
+          ) : (
+            <div className="px-4 py-2 text-xs text-slate-500">
+              Estimativa da previsão (gasto típico ou reembolso esperado). Ajuste em Configurações › Previsão ou na tela Revisar.
+            </div>
+          )}
         </>
       ) : (
         <>

@@ -7,23 +7,32 @@ import {
   Plus,
   MoreHorizontal,
   ArrowRightLeft,
-  CalendarClock,
   PieChart,
   FileDown,
   Repeat,
   LogOut,
   X,
   TrendingUp,
+  Sun,
+  ClipboardCheck,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import type { ViewMode } from "@/hooks/useDashboard";
+
+const LEFT_TABS: { mode: ViewMode; label: string; icon: typeof Wallet }[] = [
+  { mode: "today", label: "Hoje", icon: Sun },
+  { mode: "cashflow", label: "Extrato", icon: Wallet },
+];
+const RIGHT_TABS: { mode: ViewMode; label: string; icon: typeof Wallet }[] = [
+  { mode: "plan", label: "Plano", icon: TrendingUp },
+];
 
 interface MobileBottomNavProps {
-  viewMode: "cashflow" | "wealth" | "runway";
-  onViewModeChange: (mode: "cashflow" | "wealth" | "runway") => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
   onOpenQuickAdd: () => void;
   onOpenTransfers: () => void;
-  onOpenPullProjections: () => void;
   onOpenInsights: () => void;
   onOpenExport: () => void;
   onOpenRecurring: () => void;
@@ -35,7 +44,6 @@ export function MobileBottomNav({
   onViewModeChange,
   onOpenQuickAdd,
   onOpenTransfers,
-  onOpenPullProjections,
   onOpenInsights,
   onOpenExport,
   onOpenRecurring,
@@ -49,33 +57,19 @@ export function MobileBottomNav({
         aria-label="Navegação móvel"
         className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t border-border px-4 py-2 flex items-center justify-around pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
-        {/* Tab Fluxo */}
-        <button
-          type="button"
-          onClick={() => onViewModeChange("cashflow")}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 transition-colors ${
-            viewMode === "cashflow"
-              ? "text-primary font-semibold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Wallet className="w-5 h-5" />
-          <span className="text-[10px] leading-none">Fluxo</span>
-        </button>
-
-        {/* Tab Patrimônio */}
-        <button
-          type="button"
-          onClick={() => onViewModeChange("wealth")}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 transition-colors ${
-            viewMode === "wealth"
-              ? "text-primary font-semibold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Landmark className="w-5 h-5" />
-          <span className="text-[10px] leading-none">Patrimônio</span>
-        </button>
+        {LEFT_TABS.map(({ mode, label, icon: Icon }) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onViewModeChange(mode)}
+            className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 transition-colors ${
+              viewMode === mode ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="w-5 h-5" />
+            <span className="text-[10px] leading-none">{label}</span>
+          </button>
+        ))}
 
         {/* Botão Central Quick Add (FAB) */}
         <div className="relative -top-3">
@@ -89,19 +83,19 @@ export function MobileBottomNav({
           </button>
         </div>
 
-        {/* Tab Projeção (Runway) */}
-        <button
-          type="button"
-          onClick={() => onViewModeChange("runway")}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 transition-colors ${
-            viewMode === "runway"
-              ? "text-primary font-semibold"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <TrendingUp className="w-5 h-5" />
-          <span className="text-[10px] leading-none">Runway</span>
-        </button>
+        {RIGHT_TABS.map(({ mode, label, icon: Icon }) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onViewModeChange(mode)}
+            className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 transition-colors ${
+              viewMode === mode ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="w-5 h-5" />
+            <span className="text-[10px] leading-none">{label}</span>
+          </button>
+        ))}
 
         {/* Menu Mais */}
         <button
@@ -161,11 +155,23 @@ export function MobileBottomNav({
               className="h-16 flex flex-col items-center justify-center gap-1 text-xs border-border"
               onClick={() => {
                 setMoreMenuOpen(false);
-                onOpenPullProjections();
+                onViewModeChange("wealth");
               }}
             >
-              <CalendarClock className="w-5 h-5 text-amber-500" />
-              <span>Puxar Recorrentes</span>
+              <Landmark className="w-5 h-5 text-indigo-500" />
+              <span>Patrimônio</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-16 flex flex-col items-center justify-center gap-1 text-xs border-border"
+              onClick={() => {
+                setMoreMenuOpen(false);
+                onViewModeChange("review");
+              }}
+            >
+              <ClipboardCheck className="w-5 h-5 text-amber-500" />
+              <span>Revisar</span>
             </Button>
 
             <Button

@@ -93,6 +93,7 @@ export async function updateAccount(
     pluggyAccountId?: string | null;
     pluggyItemId?: string | null;
     pluggyCredentialId?: string | null;
+    isLiquid?: number;
   }
 ) {
   await db.update(accounts).set(data).where(eq(accounts.id, id));

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { ModalShell } from "./ModalShell";
+import { ReimbursementSection } from "./ReimbursementSection";
 import { CategoryPicker } from "./CategoryPicker";
 import { CurrencyInput } from "./CurrencyInput";
 import { Input } from "@/components/ui/input";
@@ -392,6 +393,10 @@ export function TransactionDetailModal({
             className="w-full text-sm bg-background border border-input rounded-md p-2.5 focus:outline-none focus:ring-2 focus:ring-ring focus:border-input resize-y"
           />
         </div>
+
+        {!tx.isProjected && tx.id > 0 && (
+          <ReimbursementSection txId={tx.id} amount={tx.amount} initialReimbursable={tx.isReimbursable === 1} />
+        )}
 
         {/* Seção de Metadados / Auditoria (somente leitura) */}
         {hasMetadata && (

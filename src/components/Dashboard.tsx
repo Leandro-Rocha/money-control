@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MonthData, RunwayData } from "@/lib/types";
+import { MonthData } from "@/lib/types";
+import type { ForecastPayload } from "@/lib/actions/forecast";
 import { useDashboard, ViewMode } from "@/hooks/useDashboard";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { WealthData } from "@/lib/actions/wealth";
@@ -25,16 +26,16 @@ interface DashboardProps {
   initialPrivate?: boolean;
   initialView?: ViewMode;
   initialWealthData?: WealthData | null;
-  initialRunwayData?: RunwayData | null;
+  initialForecast?: ForecastPayload | null;
 }
 
 function DashboardContent({
   initialData,
   initialView,
   initialWealthData,
-  initialRunwayData,
+  initialForecast,
 }: DashboardProps) {
-  const state = useDashboard(initialData, initialView, initialWealthData, initialRunwayData);
+  const state = useDashboard(initialData, initialView, initialWealthData, initialForecast);
   const [isMounted, setIsMounted] = useState(false);
   const isMobile = useIsMobile();
 
@@ -159,9 +160,11 @@ function DashboardContent({
           state.setSettingsOpen(open);
           if (!open) {
             state.setSettingsInitialAccountType(null);
+            state.setSettingsInitialTab(null);
           }
         }}
         initialAccountType={state.settingsInitialAccountType}
+        initialTab={state.settingsInitialTab}
         accounts={state.allAccounts}
         categories={state.allCategories}
         recurring={state.recurringEntries}
@@ -174,9 +177,9 @@ function DashboardContent({
 export default function Dashboard({
   initialData,
   initialPrivate = false,
-  initialView = "cashflow",
+  initialView = "today",
   initialWealthData = null,
-  initialRunwayData = null,
+  initialForecast = null,
 }: DashboardProps) {
   return (
     <PrivacyProvider initialPrivate={initialPrivate}>
@@ -185,7 +188,7 @@ export default function Dashboard({
         initialPrivate={initialPrivate}
         initialView={initialView}
         initialWealthData={initialWealthData}
-        initialRunwayData={initialRunwayData}
+        initialForecast={initialForecast}
       />
       <PinModal />
     </PrivacyProvider>

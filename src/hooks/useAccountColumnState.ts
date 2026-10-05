@@ -290,10 +290,11 @@ export function useAccountColumnState<TField extends string>({
   };
 
   const handleConfirmProjected = async (tx: TransactionWithCategory) => {
+    if (!tx.projectionSourceType && tx.forecastKind) return; // estimativa da previsão: nada a confirmar
     await confirmProjectedRow({
       accountId: tx.accountId,
-      month: tx.month,
-      day: tx.day,
+      month: tx.projectionMonth ?? tx.month,
+      day: tx.projectionDay ?? tx.day,
       description: tx.description,
       categoryId: tx.categoryId,
       amount: tx.amount,
@@ -310,7 +311,7 @@ export function useAccountColumnState<TField extends string>({
     if (!tx.projectionSourceType || tx.projectionSourceId == null) return;
     await dismissProjection({
       accountId: tx.accountId,
-      month: tx.month,
+      month: tx.projectionMonth ?? tx.month,
       sourceType: tx.projectionSourceType,
       sourceId: tx.projectionSourceId,
     });

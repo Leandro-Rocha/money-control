@@ -28,12 +28,23 @@ import {
   Search,
   RefreshCw,
   Copy,
+  Sun,
+  ClipboardCheck,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { ProjectionState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/context/PrivacyContext";
+import type { ViewMode } from "@/hooks/useDashboard";
+
+const VIEW_TABS: { mode: ViewMode; label: string; icon: typeof Wallet }[] = [
+  { mode: "today", label: "Hoje", icon: Sun },
+  { mode: "cashflow", label: "Extrato", icon: CreditCard },
+  { mode: "plan", label: "Plano", icon: TrendingUp },
+  { mode: "wealth", label: "Patrimônio", icon: Landmark },
+  { mode: "review", label: "Revisar", icon: ClipboardCheck },
+];
 
 interface MonthHeaderProps {
   currentMonth: string; // YYYY-MM
@@ -47,8 +58,8 @@ interface MonthHeaderProps {
   wealthTotalDebts?: number;
   wealthNetWorth?: number;
   onOpenCreateAccount?: (initialType: "investment" | "financing" | "loan_receivable") => void;
-  viewMode?: "cashflow" | "wealth" | "runway";
-  onViewModeChange?: (mode: "cashflow" | "wealth" | "runway") => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
   onMonthChange: (month: string) => void;
   onOpenRecurring: () => void;
   onOpenImport: () => void;
@@ -185,45 +196,20 @@ export default function MonthHeader({
         {onViewModeChange && (
           <div className="flex justify-center">
             <div className="inline-flex items-center p-1 bg-muted/80 rounded-xl border border-border shadow-inner">
-              <button
-                type="button"
-                onClick={() => onViewModeChange("cashflow")}
-                className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
-                  viewMode === "cashflow"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Fluxo de Caixa</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onViewModeChange("wealth")}
-                className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
-                  viewMode === "wealth"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Landmark className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Patrimônio & Dívidas</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onViewModeChange("runway")}
-                className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
-                  viewMode === "runway"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Runway</span>
-              </button>
+              {VIEW_TABS.map(({ mode, label, icon: Icon }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => onViewModeChange(mode)}
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
+                    viewMode === mode ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -541,62 +527,7 @@ export default function MonthHeader({
             </Button>
           </div>
         </div>
-      ) : (
-        /* Nível 2 em Modo Projeção / Runway */
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground min-w-0">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-              Projeção Futura
-            </span>
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              Ponto de partida do caixa projetado
-            </span>
-          </div>
-
-          {/* Stepper de Mês (Padronizado com Fluxo de Caixa) */}
-          <div className="flex items-center justify-center gap-2 sm:gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePrevMonth}
-              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-8 shrink-0"
-              title="Mês anterior"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-
-            <div className="flex items-center gap-2 px-3 py-1 bg-muted text-muted-foreground rounded-md font-semibold text-sm sm:text-base w-[180px] sm:w-[210px] justify-center shadow-inner shrink-0">
-              <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span className="truncate">{monthLabel}</span>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNextMonth}
-              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-8 shrink-0"
-              title="Próximo mês"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleToday}
-              className="ml-1 sm:ml-2 bg-primary text-primary-foreground hover:bg-primary/90 border-none h-8 text-xs shrink-0"
-            >
-              Mês Atual
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-            <span className="text-[11px] font-medium hidden md:inline">
-              Simulação de liquidez contínua
-            </span>
-          </div>
-        </div>
-      )}
+      ) : null}
     </header>
   );
 }

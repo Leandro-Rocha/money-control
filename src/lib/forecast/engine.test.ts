@@ -214,6 +214,20 @@ describe("buildForecast — faturas", () => {
     expect(at(r, "2026-10-05").byAccount[1]).toBe(-200);
   });
 
+  it("expõe os itens projetados da fatura em cardItems, na conta do cartão", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1), card(2, 16, 1)],
+        installments: [{ sourceId: 99, accountId: 2, month: "2026-10", day: 3, amount: -100, description: "TV (2/10)", categoryId: null, current: 2, total: 10 }],
+        recurring: [rec({ id: 5, accountId: 2, day: 10, amount: -40, description: "Streaming" })],
+      }),
+    );
+    const oct = r.cardItems.filter((e) => e.source.month === "2026-10");
+    expect(oct.map((e) => e.accountId)).toEqual([2, 2]);
+    expect(oct.find((e) => e.kind === "installment")).toMatchObject({ amount: -100, installment: { current: 2, total: 10 } });
+    expect(oct.find((e) => e.kind === "recurring")).toMatchObject({ amount: -40, status: "pending" });
+  });
+
   it("descobre a fatura que recebe uma compra pela data de fechamento", () => {
     const c = card(2, 16, 1);
     expect(invoiceMonthFor(c, "2026-10-05")).toBe("2026-10");

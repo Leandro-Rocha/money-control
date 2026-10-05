@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryPicker } from "../CategoryPicker";
 import WealthDashboard from "../WealthDashboard";
-import RunwayView from "../RunwayView";
+import { TodayView } from "../forecast/TodayView";
+import { PlanView } from "../forecast/PlanView";
+import { ReviewView } from "../forecast/ReviewView";
 import { DueDatesTimelineWidget } from "../DueDatesTimelineWidget";
 import { logoutAction } from "@/lib/actions/auth";
 import { DashboardState } from "@/hooks/useDashboard";
@@ -24,12 +26,8 @@ export function DesktopView(state: DashboardState) {
     viewMode,
     setViewMode,
     wealthData,
-    runwayData,
-    runwayHorizon,
-    handleHorizonChange,
-    loadRunway,
     isPending,
-    setRecurringOpen,
+    openSettingsTab,
     setImportOpen,
     handleOpenImport,
     setInsightsOpen,
@@ -74,7 +72,6 @@ export function DesktopView(state: DashboardState) {
     globalBalance,
     totalBankBalance,
     totalCreditCardExpense,
-    netCashPosition,
   } = state;
 
   const selectedTag = useMemo(
@@ -136,7 +133,7 @@ export function DesktopView(state: DashboardState) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onMonthChange={loadMonth}
-        onOpenRecurring={() => setRecurringOpen(true)}
+        onOpenRecurring={() => openSettingsTab("recurring")}
         onOpenImport={() => handleOpenImport()}
         onOpenInsights={() => setInsightsOpen(true)}
         onOpenPullProjections={() => setPullOpen(true)}
@@ -158,7 +155,7 @@ export function DesktopView(state: DashboardState) {
       {viewMode === "cashflow" ? (
         <>
           {/* KPI da Posição Financeira ("Quanto dinheiro eu tenho?") */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-card text-card-foreground p-3.5 rounded-xl border border-border flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -193,34 +190,6 @@ export function DesktopView(state: DashboardState) {
               </span>
             </div>
 
-            <div className={`p-3.5 rounded-xl border flex items-center justify-between shadow-xs ${
-              netCashPosition >= 0
-                ? "bg-emerald-500/5 border-emerald-500/20 text-card-foreground"
-                : "bg-rose-500/5 border-rose-500/20 text-card-foreground"
-            }`}>
-              <div className="flex items-center gap-2.5">
-                <div className={`p-2 rounded-lg ${
-                  netCashPosition >= 0 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                }`}>
-                  <Landmark className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-muted-foreground">Posição Líquida (Disponível Real)</div>
-                  <div className={`text-lg font-bold font-mono tabular-nums privacy-sensitive ${
-                    netCashPosition >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                  }`}>
-                    {netCashPosition >= 0 ? "+" : ""}{formatCurrency(netCashPosition)}
-                  </div>
-                </div>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                netCashPosition >= 0
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                  : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-              }`}>
-                {netCashPosition >= 0 ? "Positivo" : "Atenção"}
-              </span>
-            </div>
           </div>
 
           {/* Agenda Sequencial de Vencimentos */}
@@ -557,20 +526,12 @@ export function DesktopView(state: DashboardState) {
             <p className="text-xs text-muted-foreground font-medium">Carregando dados patrimoniais...</p>
           </div>
         )
+      ) : viewMode === "today" ? (
+        <TodayView state={state} />
+      ) : viewMode === "plan" ? (
+        <PlanView state={state} />
       ) : (
-        runwayData ? (
-          <RunwayView
-            data={runwayData}
-            horizon={runwayHorizon}
-            onHorizonChange={handleHorizonChange}
-            onRefresh={() => loadRunway()}
-          />
-        ) : (
-          <div className="bg-card text-card-foreground border border-border p-12 rounded-xl shadow-xs text-center flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground font-medium">Carregando projeção de fluxo de caixa (Runway)...</p>
-          </div>
-        )
+        <ReviewView state={state} />
       )}
 
       {/* Global Loading Spinner Indicator */}

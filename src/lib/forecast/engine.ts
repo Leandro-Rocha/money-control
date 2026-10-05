@@ -276,6 +276,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     monthly < 0 ? Math.min(0, monthly - realized) : Math.max(0, monthly - realized);
 
   const cardBills: CardBill[] = [];
+  const cardItems: ForecastEvent[] = [];
   const baselines: Baseline[] = [];
   const billPaymentTxIds = new Set<number>();
 
@@ -303,11 +304,64 @@ export function buildForecast(input: ForecastInput): ForecastResult {
       // Fatura já vencida: vale só o que foi lançado; itens previstos que não vieram não entram mais.
       let projected = 0;
       if (due >= today) {
-        for (const i of installmentsByAccountMonth.get(`${card.id}|${m}`) ?? []) projected += i.amount;
-        for (const o of occurrences) {
-          if (o.recurring.accountId === card.id && o.month === m && !o.matched && !o.dismissed) projected += o.recurring.amount;
+        const item = (e: Omit<ForecastEvent, "accountId" | "status" | "band" | "cardAccountId">): ForecastEvent => ({
+          ...e,
+          accountId: card.id,
+          status: "pending",
+          band: "core",
+          cardAccountId: card.id,
+        });
+        for (const i of installmentsByAccountMonth.get(`${card.id}|${m}`) ?? []) {
+          projected += i.amount;
+          const d = dateOf(i.month, i.day);
+          cardItems.push(
+            item({
+              key: `inst:${i.sourceId}:${i.month}`,
+              date: d,
+              dueDate: d,
+              amount: i.amount,
+              description: i.description,
+              kind: "installment",
+              categoryId: i.categoryId,
+              source: { type: "installment", id: i.sourceId, month: i.month },
+              installment: { current: i.current, total: i.total },
+            }),
+          );
         }
-        for (const e of estimateItems) if (e.r.accountId === card.id && e.month === m) projected += e.remaining;
+        for (const o of occurrences) {
+          if (o.recurring.accountId === card.id && o.month === m && !o.matched && !o.dismissed) {
+            projected += o.recurring.amount;
+            cardItems.push(
+              item({
+                key: o.key,
+                date: o.date,
+                dueDate: o.date,
+                amount: o.recurring.amount,
+                description: o.recurring.description,
+                kind: "recurring",
+                categoryId: o.recurring.categoryId,
+                source: { type: "recurring", id: o.recurring.id, month: m },
+              }),
+            );
+          }
+        }
+        for (const e of estimateItems) {
+          if (e.r.accountId !== card.id || e.month !== m) continue;
+          projected += e.remaining;
+          const d = dateOf(m, e.r.day);
+          cardItems.push(
+            item({
+              key: `est:${e.r.id}:${m}`,
+              date: d,
+              dueDate: d,
+              amount: e.remaining,
+              description: `${e.r.description} (restante estimado)`,
+              kind: "estimate",
+              categoryId: e.r.categoryId,
+              source: { type: "recurring", id: e.r.id, month: m },
+            }),
+          );
+        }
       }
       const scenarioAmount = due >= today ? round2(scenarioCard.get(`${card.id}|${m}`) ?? 0) : 0;
       projected = round2(projected);
@@ -492,6 +546,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
       band: "core",
       categoryId: i.categoryId,
       source: { type: "installment", id: i.sourceId, month: i.month },
+      installment: { current: i.current, total: i.total },
     });
   }
 
@@ -772,6 +827,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     starts,
     events: events.filter((e) => e.date <= horizonEnd),
     cardBills,
+    cardItems,
     baselines,
     series,
     kpis,

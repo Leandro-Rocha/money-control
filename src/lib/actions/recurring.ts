@@ -6,6 +6,24 @@ import { asc, eq } from "drizzle-orm";
 import { RecurringEntryUI } from "../types";
 import { revalidatePath } from "next/cache";
 
+interface RecurrenceSchedule {
+  frequency?: "monthly" | "yearly" | "every_n_months";
+  intervalMonths?: number;
+  startMonth?: string | null;
+  endMonth?: string | null;
+}
+
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
+function scheduleValues(data: RecurrenceSchedule) {
+  const out: Record<string, unknown> = {};
+  if (data.frequency !== undefined) out.frequency = data.frequency;
+  if (data.intervalMonths !== undefined) out.intervalMonths = Math.max(1, Math.round(data.intervalMonths));
+  if (data.startMonth !== undefined) out.startMonth = data.startMonth && MONTH_RE.test(data.startMonth) ? data.startMonth : null;
+  if (data.endMonth !== undefined) out.endMonth = data.endMonth && MONTH_RE.test(data.endMonth) ? data.endMonth : null;
+  return out;
+}
+
 export async function getRecurringEntries(): Promise<RecurringEntryUI[]> {
   const rows = await db
     .select()
@@ -32,6 +50,10 @@ export async function getRecurringEntries(): Promise<RecurringEntryUI[]> {
       month: r.month,
       active: r.active,
       isEstimate: Boolean(r.isEstimate),
+      frequency: r.frequency,
+      intervalMonths: r.intervalMonths,
+      startMonth: r.startMonth,
+      endMonth: r.endMonth,
     };
   });
 }
@@ -44,7 +66,7 @@ export async function createRecurringEntry(data: {
   amount: number;
   month?: number | null;
   isEstimate?: boolean | number;
-}) {
+} & RecurrenceSchedule) {
   await db.insert(recurringEntries).values({
     accountId: data.accountId,
     categoryId: data.categoryId ?? null,
@@ -54,6 +76,7 @@ export async function createRecurringEntry(data: {
     month: data.month ?? null,
     isEstimate: data.isEstimate ? 1 : 0,
     active: 1,
+    ...scheduleValues(data),
   });
   revalidatePath("/");
   return { success: true };
@@ -70,7 +93,7 @@ export async function updateRecurringEntry(
     month?: number | null;
     active?: number;
     isEstimate?: boolean | number;
-  }
+  } & RecurrenceSchedule
 ) {
   await db
     .update(recurringEntries)
@@ -83,6 +106,7 @@ export async function updateRecurringEntry(
       ...(data.month !== undefined ? { month: data.month } : {}),
       ...(data.active !== undefined ? { active: data.active } : {}),
       ...(data.isEstimate !== undefined ? { isEstimate: data.isEstimate ? 1 : 0 } : {}),
+      ...scheduleValues(data),
     })
     .where(eq(recurringEntries.id, id));
   revalidatePath("/");

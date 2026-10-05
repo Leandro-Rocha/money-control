@@ -7,7 +7,9 @@ import { MobileAccountTabs } from "./MobileAccountTabs";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileQuickAddSheet } from "./MobileQuickAddSheet";
 import WealthDashboard from "../WealthDashboard";
-import RunwayView from "../RunwayView";
+import { TodayView } from "../forecast/TodayView";
+import { PlanView } from "../forecast/PlanView";
+import { ReviewView } from "../forecast/ReviewView";
 import { DueDatesTimelineWidget } from "../DueDatesTimelineWidget";
 import { Loader2 } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
@@ -19,12 +21,8 @@ export function MobileView(state: DashboardState) {
     viewMode,
     setViewMode,
     wealthData,
-    runwayData,
-    runwayHorizon,
-    handleHorizonChange,
-    loadRunway,
     isPending,
-    setRecurringOpen,
+    openSettingsTab,
     handleOpenImport,
     setInsightsOpen,
     setPullOpen,
@@ -43,7 +41,6 @@ export function MobileView(state: DashboardState) {
     globalExpense,
     totalBankBalance,
     totalCreditCardExpense,
-    netCashPosition,
     triageOpen,
     setTriageOpen,
     handleOpenDuplicates,
@@ -70,7 +67,7 @@ export function MobileView(state: DashboardState) {
         onMonthChange={loadMonth}
         totalBankBalance={totalBankBalance}
         totalCreditCardExpense={totalCreditCardExpense}
-        netCashPosition={netCashPosition}
+        showMonth={viewMode === "cashflow" || viewMode === "wealth"}
         bankAccountsCount={bankAccounts.length}
         creditCardsCount={creditCards.length}
         globalIncome={globalIncome}
@@ -124,22 +121,12 @@ export function MobileView(state: DashboardState) {
             <p className="text-xs text-muted-foreground font-medium">Carregando dados patrimoniais...</p>
           </div>
         )
+      ) : viewMode === "today" ? (
+        <TodayView state={state} />
+      ) : viewMode === "plan" ? (
+        <PlanView state={state} />
       ) : (
-        runwayData ? (
-          <div className="w-full">
-            <RunwayView
-              data={runwayData}
-              horizon={runwayHorizon}
-              onHorizonChange={handleHorizonChange}
-              onRefresh={() => loadRunway()}
-            />
-          </div>
-        ) : (
-          <div className="bg-card text-card-foreground border border-border p-8 rounded-xl shadow-xs text-center flex flex-col items-center justify-center gap-2">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground font-medium">Carregando projeção de fluxo de caixa (Runway)...</p>
-          </div>
-        )
+        <ReviewView state={state} />
       )}
 
       {/* Global Loading Indicator no Mobile */}
@@ -167,10 +154,9 @@ export function MobileView(state: DashboardState) {
         onViewModeChange={setViewMode}
         onOpenQuickAdd={() => handleOpenQuickAdd()}
         onOpenTransfers={() => setTransfersOpen(true)}
-        onOpenPullProjections={() => setPullOpen(true)}
         onOpenInsights={() => setInsightsOpen(true)}
         onOpenExport={() => setExportOpen(true)}
-        onOpenRecurring={() => setRecurringOpen(true)}
+        onOpenRecurring={() => openSettingsTab("recurring")}
         onLogout={logoutAction}
       />
     </div>

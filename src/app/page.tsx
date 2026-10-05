@@ -1,8 +1,8 @@
 import { getMonthData } from "@/lib/actions/transactions";
 import { getWealthData } from "@/lib/actions/wealth";
-import { getRunwayData } from "@/lib/actions/runway";
+import { getForecastAction } from "@/lib/actions/forecast";
 import Dashboard from "@/components/Dashboard";
-import { ViewMode } from "@/hooks/useDashboard";
+import { parseViewMode } from "@/hooks/useDashboard";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -18,17 +18,12 @@ export default async function HomePage({ searchParams }: any) {
     initialMonth = `${yyyy}-${mm}`;
   }
 
-  const initialView: ViewMode =
-    params?.view === "wealth"
-      ? "wealth"
-      : params?.view === "runway"
-      ? "runway"
-      : "cashflow";
+  const initialView = parseViewMode(params?.view);
 
-  const [initialData, initialWealthData, initialRunwayData, cookieStore] = await Promise.all([
+  const [initialData, initialWealthData, initialForecast, cookieStore] = await Promise.all([
     getMonthData(initialMonth),
     initialView === "wealth" ? getWealthData(initialMonth) : Promise.resolve(null),
-    initialView === "runway" ? getRunwayData(initialMonth, 6) : Promise.resolve(null),
+    initialView === "today" || initialView === "plan" ? getForecastAction() : Promise.resolve(null),
     cookies(),
   ]);
 
@@ -40,7 +35,7 @@ export default async function HomePage({ searchParams }: any) {
       initialPrivate={initialPrivate}
       initialView={initialView}
       initialWealthData={initialWealthData}
-      initialRunwayData={initialRunwayData}
+      initialForecast={initialForecast}
     />
   );
 }

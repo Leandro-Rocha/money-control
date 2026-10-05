@@ -7,7 +7,10 @@ import { AccountData, CategorySummaryGroup, MonthData, ProjectionState, Transact
 import { formatMonthLabel } from "../format";
 import { revalidatePath } from "next/cache";
 import { isFutureMonth, addMonths } from "../date-helpers";
-import { buildProjectedMonthData, getCarryForwardBalance } from "./projections";
+import { getCarryForwardBalance } from "./projections";
+import { computeForecast } from "../forecast/loader";
+import { forecastRowsForMonth } from "../forecast/extrato";
+import { dateOf, diffDays, localToday } from "../forecast/dates";
 import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
 import { isSameInstallmentSeries } from "../installments-helpers";
 import { setTransactionTags } from "./tags";
@@ -108,10 +111,18 @@ export async function getMonthData(month: string): Promise<MonthData> {
   let projectedTxByAccount = new Map<number, TransactionWithCategory[]>();
   let projectionState: ProjectionState = "none";
 
+  // Mês atual e futuros: as linhas previstas vêm do motor de previsão (as mesmas das telas Hoje e Plano).
+  let forecastOpening: Map<number, number> | null = null;
   if (future) {
-    const result = await buildProjectedMonthData(month, accList, categoryMap, accountMap);
-    projectedTxByAccount = result.projectedTxByAccount;
-    projectionState = result.projectionState;
+    const today = localToday();
+    const forecast = await computeForecast({
+      today,
+      horizonDays: Math.max(1, diffDays(today, dateOf(month, 31))),
+    });
+    const rows = forecastRowsForMonth(forecast, month);
+    projectedTxByAccount = rows.rowsByAccount;
+    forecastOpening = rows.openingByAccount;
+    projectionState = rows.projectionState(allTx.length > 0);
   }
 
   // 6. Build AccountData
@@ -180,7 +191,8 @@ export async function getMonthData(month: string): Promise<MonthData> {
 
       let accInitialBalance = 0;
       if (acc.type !== "credit_card") {
-        accInitialBalance = await getCarryForwardBalance(acc.id, month, accList, categoryMap, accountMap);
+        accInitialBalance =
+          forecastOpening?.get(acc.id) ?? (await getCarryForwardBalance(acc.id, month, accList, categoryMap, accountMap));
       }
 
       let currentRunning = accInitialBalance;

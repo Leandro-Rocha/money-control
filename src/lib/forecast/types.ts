@@ -150,6 +150,8 @@ export interface ForecastEvent {
   cardAccountId?: number;
   /** Saldo da conta após o evento (preenchido na série). */
   balanceAfter?: number;
+  /** Parcelas: número da parcela e total. */
+  installment?: { current: number | null; total: number | null };
 }
 
 export interface CardBill {
@@ -252,6 +254,8 @@ export interface ForecastResult {
   starts: AccountStart[];
   events: ForecastEvent[];
   cardBills: CardBill[];
+  /** Itens previstos dentro das faturas ainda não vencidas (data = dia previsto no mês da fatura). */
+  cardItems: ForecastEvent[];
   baselines: Baseline[];
   series: DayPoint[];
   kpis: ForecastKpis;

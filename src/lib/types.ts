@@ -6,6 +6,7 @@ export interface Category {
   showInSummary: number;
   parentId?: number | null;
   budget?: number | null;
+  kind?: "regular" | "transfer" | "investment" | "debt" | "card_payment";
   createdAt?: string | null;
 }
 
@@ -35,6 +36,7 @@ export interface Transaction {
   sourceType?: "installment" | "recurring" | "credit_card_bill" | null;
   sourceId?: number | null;
   pluggyTransactionId?: string | null;
+  isReimbursable?: number;
   createdAt?: string | null;
 }
 
@@ -50,6 +52,12 @@ export interface TransactionWithCategory extends Transaction {
   isProjected?: boolean;
   projectionSourceType?: "installment" | "recurring" | "credit_card_bill" | null;
   projectionSourceId?: number | null;
+  /** Mês/dia originais do item previsto (atrasados aparecem hoje, mas confirmam/dispensam na data original). */
+  projectionMonth?: string;
+  projectionDay?: number;
+  projectionStatus?: "pending" | "overdue";
+  /** Tipo do item na previsão; "baseline"/"reimbursement" são estimativas sem ação de confirmar. */
+  forecastKind?: "recurring" | "estimate" | "installment" | "card_bill" | "baseline" | "reimbursement" | "scheduled" | "scenario";
   projectedInstallmentCurrent?: number | null; // The computed future installment number
   projectedInstallmentTotal?: number | null;
   isEstimate?: boolean;
@@ -73,6 +81,7 @@ export interface Account {
   pluggyAccountId?: string | null;
   pluggyItemId?: string | null;
   pluggyCredentialId?: string | null;
+  isLiquid?: number;
   createdAt?: string | null;
 }
 
@@ -144,6 +153,10 @@ export interface RecurringEntryUI {
   month?: number | null;
   active: number;
   isEstimate?: boolean | number;
+  frequency?: "monthly" | "yearly" | "every_n_months";
+  intervalMonths?: number;
+  startMonth?: string | null;
+  endMonth?: string | null;
 }
 
 export interface ExportTransactionItem {

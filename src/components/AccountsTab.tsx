@@ -1031,6 +1031,19 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                       {formatPluggyAccountBadge(acc.pluggyAccountId)}
                     </span>
                   )}
+                  {acc.type === "investment" && (
+                    <label
+                      className="inline-flex items-center gap-1 text-[11px] cursor-pointer"
+                      title="Liquidez diária: a previsão pode sugerir resgatar daqui quando faltar dinheiro"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={acc.isLiquid === 1}
+                        onChange={(e) => handleUpdate(acc.id, { isLiquid: e.target.checked ? 1 : 0 })}
+                      />
+                      Reserva (liquidez diária)
+                    </label>
+                  )}
                   {(acc.type === "financing" || acc.type === "loan_receivable") && acc.financingRemainingAmount !== null && acc.financingRemainingAmount !== undefined && (
                     <span className={`font-mono tabular-nums privacy-sensitive font-medium ${acc.type === "financing" ? "text-rose-600" : "text-sky-600"}`}>
                       • Saldo: {formatCurrency(acc.financingRemainingAmount)}

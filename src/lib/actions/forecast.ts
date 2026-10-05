@@ -1,0 +1,295 @@
+"use server";
+
+import { db } from "@/db";
+import { and, eq, isNull, gte } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import {
+  accounts,
+  accountBalanceSnapshots,
+  categories,
+  recurringEntries,
+  transactionReimbursements,
+  transactions,
+} from "@/db/schema";
+import { addMonths } from "../date-helpers";
+import { dayOf, localToday, monthOf } from "../forecast/dates";
+import { computeForecast, getForecastSettings, loadForecastInput, saveForecastSettings, DEFAULT_SETTINGS } from "../forecast/loader";
+import { buildForecast } from "../forecast/engine";
+import {
+  findReimbursementCandidates,
+  findUnpairedTransfers,
+  suggestRecurring,
+  type RecurringSuggestion,
+  type ReimbursementCandidate,
+  type ReviewTx,
+} from "../forecast/review";
+import type { AccountStart, CategoryKind, ForecastEvent, ForecastResult, Scenario } from "../forecast/types";
+
+export interface ForecastAccount {
+  id: number;
+  name: string;
+  type: string;
+  color: string;
+  isLiquid: boolean;
+}
+
+export interface ForecastPayload {
+  forecast: ForecastResult;
+  accounts: ForecastAccount[];
+  settings: typeof DEFAULT_SETTINGS;
+}
+
+async function activeAccounts(): Promise<ForecastAccount[]> {
+  const rows = await db.select().from(accounts).where(eq(accounts.isActive, 1));
+  return rows
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.id - b.id)
+    .map((a) => ({ id: a.id, name: a.name, type: a.type, color: a.color, isLiquid: a.isLiquid === 1 }));
+}
+
+export async function getForecastAction(opts: { scenario?: Scenario; horizonDays?: number } = {}): Promise<ForecastPayload> {
+  const [forecast, accs, settings] = await Promise.all([
+    computeForecast({ scenario: opts.scenario, horizonDays: opts.horizonDays }),
+    activeAccounts(),
+    getForecastSettings(),
+  ]);
+  return { forecast, accounts: accs, settings };
+}
+
+export async function getForecastSettingsAction() {
+  return getForecastSettings();
+}
+
+export async function saveForecastSettingsAction(values: Partial<typeof DEFAULT_SETTINGS>) {
+  await saveForecastSettings(values);
+  revalidatePath("/");
+  return { success: true };
+}
+
+// ---------------------------------------------------------------- Revisar
+
+export interface ReviewData {
+  overdue: ForecastEvent[];
+  discrepancies: (AccountStart & { accountName: string })[];
+  pendingReimbursements: { id: number; accountId: number; date: string; description: string; amount: number; pending: number }[];
+  reimbursementCandidates: ReimbursementCandidate[];
+  recurringSuggestions: RecurringSuggestion[];
+  unpairedTransfers: ReviewTx[];
+  uncategorizedCount: number;
+  accountsWithoutSnapshot: { id: number; name: string }[];
+  warnings: string[];
+}
+
+async function loadReviewTxs(fromMonth: string): Promise<ReviewTx[]> {
+  const [txRows, catRows, reimbRows] = await Promise.all([
+    db.select().from(transactions),
+    db.select({ id: categories.id, name: categories.name, kind: categories.kind }).from(categories),
+    db.select().from(transactionReimbursements),
+  ]);
+  const cats = new Map(catRows.map((c) => [c.id, c]));
+  const reimbursed = new Map<number, number>();
+  const credits = new Set<number>();
+  for (const r of reimbRows) {
+    reimbursed.set(r.expenseTransactionId, (reimbursed.get(r.expenseTransactionId) ?? 0) + r.amount);
+    credits.add(r.creditTransactionId);
+  }
+  return txRows
+    .filter((t) => t.month >= fromMonth || t.isReimbursable === 1)
+    .map((t) => {
+      const c = t.categoryId != null ? cats.get(t.categoryId) : undefined;
+      return {
+        id: t.id,
+        accountId: t.accountId,
+        month: t.month,
+        day: t.day,
+        amount: t.amount,
+        description: t.description,
+        categoryId: t.categoryId,
+        categoryName: c?.name ?? null,
+        categoryKind: (c?.kind as CategoryKind | undefined) ?? null,
+        sourceType: t.sourceType,
+        installmentTotal: t.installmentTotal,
+        linkedTransactionId: t.linkedTransactionId,
+        isReimbursable: t.isReimbursable === 1,
+        reimbursedAmount: reimbursed.get(t.id) ?? 0,
+        isReimbursementCredit: credits.has(t.id),
+      };
+    });
+}
+
+export async function getReviewDataAction(): Promise<ReviewData> {
+  const today = localToday();
+  const current = monthOf(today);
+  const input = await loadForecastInput({ today });
+  const forecast = buildForecast(input);
+  const accs = input.accounts;
+  const accName = new Map(accs.map((a) => [a.id, a.name]));
+  const activeIds = new Set(accs.map((a) => a.id));
+
+  const txs = (await loadReviewTxs(addMonths(current, -4))).filter((t) => activeIds.has(t.accountId));
+  const matchedIds = new Set(Object.keys(forecast.matches).map(Number));
+
+  const pendingReimbursements = txs
+    .filter((t) => t.isReimbursable && t.amount < 0 && Math.abs(t.amount) - t.reimbursedAmount > 0.01)
+    .map((t) => ({
+      id: t.id,
+      accountId: t.accountId,
+      date: `${t.month}-${String(t.day).padStart(2, "0")}`,
+      description: t.description,
+      amount: t.amount,
+      pending: Math.round((Math.abs(t.amount) - t.reimbursedAmount) * 100) / 100,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const uncategorizedRows = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(and(isNull(transactions.categoryId), gte(transactions.month, addMonths(current, -3))));
+
+  const snapshotAccounts = new Set(input.snapshots.map((s) => s.accountId));
+
+  return {
+    overdue: forecast.events.filter((e) => e.status === "overdue").sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    discrepancies: forecast.starts
+      .filter((s) => Math.abs(s.discrepancy) >= 1)
+      .map((s) => ({ ...s, accountName: accName.get(s.accountId) ?? "?" })),
+    pendingReimbursements,
+    reimbursementCandidates: findReimbursementCandidates(txs, addMonths(current, -2)),
+    recurringSuggestions: suggestRecurring(txs, input.recurring, matchedIds, current),
+    unpairedTransfers: findUnpairedTransfers(txs, activeIds, addMonths(current, -2)).map((u) => u.transaction),
+    uncategorizedCount: uncategorizedRows.length,
+    accountsWithoutSnapshot: accs
+      .filter((a) => a.type === "bank_account" && !snapshotAccounts.has(a.id))
+      .map((a) => ({ id: a.id, name: a.name })),
+    warnings: forecast.warnings,
+  };
+}
+
+const ADJUSTMENT_CATEGORY = "Ajuste de saldo";
+
+async function adjustmentCategoryId(): Promise<number> {
+  const found = await db.select().from(categories).where(eq(categories.name, ADJUSTMENT_CATEGORY));
+  if (found[0]) return found[0].id;
+  const [row] = await db
+    .insert(categories)
+    .values({ name: ADJUSTMENT_CATEGORY, type: "both", kind: "transfer", showInSummary: 0 })
+    .returning({ id: categories.id });
+  return row.id;
+}
+
+/** Lança a diferença entre o saldo do banco e o calculado, para o histórico bater. */
+export async function createBalanceAdjustmentAction(data: { accountId: number; date: string; amount: number }) {
+  if (!Number.isFinite(data.amount) || Math.abs(data.amount) < 0.01) return { success: false };
+  const categoryId = await adjustmentCategoryId();
+  await db.insert(transactions).values({
+    accountId: data.accountId,
+    month: monthOf(data.date),
+    day: dayOf(data.date),
+    description: ADJUSTMENT_CATEGORY,
+    categoryId,
+    amount: Math.round(data.amount * 100) / 100,
+  });
+  revalidatePath("/");
+  return { success: true };
+}
+
+/** Saldo informado à mão (ex.: conferido no app do banco). Substitui um manual do mesmo dia. */
+export async function recordBalanceSnapshotAction(data: { accountId: number; date: string; balance: number }) {
+  if (!Number.isFinite(data.balance) || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) return { success: false };
+  await db
+    .delete(accountBalanceSnapshots)
+    .where(
+      and(
+        eq(accountBalanceSnapshots.accountId, data.accountId),
+        eq(accountBalanceSnapshots.date, data.date),
+        eq(accountBalanceSnapshots.source, "manual"),
+      ),
+    );
+  await db.insert(accountBalanceSnapshots).values({ ...data, source: "manual" });
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function setTransactionReimbursableAction(transactionId: number, reimbursable: boolean) {
+  await db
+    .update(transactions)
+    .set({ isReimbursable: reimbursable ? 1 : 0 })
+    .where(eq(transactions.id, transactionId));
+  if (!reimbursable) {
+    await db.delete(transactionReimbursements).where(eq(transactionReimbursements.expenseTransactionId, transactionId));
+  }
+  revalidatePath("/");
+  return { success: true };
+}
+
+export interface ReimbursementLink {
+  id: number;
+  expenseTransactionId: number;
+  creditTransactionId: number;
+  amount: number;
+  expenseDescription: string;
+  creditDescription: string;
+}
+
+export async function getReimbursementLinksAction(transactionId: number): Promise<ReimbursementLink[]> {
+  const links = await db.select().from(transactionReimbursements);
+  const mine = links.filter((l) => l.expenseTransactionId === transactionId || l.creditTransactionId === transactionId);
+  if (mine.length === 0) return [];
+  const ids = new Set(mine.flatMap((l) => [l.expenseTransactionId, l.creditTransactionId]));
+  const txs = (await db.select({ id: transactions.id, description: transactions.description }).from(transactions)).filter((t) =>
+    ids.has(t.id),
+  );
+  const desc = new Map(txs.map((t) => [t.id, t.description]));
+  return mine.map((l) => ({
+    id: l.id,
+    expenseTransactionId: l.expenseTransactionId,
+    creditTransactionId: l.creditTransactionId,
+    amount: l.amount,
+    expenseDescription: desc.get(l.expenseTransactionId) ?? "",
+    creditDescription: desc.get(l.creditTransactionId) ?? "",
+  }));
+}
+
+/**
+ * Abate um crédito de uma despesa reembolsável. O valor fica limitado ao que falta da despesa
+ * e ao que sobra do crédito; a despesa é marcada como reembolsável se ainda não for.
+ */
+export async function linkReimbursementAction(data: { expenseId: number; creditId: number; amount?: number }) {
+  const [expense] = await db.select().from(transactions).where(eq(transactions.id, data.expenseId));
+  const [credit] = await db.select().from(transactions).where(eq(transactions.id, data.creditId));
+  if (!expense || !credit || expense.amount >= 0 || credit.amount <= 0) return { success: false, error: "Par inválido" };
+  const links = await db.select().from(transactionReimbursements);
+  const usedExpense = links.filter((l) => l.expenseTransactionId === expense.id).reduce((s, l) => s + l.amount, 0);
+  const usedCredit = links.filter((l) => l.creditTransactionId === credit.id).reduce((s, l) => s + l.amount, 0);
+  const max = Math.min(Math.abs(expense.amount) - usedExpense, credit.amount - usedCredit);
+  const amount = Math.round(Math.min(data.amount ?? max, max) * 100) / 100;
+  if (amount <= 0) return { success: false, error: "Nada a abater" };
+  await db.insert(transactionReimbursements).values({ expenseTransactionId: expense.id, creditTransactionId: credit.id, amount });
+  if (expense.isReimbursable !== 1) await db.update(transactions).set({ isReimbursable: 1 }).where(eq(transactions.id, expense.id));
+  revalidatePath("/");
+  return { success: true, amount };
+}
+
+export async function unlinkReimbursementAction(linkId: number) {
+  await db.delete(transactionReimbursements).where(eq(transactionReimbursements.id, linkId));
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function createRecurringFromSuggestionAction(s: {
+  accountId: number;
+  description: string;
+  day: number;
+  amount: number;
+  categoryId: number | null;
+}) {
+  await db.insert(recurringEntries).values({
+    accountId: s.accountId,
+    categoryId: s.categoryId,
+    description: s.description.trim(),
+    day: Math.min(31, Math.max(1, s.day)),
+    amount: s.amount,
+    active: 1,
+  });
+  revalidatePath("/");
+  return { success: true };
+}

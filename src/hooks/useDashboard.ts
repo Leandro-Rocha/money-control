@@ -1,31 +1,38 @@
 "use client";
 
 import { useState, useTransition, useEffect, useCallback, useMemo, useRef } from "react";
-import { MonthData, RecurringEntryUI, RunwayData, RunwayHorizon, GlobalSearchResultItem } from "@/lib/types";
+import { MonthData, RecurringEntryUI, GlobalSearchResultItem } from "@/lib/types";
 import { getMonthData } from "@/lib/actions/transactions";
 import { getRecurringEntries } from "@/lib/actions/recurring";
 import { getWealthData, WealthData } from "@/lib/actions/wealth";
-import { getRunwayData } from "@/lib/actions/runway";
+import { getForecastAction, type ForecastPayload } from "@/lib/actions/forecast";
+import type { SettingsTab } from "@/components/SettingsDrawer";
 
-export type ViewMode = "cashflow" | "wealth" | "runway";
+export type ViewMode = "today" | "cashflow" | "plan" | "wealth" | "review";
+export const VIEW_MODES: ViewMode[] = ["today", "cashflow", "plan", "wealth", "review"];
+export const DEFAULT_VIEW: ViewMode = "today";
+
+export function parseViewMode(v: string | null | undefined): ViewMode {
+  return VIEW_MODES.includes(v as ViewMode) ? (v as ViewMode) : DEFAULT_VIEW;
+}
 export type AccountTypeCreation = "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | null;
 export type TableDensity = "compact" | "comfortable";
 
 export function useDashboard(
   initialData: MonthData,
-  initialView: ViewMode = "cashflow",
+  initialView: ViewMode = DEFAULT_VIEW,
   initialWealthData: WealthData | null = null,
-  initialRunwayData: RunwayData | null = null
+  initialForecast: ForecastPayload | null = null
 ) {
   const [currentMonth, setCurrentMonth] = useState(initialData.month);
   const [data, setData] = useState<MonthData>(initialData);
   const [viewMode, setViewMode] = useState<ViewMode>(initialView);
   const [wealthData, setWealthData] = useState<WealthData | null>(initialWealthData);
-  const [runwayData, setRunwayData] = useState<RunwayData | null>(initialRunwayData);
-  const [runwayHorizon, setRunwayHorizon] = useState<RunwayHorizon>(6);
+  const [forecast, setForecast] = useState<ForecastPayload | null>(initialForecast);
+  // Incrementa a cada alteração de dados: telas que carregam sozinhas (Revisar) recarregam.
+  const [dataVersion, setDataVersion] = useState(0);
   const [isPending, startTransition] = useTransition();
 
-  const [recurringOpen, setRecurringOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importInitialAccountId, setImportInitialAccountId] = useState<number | undefined>(undefined);
   const [importAutoFetch, setImportAutoFetch] = useState(false);
@@ -49,6 +56,13 @@ export function useDashboard(
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialAccountType, setSettingsInitialAccountType] = useState<AccountTypeCreation>(null);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab | null>(null);
+
+  const openSettingsTab = (tab: SettingsTab) => {
+    setSettingsInitialAccountType(null);
+    setSettingsInitialTab(tab);
+    setSettingsOpen(true);
+  };
   const [recurringEntries, setRecurringEntries] = useState<RecurringEntryUI[]>([]);
 
   const handleOpenCreateAccount = (type: "investment" | "financing" | "loan_receivable") => {
@@ -166,21 +180,10 @@ export function useDashboard(
     });
   }, [currentMonth]);
 
-  const loadRunway = useCallback(async (h?: RunwayHorizon) => {
-    const horizonToLoad = h ?? runwayHorizon;
-    startTransition(async () => {
-      const rData = await getRunwayData(currentMonth, horizonToLoad);
-      setRunwayData(rData);
-    });
-  }, [currentMonth, runwayHorizon]);
-
-  const handleHorizonChange = useCallback((horizon: RunwayHorizon) => {
-    setRunwayHorizon(horizon);
-    startTransition(async () => {
-      const rData = await getRunwayData(currentMonth, horizon);
-      setRunwayData(rData);
-    });
-  }, [currentMonth]);
+  const loadForecast = useCallback(async () => {
+    const f = await getForecastAction();
+    setForecast(f);
+  }, []);
 
   const isInitialMount = useRef(true);
 
@@ -189,21 +192,21 @@ export function useDashboard(
       isInitialMount.current = false;
       if (viewMode === "wealth" && !wealthData) {
         loadWealth();
-      } else if (viewMode === "runway" && !runwayData) {
-        loadRunway();
+      } else if ((viewMode === "today" || viewMode === "plan") && !forecast) {
+        startTransition(loadForecast);
       }
       return;
     }
 
     if (viewMode === "wealth") {
       loadWealth();
-    } else if (viewMode === "runway") {
-      loadRunway();
+    } else if (viewMode === "today" || viewMode === "plan") {
+      startTransition(loadForecast);
     }
-    
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (viewMode === "cashflow") {
+      if (viewMode === DEFAULT_VIEW) {
         params.delete("view");
       } else {
         params.set("view", viewMode);
@@ -211,7 +214,7 @@ export function useDashboard(
       const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
       window.history.replaceState(null, "", newUrl);
     }
-  }, [viewMode, loadWealth, loadRunway]);
+  }, [viewMode, loadWealth, loadForecast]);
 
   const loadMonth = useCallback(
     (monthStr: string) => {
@@ -228,21 +231,16 @@ export function useDashboard(
         if (viewMode === "wealth") {
           const wData = await getWealthData(monthStr);
           setWealthData(wData);
-        } else if (viewMode === "runway") {
-          const rData = await getRunwayData(monthStr, runwayHorizon);
-          setRunwayData(rData);
         }
       });
     },
-    [viewMode, runwayHorizon]
+    [viewMode]
   );
 
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const v = params.get("view");
-      const nextView: ViewMode = v === "wealth" || v === "runway" ? v : "cashflow";
-      setViewMode(nextView);
+      setViewMode(parseViewMode(params.get("view")));
 
       const m = params.get("month");
       if (m && /^\d{4}-\d{2}$/.test(m) && m !== currentMonth) {
@@ -261,10 +259,10 @@ export function useDashboard(
       if (viewMode === "wealth") {
         const wData = await getWealthData(currentMonth);
         setWealthData(wData);
-      } else if (viewMode === "runway") {
-        const rData = await getRunwayData(currentMonth, runwayHorizon);
-        setRunwayData(rData);
       }
+      // A previsão depende de tudo: recarrega se já foi carregada uma vez.
+      if (forecast || viewMode === "today" || viewMode === "plan") await loadForecast();
+      setDataVersion((v) => v + 1);
     });
   };
 
@@ -377,7 +375,6 @@ export function useDashboard(
 
   const totalBankBalance = bankAccounts.reduce((sum, a) => sum + (a.finalBalance || 0), 0);
   const totalCreditCardExpense = creditCards.reduce((sum, a) => sum + (a.totalExpense || 0), 0);
-  const netCashPosition = totalBankBalance - totalCreditCardExpense;
 
   const uncategorizedCount = useMemo(() => {
     let count = 0;
@@ -401,8 +398,9 @@ export function useDashboard(
     wealthData,
     setWealthData,
     isPending,
-    recurringOpen,
-    setRecurringOpen,
+    openSettingsTab,
+    settingsInitialTab,
+    setSettingsInitialTab,
     importOpen,
     setImportOpen,
     importInitialAccountId,
@@ -467,13 +465,9 @@ export function useDashboard(
     globalBalance,
     totalBankBalance,
     totalCreditCardExpense,
-    netCashPosition,
-    runwayData,
-    setRunwayData,
-    runwayHorizon,
-    setRunwayHorizon,
-    loadRunway,
-    handleHorizonChange,
+    forecast,
+    loadForecast,
+    dataVersion,
   };
 }
 
