@@ -1,119 +1,20 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import path from "path";
 import * as schema from "../db/schema";
 
+/**
+ * Banco em memória com o mesmo schema de produção: aplica as migrações reais de `drizzle/`.
+ */
 export function createTestDb() {
   const sqlite = new Database(":memory:");
-  
+
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
 
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('bank_account', 'credit_card', 'investment', 'financing', 'loan_receivable', 'other')),
-      color TEXT NOT NULL DEFAULT 'orange',
-      display_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      default_payment_account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
-      due_day INTEGER,
-      financing_total_amount REAL,
-      financing_remaining_amount REAL,
-      financing_installments_total INTEGER,
-      financing_installments_paid INTEGER,
-      financing_installment_amount REAL,
-      pluggy_account_id TEXT,
-      pluggy_item_id TEXT,
-      pluggy_credential_id TEXT
-    );
+  const db = drizzle(sqlite, { schema });
+  migrate(db, { migrationsFolder: path.resolve(__dirname, "../../drizzle") });
 
-    CREATE TABLE IF NOT EXISTS monthly_initial_balances (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-      month TEXT NOT NULL,
-      initial_balance REAL NOT NULL DEFAULT 0,
-      UNIQUE(account_id, month)
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
-      type TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('income', 'expense', 'both')),
-      color TEXT,
-      show_in_summary INTEGER NOT NULL DEFAULT 1,
-      budget REAL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-      month TEXT NOT NULL,
-      purchase_date TEXT,
-      day INTEGER NOT NULL,
-      description TEXT NOT NULL,
-      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      amount REAL NOT NULL,
-      installment_current INTEGER,
-      installment_total INTEGER,
-      notes TEXT,
-      linked_transaction_id INTEGER,
-      original_description TEXT,
-      source_type TEXT,
-      source_id INTEGER,
-      pluggy_transaction_id TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS recurring_entries (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      description TEXT NOT NULL,
-      day INTEGER NOT NULL,
-      amount REAL NOT NULL,
-      month INTEGER,
-      active INTEGER NOT NULL DEFAULT 1,
-      is_estimate INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS dismissed_projections (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-      month TEXT NOT NULL,
-      source_type TEXT NOT NULL CHECK(source_type IN ('installment', 'recurring', 'credit_card_bill')),
-      source_id INTEGER NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(account_id, month, source_type, source_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS transaction_rules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      pattern TEXT NOT NULL,
-      target_description TEXT NOT NULL,
-      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      color TEXT NOT NULL DEFAULT 'slate',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS transaction_tags (
-      transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
-      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (transaction_id, tag_id)
-    );
-  `);
-
-  return drizzle(sqlite, { schema });
+  return db;
 }

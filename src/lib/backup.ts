@@ -27,6 +27,11 @@ export interface CanonicalDump {
     recurringEntries: any[];
     transactionRules: any[];
     dismissedProjections: any[];
+    tags?: any[];
+    transactionTags?: any[];
+    accountBalanceSnapshots?: any[];
+    transactionReimbursements?: any[];
+    appSettings?: any[];
   };
 }
 
@@ -116,7 +121,7 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
     try {
       const exists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
       if (!exists) return [];
-      return db.prepare(`SELECT * FROM ${tableName} ORDER BY id ASC`).all();
+      return db.prepare(`SELECT * FROM ${tableName} ORDER BY rowid ASC`).all();
     } catch {
       return [];
     }
@@ -129,6 +134,11 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
   const recurringEntries = safeQuery("recurring_entries");
   const transactionRules = safeQuery("transaction_rules");
   const dismissedProjections = safeQuery("dismissed_projections");
+  const tags = safeQuery("tags");
+  const transactionTags = safeQuery("transaction_tags");
+  const accountBalanceSnapshots = safeQuery("account_balance_snapshots");
+  const transactionReimbursements = safeQuery("transaction_reimbursements");
+  const appSettings = safeQuery("app_settings");
 
   const counts: Record<string, number> = {
     accounts: accounts.length,
@@ -138,11 +148,16 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
     recurringEntries: recurringEntries.length,
     transactionRules: transactionRules.length,
     dismissedProjections: dismissedProjections.length,
+    tags: tags.length,
+    transactionTags: transactionTags.length,
+    accountBalanceSnapshots: accountBalanceSnapshots.length,
+    transactionReimbursements: transactionReimbursements.length,
+    appSettings: appSettings.length,
   };
 
   return {
     meta: {
-      schemaVersion: 5,
+      schemaVersion: 6,
       exportedAt: new Date().toISOString(),
       appVersion,
       counts,
@@ -155,6 +170,11 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
       recurringEntries,
       transactionRules,
       dismissedProjections,
+      tags,
+      transactionTags,
+      accountBalanceSnapshots,
+      transactionReimbursements,
+      appSettings,
     },
   };
 }
@@ -634,13 +654,18 @@ export function restoreBackup(
       db.pragma("foreign_keys = OFF");
 
       const tableOrder = [
+        "transaction_reimbursements",
+        "transaction_tags",
+        "account_balance_snapshots",
         "dismissed_projections",
         "recurring_entries",
         "transaction_rules",
         "transactions",
+        "tags",
         "categories",
         "monthly_initial_balances",
         "accounts",
+        "app_settings",
       ];
 
       const recordsRestored: Record<string, number> = {};
@@ -662,6 +687,11 @@ export function restoreBackup(
           transactionRules: "transaction_rules",
           recurringEntries: "recurring_entries",
           dismissedProjections: "dismissed_projections",
+          tags: "tags",
+          transactionTags: "transaction_tags",
+          accountBalanceSnapshots: "account_balance_snapshots",
+          transactionReimbursements: "transaction_reimbursements",
+          appSettings: "app_settings",
         };
 
         for (const [key, tableName] of Object.entries(mapping)) {
@@ -840,13 +870,18 @@ export async function restoreLiveDatabase(
       db.prepare("ATTACH DATABASE ? AS backup_source").run(sourcePath);
 
       const tableOrder = [
+        "transaction_reimbursements",
+        "transaction_tags",
+        "account_balance_snapshots",
         "dismissed_projections",
         "recurring_entries",
         "transaction_rules",
         "transactions",
+        "tags",
         "categories",
         "monthly_initial_balances",
         "accounts",
+        "app_settings",
       ];
 
       const recordsRestored: Record<string, number> = {};
@@ -930,13 +965,18 @@ export async function restoreLiveDatabase(
       }
 
       const tableOrder = [
+        "transaction_reimbursements",
+        "transaction_tags",
+        "account_balance_snapshots",
         "dismissed_projections",
         "recurring_entries",
         "transaction_rules",
         "transactions",
+        "tags",
         "categories",
         "monthly_initial_balances",
         "accounts",
+        "app_settings",
       ];
 
       const recordsRestored: Record<string, number> = {};
@@ -959,6 +999,11 @@ export async function restoreLiveDatabase(
           transactionRules: "transaction_rules",
           recurringEntries: "recurring_entries",
           dismissedProjections: "dismissed_projections",
+          tags: "tags",
+          transactionTags: "transaction_tags",
+          accountBalanceSnapshots: "account_balance_snapshots",
+          transactionReimbursements: "transaction_reimbursements",
+          appSettings: "app_settings",
         };
 
         for (const [key, tableName] of Object.entries(mapping)) {

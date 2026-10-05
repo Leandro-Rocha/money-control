@@ -70,7 +70,7 @@ describe("backup module", () => {
 
     const dump = exportCanonicalDump(testDb, "0.1.0");
 
-    expect(dump.meta.schemaVersion).toBe(5);
+    expect(dump.meta.schemaVersion).toBe(6);
     expect(dump.meta.appVersion).toBe("0.1.0");
     expect(dump.meta.counts.accounts).toBe(1);
     expect(dump.meta.counts.categories).toBe(1);
@@ -196,7 +196,7 @@ describe("backup module", () => {
     // Verifica manifest
     const manifest = JSON.parse(fs.readFileSync(res1.manifestPath!, "utf-8"));
     expect(manifest.lastBackupDate).toBe("2026-09-06");
-    expect(manifest.schemaVersion).toBe(5);
+    expect(manifest.schemaVersion).toBe(6);
     expect(manifest.storageType).toBe("local");
 
     // Segundo disparo (mesmo dia): deve pular por idempotência

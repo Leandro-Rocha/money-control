@@ -18,7 +18,22 @@ export const accounts = sqliteTable("accounts", {
   pluggyAccountId: text("pluggy_account_id"),
   pluggyItemId: text("pluggy_item_id"),
   pluggyCredentialId: text("pluggy_credential_id"),
+  isLiquid: integer("is_liquid").notNull().default(0), // 1 = investimento com liquidez diária (reserva acessível)
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const accountBalanceSnapshots = sqliteTable("account_balance_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  accountId: integer("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // Format: "YYYY-MM-DD"
+  balance: real("balance").notNull(),
+  source: text("source", { enum: ["pluggy", "manual"] }).notNull().default("pluggy"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
 });
 
 export const monthlyInitialBalances = sqliteTable("monthly_initial_balances", {
@@ -36,6 +51,8 @@ export const categories = sqliteTable("categories", {
   color: text("color"),
   showInSummary: integer("show_in_summary").notNull().default(1),
   budget: real("budget"),
+  // Natureza do movimento: define como o motor de previsão trata a categoria
+  kind: text("kind", { enum: ["regular", "transfer", "investment", "debt", "card_payment"] }).notNull().default("regular"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -56,6 +73,15 @@ export const transactions = sqliteTable("transactions", {
   sourceType: text("source_type", { enum: ["installment", "recurring", "credit_card_bill"] }),
   sourceId: integer("source_id"),
   pluggyTransactionId: text("pluggy_transaction_id"),
+  isReimbursable: integer("is_reimbursable").notNull().default(0),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const transactionReimbursements = sqliteTable("transaction_reimbursements", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  expenseTransactionId: integer("expense_transaction_id").notNull().references(() => transactions.id, { onDelete: "cascade" }),
+  creditTransactionId: integer("credit_transaction_id").notNull().references(() => transactions.id, { onDelete: "cascade" }),
+  amount: real("amount").notNull(), // valor positivo abatido da despesa
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -79,6 +105,10 @@ export const recurringEntries = sqliteTable("recurring_entries", {
   month: integer("month"), // 1-12 (null = every month, 1-12 = annual in specific month)
   active: integer("active").notNull().default(1), // 1 = active, 0 = inactive
   isEstimate: integer("is_estimate").notNull().default(0), // 1 = estimativa orçamentária redutível, 0 = compromisso fixo
+  frequency: text("frequency", { enum: ["monthly", "yearly", "every_n_months"] }).notNull().default("monthly"),
+  intervalMonths: integer("interval_months").notNull().default(1),
+  startMonth: text("start_month"), // "YYYY-MM" (null = sem início)
+  endMonth: text("end_month"), // "YYYY-MM" inclusive (null = sem fim)
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -116,6 +146,9 @@ export type NewTransaction = typeof transactions.$inferInsert;
 export type RecurringEntry = typeof recurringEntries.$inferSelect;
 export type NewRecurringEntry = typeof recurringEntries.$inferInsert;
 export type DismissedProjection = typeof dismissedProjections.$inferSelect;
+
+export type AccountBalanceSnapshot = typeof accountBalanceSnapshots.$inferSelect;
+export type TransactionReimbursement = typeof transactionReimbursements.$inferSelect;
 
 export type TransactionRule = typeof transactionRules.$inferSelect;
 export type NewTransactionRule = typeof transactionRules.$inferInsert;
