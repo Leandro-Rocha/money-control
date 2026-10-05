@@ -23,7 +23,9 @@ export const db = drizzle(sqlite, { schema });
 export function initDatabase() {
   migrate(db, { migrationsFolder: "drizzle" });
 
-  if (!isTest) {
+  // `next build` importa este módulo para pré-renderizar: não pode disparar backup, lembretes nem Pluggy.
+  const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+  if (!isTest && !isBuild) {
     setTimeout(() => {
       try {
         const { startBackupScheduler } = require("@/lib/backup");
