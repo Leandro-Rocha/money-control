@@ -187,7 +187,8 @@ export async function getProjectedRecurring(targetMonth: string): Promise<Transa
       c.color as categoryColor,
       1 as isProjected,
       'recurring' as projectionSourceType,
-      r.id as projectionSourceId
+      r.id as projectionSourceId,
+      r.is_estimate as isEstimate
     FROM recurring_entries r
     LEFT JOIN categories c ON r.category_id = c.id
     WHERE r.active = 1
@@ -202,5 +203,9 @@ export async function getProjectedRecurring(targetMonth: string): Promise<Transa
   `;
 
   const rows = await db.all(query) as any[];
-  return rows.map(r => ({ ...r, isProjected: r.isProjected === 1 })) as TransactionWithCategory[];
+  return rows.map(r => ({
+    ...r,
+    isProjected: r.isProjected === 1,
+    isEstimate: r.isEstimate === 1,
+  })) as TransactionWithCategory[];
 }

@@ -181,7 +181,7 @@ describe("Pluggy Integration Client", () => {
       expect(mockFetch).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining(
-          "https://api.pluggy.test/transactions?accountId=acc-uuid-123&from=2026-08-01&to=2026-08-31"
+          "https://api.pluggy.test/v2/transactions?accountId=acc-uuid-123&dateFrom=2026-08-01&dateTo=2026-08-31"
         ),
         expect.objectContaining({
           method: "GET",
@@ -190,7 +190,7 @@ describe("Pluggy Integration Client", () => {
       );
     });
 
-    it("handles multi-page pagination correctly", async () => {
+    it("handles multi-page pagination correctly using next cursor", async () => {
       const page1 = [{ id: "tx-1", description: "Item 1", amount: -10, date: "2026-08-01", status: "POSTED" }];
       const page2 = [{ id: "tx-2", description: "Item 2", amount: -20, date: "2026-08-02", status: "POSTED" }];
 
@@ -206,9 +206,7 @@ describe("Pluggy Integration Client", () => {
           ok: true,
           json: async () => ({
             results: page1,
-            page: 1,
-            totalPages: 2,
-            total: 2,
+            next: "?accountId=acc-uuid-123&after=cursor-2",
           }),
         })
         // Page 2
@@ -216,9 +214,7 @@ describe("Pluggy Integration Client", () => {
           ok: true,
           json: async () => ({
             results: page2,
-            page: 2,
-            totalPages: 2,
-            total: 2,
+            next: null,
           }),
         });
       global.fetch = mockFetch;
@@ -230,6 +226,11 @@ describe("Pluggy Integration Client", () => {
       expect(txs).toHaveLength(2);
       expect(txs.map((t) => t.id)).toEqual(["tx-1", "tx-2"]);
       expect(mockFetch).toHaveBeenCalledTimes(3); // auth + page 1 + page 2
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        3,
+        expect.stringContaining("after=cursor-2"),
+        expect.anything()
+      );
     });
 
     it("clears cache and throws error on 401 Unauthorized", async () => {
@@ -255,7 +256,7 @@ describe("Pluggy Integration Client", () => {
       expect(getCachedPluggyToken()).toBeNull();
     });
 
-    it("passes billId in query parameters and parses creditCardMetadata", async () => {
+    it("filters by billId in memory and parses creditCardMetadata", async () => {
       const mockTransactions = [
         {
           id: "tx-cc-1",
@@ -271,6 +272,20 @@ describe("Pluggy Integration Client", () => {
             purchaseDate: "2026-08-01",
           },
         },
+        {
+          id: "tx-cc-2",
+          description: "OUTRA COMPRA",
+          amount: 50.0,
+          date: "2026-08-11T14:30:00.000Z",
+          status: "POSTED",
+          type: "DEBIT",
+          creditCardMetadata: {
+            installmentNumber: 1,
+            totalInstallments: 1,
+            billId: "bill-september",
+            purchaseDate: "2026-08-11",
+          },
+        },
       ];
 
       const mockFetch = vi
@@ -283,9 +298,7 @@ describe("Pluggy Integration Client", () => {
           ok: true,
           json: async () => ({
             results: mockTransactions,
-            page: 1,
-            totalPages: 1,
-            total: 1,
+            next: null,
           }),
         });
       global.fetch = mockFetch;
@@ -296,16 +309,17 @@ describe("Pluggy Integration Client", () => {
       });
 
       expect(txs).toHaveLength(1);
+      expect(txs[0].id).toBe("tx-cc-1");
       expect(txs[0].creditCardMetadata?.installmentNumber).toBe(1);
       expect(txs[0].creditCardMetadata?.totalInstallments).toBe(10);
       expect(mockFetch).toHaveBeenNthCalledWith(
         2,
-        expect.stringContaining("accountId=cc-acc-123"),
+        expect.stringContaining("v2/transactions?accountId=cc-acc-123"),
         expect.anything()
       );
-      expect(mockFetch).toHaveBeenNthCalledWith(
+      expect(mockFetch).not.toHaveBeenNthCalledWith(
         2,
-        expect.stringContaining("billId=bill-august"),
+        expect.stringContaining("billId="),
         expect.anything()
       );
     });

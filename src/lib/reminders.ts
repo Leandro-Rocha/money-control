@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { DueItem, getDueDatesAgenda } from "./due-dates";
+export type { DueItem };
 import { getMonthData } from "./actions/transactions";
 import { formatCurrency } from "./format";
 import { addMonths } from "./date-helpers";

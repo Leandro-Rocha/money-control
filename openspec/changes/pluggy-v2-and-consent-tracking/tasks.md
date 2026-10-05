@@ -1,6 +1,6 @@
 ## 1. Migração para Pluggy API V2 (`fetchPluggyTransactions`)
 
-- [ ] 1.1 Atualizar a função `fetchPluggyTransactions` em `src/lib/integrations/pluggy.ts` para consumir `GET /v2/transactions` com paginação por cursor (`next`), mapeando filtros de data para `dateFrom` e `dateTo`, e validar via testes unitários em `src/lib/integrations/pluggy.test.ts`.
+- [x] 1.1 Atualizar a função `fetchPluggyTransactions` em `src/lib/integrations/pluggy.ts` para consumir `GET /v2/transactions` com paginação por cursor (`next`), mapeando filtros de data para `dateFrom` e `dateTo`, e validar via testes unitários em `src/lib/integrations/pluggy.test.ts`.
 - [ ] 1.2 Atualizar chamadas e tratamento de erros em `src/lib/actions/pluggy.ts` para identificar erros de consentimento revogado ou expirado retornados pelo endpoint V2.
 
 ## 2. Consulta de Consentimento e Vigência

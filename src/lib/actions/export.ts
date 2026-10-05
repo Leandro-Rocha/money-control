@@ -158,10 +158,13 @@ export async function getExportDataForPeriod(
     }
   }
 
-  // Sort transactions chronologically
+  // Sort transactions chronologically, with income before debits on the same day
   allTransactions.sort((a, b) => {
     if (a.month !== b.month) return a.month.localeCompare(b.month);
     if (a.day !== b.day) return a.day - b.day;
+    const isIncomeA = a.amount > 0;
+    const isIncomeB = b.amount > 0;
+    if (isIncomeA !== isIncomeB) return isIncomeA ? -1 : 1;
     return a.description.localeCompare(b.description);
   });
 

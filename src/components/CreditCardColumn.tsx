@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Account, AccountData, Category, Tag, TransactionWithCategory } from "@/lib/types";
 import { formatCurrency, parseNumberInput } from "@/lib/format";
-import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, Repeat, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, CreditCard, Check, X, Repeat, RefreshCw, Copy } from "lucide-react";
 import { createTransaction, deleteTransaction, updateTransaction } from "@/lib/actions/transactions";
 import { payCreditCardBillAction } from "@/lib/actions/projections";
 import { isCreditCardBillPaid, calculateDueStatus } from "@/lib/due-dates";
@@ -22,6 +22,7 @@ import { sortCreditCardTransactions } from "@/lib/sorting";
 import { cn } from "@/lib/utils";
 import { TableDensity } from "@/hooks/useDashboard";
 import { useAccountColumnState } from "@/hooks/useAccountColumnState";
+import { getDuplicateStats } from "@/lib/duplicates";
 
 interface CreditCardColumnProps {
   data: AccountData;
@@ -32,6 +33,7 @@ interface CreditCardColumnProps {
   availableTags?: Tag[];
   onRefresh: () => void;
   onSyncPluggy?: (accountId: number) => void;
+  onOpenDuplicates?: (accountId: number) => void;
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
@@ -53,6 +55,7 @@ export default function CreditCardColumn({
   availableTags = [],
   onRefresh,
   onSyncPluggy,
+  onOpenDuplicates,
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
@@ -62,6 +65,10 @@ export default function CreditCardColumn({
   highlightedTxId,
   density = "compact",
 }: CreditCardColumnProps) {
+  const duplicateStats = useMemo(
+    () => getDuplicateStats(data.transactions),
+    [data.transactions]
+  );
   const {
     isExpanded,
     effectiveExpanded,
@@ -227,6 +234,33 @@ export default function CreditCardColumn({
                     className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {onOpenDuplicates && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenDuplicates(data.account.id);
+                    }}
+                    title={
+                      duplicateStats.hasDuplicates
+                        ? `Identificar duplicadas (${duplicateStats.groupsCount} grupo(s) identificado(s))`
+                        : "Identificar transações duplicadas nesta conta"
+                    }
+                    className={cn(
+                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                      duplicateStats.hasDuplicates
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800"
+                    )}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>
+                      {duplicateStats.hasDuplicates
+                        ? `${duplicateStats.groupsCount} duplicada${duplicateStats.groupsCount > 1 ? "s" : ""}`
+                        : "Duplicadas"}
+                    </span>
                   </button>
                 )}
                 {hasActiveFilter && (

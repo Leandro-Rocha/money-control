@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Análise - Money Control</title>
+    <style>
+        :root {
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --danger-bg: #fef2f2;
+            --success: #10b981;
+            --success-bg: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-bg: #fffbeb;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            max-width: 1000px;
+            margin: auto;
+        }
+        h1, h2, h3 {
+            color: var(--text-main);
+            margin-top: 0;
+        }
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+        p.subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+        .section-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .section-card h2 {
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background-color: #f1f5f9;
+            color: #334155;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-right: 0.5rem;
+        }
+        .badge.danger { background-color: var(--danger-bg); color: var(--danger); }
+        .badge.success { background-color: var(--success-bg); color: var(--success); }
+        .badge.warning { background-color: var(--warning-bg); color: var(--warning); }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Auditoria do Sistema</h1>
+    <p class="subtitle">Análise Profunda de Arquitetura, Código Morto, UI/UX e Otimização Visual.</p>
+
+    <div class="section-card">
+        <h2>1. Código Morto e Redundâncias</h2>
+        <p>A análise estática do projeto revelou arquivos, dependências e código exportado que não estão sendo consumidos em nenhum lugar do sistema atual. Limpar esses itens melhora o tempo de build, reduz complexidade e evita confusão no futuro.</p>
+        
+        <h3>Arquivos Obsoletos</h3>
+        <ul>
+            <li><span class="badge danger">REMOVER</span><code>scripts/send-due-reminders.ts</code> - Não referenciado.</li>
+            <li><span class="badge danger">REMOVER</span><code>scripts/sync-pluggy-morning.ts</code> - Não referenciado.</li>
+        </ul>
+
+        <h3>Dependências Não Utilizadas</h3>
+        <ul>
+            <li><span class="badge warning">UNINSTALL</span><code>@base-ui/react</code> (package.json)</li>
+            <li><span class="badge warning">UNINSTALL</span><code>shadcn</code> (package.json - a CLI não precisa ficar nos deps padrão se já foi usada)</li>
+            <li><span class="badge warning">UNINSTALL</span><code>tw-animate-css</code> (package.json)</li>
+            <li><span class="badge warning">UNINSTALL</span><code>@testing-library/user-event</code>, <code>eslint-config-next</code> (devDependencies sem uso)</li>
+        </ul>
+
+        <h3>Funções e Exports Orfãos (Refatorar ou Remover)</h3>
+        <ul>
+            <li><span class="badge danger">LIXO</span><code>initDatabase</code> (em <code>src/db/index.ts</code>)</li>
+            <li><span class="badge danger">LIXO</span><code>runMorningPluggySync</code> (em <code>src/lib/pluggy-sync.ts</code>)</li>
+            <li><span class="badge danger">LIXO</span><code>getDueReminders</code> (em <code>src/lib/reminders.ts</code>)</li>
+            <li><span class="badge danger">LIXO</span><code>filterAccountTransactions</code>, <code>undismissProjection</code>, <code>cleanupDuplicateTransactions</code>, <code>shouldShowPurchaseDate</code>, <code>getPluggyBaseUrl</code>, <code>compareCreditCardTransactions</code>, <code>formatCurrencyBRL</code>.</li>
+        </ul>
+    </div>
+
+    <div class="section-card">
+        <h2>2. Desativação da Ingestão de TSV</h2>
+        <p>A funcionalidade de colagem de TSV (via extratos parseados por IA local ou manual) foi classificada como <strong>completamente obsoleta</strong>.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Componente</th>
+                    <th>Ação Necessária</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>MonthHeader.tsx</code></td>
+                    <td>Remover o botão "Importação Manual (Colar TSV de extrato)" do dropdown de ações.</td>
+                </tr>
+                <tr>
+                    <td><code>ImportStagingModal.tsx</code></td>
+                    <td>Remover as opções de IA e Manual, removendo os prompts do parser de TSV (linhas 141, 158, etc.).</td>
+                </tr>
+                <tr>
+                    <td><code>staging/StagingManualStep.tsx</code></td>
+                    <td>Deletar arquivo/componente, já que o fluxo manual/TSV não existirá mais.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Impacto:</strong> O sistema ficará mais limpo, focando em conexões Open Finance (Pluggy) e inserções/edições manuais diretas na tabela, em vez de depender de cópia e cola de TSV.</p>
+    </div>
+
+    <div class="section-card">
+        <h2>3. UI/UX: Avaliação e Recomendações</h2>
+        <p>A usabilidade atual é boa, mas visualmente o sistema foca em um aspecto muito utilitário. Para tornar a interface "agradável e visualmente impressionante", é necessário transcender o design padrão do Tailwind/Shadcn aplicando hierarquia refinada e texturas modernas.</p>
+        
+        <h3>O que precisa ser melhorado?</h3>
+        <ul>
+            <li>
+                <strong>Sobrecarga Cognitiva no Cabeçalho (MonthHeader):</strong> O <code>MonthHeader</code> possui botões demais e um dropdown "Ações" com 7 itens soltos (Transferências, Sync, Puxar Recorrentes, Duplicadas, Insights, Exportar, Importar). Isso deve ser reorganizado em blocos lógicos ou agrupados por contexto.
+            </li>
+            <li>
+                <strong>Design Flat em Excesso:</strong> Os cards como <code>BankAccountColumn</code> utilizam fundos cinzas chapados (<code>bg-slate-50</code>). Pode-se aplicar efeitos sutis como glassmorphism, sombras mais suaves (shadow-sm, shadow-md) e gradientes leves de fundo (ex: <code>bg-gradient-to-b from-white to-slate-50</code>).
+            </li>
+            <li>
+                <strong>Aderência Estrita aos "UI Standards":</strong>
+                Algumas telas não usam plenamente as primitivas. O modo "Patrimônio" tem loading spinners crus na tela inicial em vez de usar <em>Skeletons</em> coerentes com a UI. O <code>PageHeader</code> não está sendo consistentemente utilizado para padronizar títulos e ações da página.
+            </li>
+        </ul>
+
+        <h3>Plano de Ação para Impressionar Visualmente</h3>
+        <ul>
+            <li><span class="badge success">UI</span><strong>Refatoração Temática:</strong> No <code>globals.css</code>, ajustar os tons de fundo da paleta. Trocar a tipografia para uma fonte moderna, como <em>Geist</em> ou <em>Inter</em>, para um feeling mais refinado.</li>
+            <li><span class="badge success">UX</span><strong>Command Menu / Palette:</strong> Substituir os botões excessivos do <code>MonthHeader</code> por um "Command Menu" central (<kbd>Ctrl+K</kbd> / <kbd>⌘+K</kbd>) que contém todas as ações globais (Importar, Puxar Recorrentes, Insights), limpando a barra superior.</li>
+            <li><span class="badge success">UI</span><strong>Modais Aprimorados:</strong> Garantir que os modais utilizem o <code>ModalShell</code> com o backdrop blur para um destaque cinematográfico.</li>
+            <li><span class="badge success">UI</span><strong>Micro-Interações:</strong> Adicionar transições suaves (<code>transition-all duration-300</code>) nos cards, hover states nos lançamentos bancários e animações de entrada nos componentes de estatística.</li>
+        </ul>
+    </div>
+
+</body>
+</html>

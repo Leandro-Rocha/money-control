@@ -56,6 +56,13 @@ export function compareCreditCardTransactions(
   const dateDiff = dateA.localeCompare(dateB);
   if (dateDiff !== 0) return dateDiff;
 
+  // Receitas/estornos antes dos débitos no mesmo dia
+  const isIncomeA = a.amount > 0;
+  const isIncomeB = b.amount > 0;
+  if (isIncomeA !== isIncomeB) {
+    return isIncomeA ? -1 : 1;
+  }
+
   // Desempate por descrição e id
   const descDiff = (a.description || "").localeCompare(b.description || "");
   if (descDiff !== 0) return descDiff;
@@ -67,4 +74,24 @@ export function sortCreditCardTransactions(
   transactions: TransactionWithCategory[]
 ): TransactionWithCategory[] {
   return [...transactions].sort(compareCreditCardTransactions);
+}
+
+export function compareTransactions(
+  a: { day: number; amount: number; id?: number },
+  b: { day: number; amount: number; id?: number }
+): number {
+  if (a.day !== b.day) {
+    return a.day - b.day;
+  }
+
+  // Receitas antes dos débitos no mesmo dia
+  const isIncomeA = a.amount > 0;
+  const isIncomeB = b.amount > 0;
+  if (isIncomeA !== isIncomeB) {
+    return isIncomeA ? -1 : 1;
+  }
+
+  const idA = a.id && a.id > 0 ? a.id : 0;
+  const idB = b.id && b.id > 0 ? b.id : 0;
+  return idA - idB;
 }

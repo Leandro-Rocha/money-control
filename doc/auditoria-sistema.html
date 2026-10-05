@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoria do Money Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F1F4EF;
+  --surface: #FFFFFF;
+  --sunken: #E6EBE4;
+  --ink: #14231C;
+  --muted: #5A6A61;
+  --rule: #D3DAD1;
+  --stamp: #2C3CBF;
+  --stamp-soft: #E4E7FA;
+  --crit: #B92D1D;
+  --crit-soft: #F8E3DF;
+  --high: #A65F00;
+  --high-soft: #F6EAD3;
+  --ok: #1B744A;
+  --ok-soft: #DDEFE4;
+  --display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0F1512; --surface: #171F1B; --sunken: #111815; --ink: #E4EBE6; --muted: #93A39A;
+    --rule: #2A362F; --stamp: #98A3FF; --stamp-soft: #20264D; --crit: #FF8A7A; --crit-soft: #3A1A16;
+    --high: #F0B45A; --high-soft: #35270F; --ok: #6FD3A0; --ok-soft: #12301F;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0F1512; --surface: #171F1B; --sunken: #111815; --ink: #E4EBE6; --muted: #93A39A;
+  --rule: #2A362F; --stamp: #98A3FF; --stamp-soft: #20264D; --crit: #FF8A7A; --crit-soft: #3A1A16;
+  --high: #F0B45A; --high-soft: #35270F; --ok: #6FD3A0; --ok-soft: #12301F;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 16px/1.6 var(--body); -webkit-font-smoothing: antialiased;
+}
+a { color: var(--stamp); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; border-radius: 4px; }
+code, .path {
+  font: 400 0.84em/1.4 var(--mono); background: var(--sunken); padding: 1px 5px; border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font: 400 13px/1.55 var(--mono); background: var(--sunken); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 14px 0;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+
+.layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; }
+nav.index {
+  position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+  padding: 28px 20px 28px 24px; border-right: 1px solid var(--rule);
+}
+nav.index .brand { font: 700 15px/1.2 var(--display); margin: 0 0 4px; }
+nav.index .date { font-size: 13px; color: var(--muted); margin: 0 0 22px; }
+nav.index ol { list-style: none; margin: 0; padding: 0; }
+nav.index li a {
+  display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; margin: 0 -10px;
+  border-radius: 6px; color: var(--ink); text-decoration: none; font-size: 14px;
+}
+nav.index li a:hover { background: var(--sunken); }
+nav.index li a span { color: var(--muted); font: 500 12px/1.8 var(--mono); }
+.theme-btn {
+  margin-top: 22px; font: 500 13px var(--body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 6px; padding: 7px 10px; cursor: pointer; width: 100%;
+}
+main { padding: 44px 40px 96px 48px; min-width: 0; }
+section { margin-top: 72px; }
+section > p, section > ul, .prose { max-width: 68ch; }
+
+h1 {
+  font: 800 clamp(38px, 6vw, 68px)/0.98 var(--display); letter-spacing: -0.025em;
+  margin: 0 0 20px; max-width: 14ch;
+}
+h2 { font: 700 30px/1.1 var(--display); letter-spacing: -0.015em; margin: 0 0 10px; }
+h3 { font: 600 17px/1.3 var(--body); margin: 34px 0 8px; }
+.lede { font-size: 19px; line-height: 1.5; max-width: 60ch; margin: 0 0 12px; }
+.note { color: var(--muted); font-size: 14px; max-width: 68ch; }
+
+/* Balancete */
+.ledger { width: 100%; border-collapse: collapse; margin-top: 36px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.ledger caption { text-align: left; font: 700 15px var(--display); padding: 0 0 10px; }
+.ledger th, .ledger td { padding: 11px 16px; text-align: left; border-top: 1px solid var(--rule); vertical-align: baseline; }
+.ledger thead th { border-top: 0; font: 500 13px var(--body); color: var(--muted); background: var(--sunken); }
+.ledger td.n, .ledger th.n { text-align: right; font: 600 20px/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger thead th.n { font: 500 13px var(--body); }
+.ledger td small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ledger tr.sum td { background: var(--sunken); font-weight: 600; }
+.n.crit { color: var(--crit); } .n.high { color: var(--high); } .n.ok { color: var(--ok); }
+
+/* Tabelas comuns */
+.tw { overflow-x: auto; margin: 16px 0; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 560px; }
+table.t th, table.t td { padding: 10px 14px; text-align: left; border-top: 1px solid var(--rule); vertical-align: top; }
+table.t thead th { border-top: 0; background: var(--sunken); font-weight: 500; font-size: 13px; color: var(--muted); }
+table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Achados */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 6px; }
+.filters button {
+  font: 500 14px var(--body); padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+}
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.finding {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0 16px;
+  padding: 18px 0; border-top: 1px solid var(--rule);
+}
+.finding[hidden] { display: none; }
+.finding .id { font: 700 20px/1.25 var(--display); color: var(--muted); }
+.finding h3 { margin: 0 0 4px; font-size: 17px; }
+.finding p { margin: 6px 0; max-width: 68ch; }
+.finding .where { font-size: 14px; color: var(--muted); }
+.sev { display: inline-block; font: 600 12px/1 var(--body); padding: 4px 8px; border-radius: 4px; margin-left: 8px; vertical-align: 2px; }
+.sev.alto { background: var(--crit-soft); color: var(--crit); }
+.sev.medio { background: var(--high-soft); color: var(--high); }
+.sev.baixo { background: var(--sunken); color: var(--muted); }
+.fix { border-left: 3px solid var(--ok); padding-left: 12px; margin-top: 8px; }
+
+.tag { display: inline-block; font: 600 12px/1 var(--body); padding: 4px 7px; border-radius: 4px; white-space: nowrap; }
+.tag.del { background: var(--crit-soft); color: var(--crit); }
+.tag.keep { background: var(--ok-soft); color: var(--ok); }
+.tag.edit { background: var(--stamp-soft); color: var(--stamp); }
+.tag.warn { background: var(--high-soft); color: var(--high); }
+
+.callout { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--stamp); border-radius: 8px; padding: 14px 18px; margin: 18px 0; max-width: 72ch; }
+.callout p { margin: 4px 0; }
+
+/* Barras */
+.bars { margin: 18px 0; max-width: 720px; }
+.bar { display: grid; grid-template-columns: 250px minmax(0, 1fr) 48px; gap: 12px; align-items: center; padding: 5px 0; font-size: 14.5px; }
+.bar i { display: block; height: 10px; border-radius: 2px; background: var(--stamp); min-width: 3px; }
+.bar b { text-align: right; font: 600 15px var(--display); font-variant-numeric: tabular-nums; }
+
+/* Antes e depois */
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 22px 0 8px; }
+.compare figure { margin: 0; }
+.compare figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; max-width: 46ch; }
+.compare .label { font: 700 15px var(--display); margin: 0 0 10px; }
+.stage { border-radius: 12px; padding: 18px; border: 1px solid var(--rule); }
+.stage.old { background: #f1f5f9; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
+.stage.new { background: #F5F7F6; font-family: "Geist", system-ui, sans-serif; color: #0C1A1D; }
+.stage.new.dk { background: #0B1113; color: #E3ECEC; }
+
+.oc { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+.oc-h { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(248,250,252,.5); border-bottom: 1px solid #e2e8f0; }
+.oc-h b { font-size: 14px; color: #1e293b; }
+.oc-h span { font: 700 13px ui-monospace, monospace; color: #059669; }
+.oc-r { display: grid; grid-template-columns: 22px 1fr auto auto; gap: 8px; padding: 5px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; align-items: center; }
+.oc-r .d { color: #94a3b8; font-size: 10px; }
+.oc-r .c { color: #64748b; font-size: 10px; }
+.oc-r .v { font-family: ui-monospace, monospace; font-size: 11px; }
+.oc-r .neg { color: #e11d48; } .oc-r .pos { color: #059669; }
+.oc-r.pj { color: #94a3b8; font-style: italic; }
+.oc-th { font-size: 9px; text-transform: uppercase; color: #94a3b8; font-weight: 700; }
+
+.nc { --b: #DCE3E2; --c: #fff; --m: #5F7376; --s: #EEF2F1; --p: #0E5560; background: var(--c); border: 1px solid var(--b); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(12,26,29,.06); }
+.dk .nc { --b: #223034; --c: #121A1D; --m: #8FA3A6; --s: #18232680; --p: #5CC6D0; box-shadow: none; }
+.nc-h { display: flex; justify-content: space-between; align-items: flex-end; padding: 14px 16px 12px; border-bottom: 1px solid var(--b); }
+.nc-h .nm { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+.nc-h .nm i { width: 8px; height: 8px; border-radius: 50%; background: #F97316; }
+.nc-h .sub { font-size: 12px; color: var(--m); margin-top: 2px; }
+.nc-h .bal { font: 600 19px/1 "Geist Mono", monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.nc-h .bal small, .nc-r .v small { font-size: 0.72em; opacity: .6; font-weight: 500; }
+.nc-r { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--b); font-size: 13.5px; align-items: center; }
+.nc-r:last-child { border-bottom: 0; }
+.nc-r .d { font: 500 12px "Geist Mono", monospace; color: var(--m); }
+.nc-r .ds { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.nc-r .chip { font-size: 12px; font-weight: 500; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.chip.a { background: #F9731622; color: #C2500C; } .dk .chip.a { color: #FDA368; }
+.chip.b { background: #0EA5E922; color: #0B6E9E; } .dk .chip.b { color: #6CC8F2; }
+.chip.g { background: #10B98122; color: #0A7D58; } .dk .chip.g { color: #5FD9AE; }
+.nc-r .v { font: 500 13.5px "Geist Mono", monospace; font-variant-numeric: tabular-nums; }
+.nc-r .v.pos { color: #0A7D58; } .dk .nc-r .v.pos { color: #5FD9AE; }
+.nc-r.pj { background: repeating-linear-gradient(135deg, transparent 0 6px, var(--s) 6px 12px); }
+.nc-r.pj .prev { font-size: 12px; color: #A66300; font-weight: 500; } .dk .nc-r.pj .prev { color: #F0B45A; }
+.nc-f { display: flex; justify-content: space-between; padding: 10px 16px; background: var(--s); font-size: 12.5px; color: var(--m); border-top: 1px solid var(--b); }
+.nc-f b { color: var(--p); font-weight: 600; }
+.mock-toggle { margin-top: 10px; font: 500 13px var(--body); padding: 5px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.sw { width: 132px; font-size: 13px; }
+.sw i { display: block; height: 44px; border-radius: 8px; border: 1px solid var(--rule); margin-bottom: 5px; }
+.sw span { color: var(--muted); display: block; font: 400 12px var(--mono); }
+
+ol.phases { list-style: none; counter-reset: ph; padding: 0; margin: 18px 0; max-width: 780px; }
+ol.phases li { counter-increment: ph; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 4px 14px; padding: 14px 0; border-top: 1px solid var(--rule); }
+ol.phases li::before { content: counter(ph); font: 800 24px/1 var(--display); color: var(--stamp); }
+ol.phases b { display: block; }
+ol.phases span { color: var(--muted); font-size: 14.5px; }
+ol.phases em { font-style: normal; font-size: 13.5px; color: var(--muted); white-space: nowrap; text-align: right; }
+
+footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; max-width: 68ch; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.index { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); padding: 20px 16px; }
+  nav.index ol { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+  nav.index li a { margin: 0; padding: 4px 0; }
+  .theme-btn { width: auto; }
+  main { padding: 28px 16px 72px; }
+  .compare { grid-template-columns: 1fr; }
+  .bar { grid-template-columns: 1fr 48px; } .bar i { grid-column: 1 / -1; grid-row: 2; }
+  ol.phases li { grid-template-columns: 32px minmax(0, 1fr); } ol.phases em { grid-column: 2; text-align: left; }
+  .ledger td.n { font-size: 17px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="index" aria-label="Seções do relatório">
+  <p class="brand">Auditoria do Money Control</p>
+  <p class="date">1º de outubro de 2026</p>
+  <ol>
+    <li><a href="#balancete">Balancete</a></li>
+    <li><a href="#bugs">Bugs encontrados <span>14</span></a></li>
+    <li><a href="#tsv">Remover o TSV</a></li>
+    <li><a href="#morto">Código morto</a></li>
+    <li><a href="#redundancia">Redundâncias</a></li>
+    <li><a href="#ui-hoje">Interface hoje</a></li>
+    <li><a href="#ui-proposta">Interface proposta</a></li>
+    <li><a href="#mobile">Mobile</a></li>
+    <li><a href="#specs">Specs do projeto</a></li>
+    <li><a href="#anterior">Relatório anterior</a></li>
+    <li><a href="#plano">Plano</a></li>
+    <li><a href="#decisoes">Decisões suas</a></li>
+  </ol>
+  <button class="theme-btn" id="themeBtn" type="button">Alternar tema do relatório</button>
+</nav>
+
+<main>
+
+<header id="balancete">
+  <h1>O sistema é sólido. A interface está devendo.</h1>
+  <p class="lede">A lógica financeira, os testes e a integração com o Pluggy estão em bom estado: <code>tsc</code> passa sem erros e quase nada está realmente morto. O que pesa é a camada visual, que acumulou atalhos: classes que não geram CSS, um modo escuro que nunca liga, uma fonte baixada e não usada, e duas telas principais copiadas uma da outra.</p>
+  <p class="note">Método: leitura do código, Knip, <code>tsc --noUnusedLocals</code>, compilação do Tailwind cruzada com as classes usadas, e logs do container. A parte visual foi lida no código, não em capturas de tela. O passo a passo de cada item está em <code>doc/handoff-limpeza-e-ui.md</code>, com os mesmos IDs.</p>
+
+  <table class="ledger">
+    <caption>Balancete da auditoria</caption>
+    <thead><tr><th>Conta</th><th class="n">Saldo</th></tr></thead>
+    <tbody>
+      <tr><td>Disparos diários da "sincronização matinal"<small>Deveria ser 1. Roda às 21h duas vezes e às 7h de novo, por um erro de fuso.</small></td><td class="n crit">3</td></tr>
+      <tr><td>Usos de classes Tailwind que não geram CSS<small>Sintaxe da versão 4 num projeto 3.4. Inclui 69 sombras de cartão e o tamanho do botão flutuante do celular.</small></td><td class="n crit">≈90</td></tr>
+      <tr><td>Classes <code>dark:</code> escritas, sem nenhum botão que ative o modo escuro</td><td class="n high">320</td></tr>
+      <tr><td>Classes de cor <code>slate-*</code> fixas<small>A spec do projeto pede zero.</small></td><td class="n high">≈320</td></tr>
+      <tr><td>Linhas idênticas entre a coluna de conta e a coluna de cartão</td><td class="n high">321</td></tr>
+      <tr><td>Tamanhos de fonte abaixo de 12px</td><td class="n high">258</td></tr>
+      <tr><td>Imports e variáveis locais sem uso</td><td class="n">86</td></tr>
+      <tr><td><code>alert()</code> e <code>confirm()</code> do navegador<small>A spec do projeto pede zero.</small></td><td class="n high">23</td></tr>
+      <tr><td>Funções exportadas sem nenhum chamador</td><td class="n ok">4</td></tr>
+      <tr><td>Erros de tipo</td><td class="n ok">0</td></tr>
+    </tbody>
+  </table>
+</header>
+
+<section id="bugs">
+  <h2>Bugs encontrados no caminho</h2>
+  <p>Nenhum destes estava no pedido, mas apareceram durante a leitura. Dois afetam o uso diário hoje.</p>
+
+  <div class="filters" role="group" aria-label="Filtrar por gravidade">
+    <button type="button" data-f="all" aria-pressed="true">Todos</button>
+    <button type="button" data-f="alto" aria-pressed="false">Alto</button>
+    <button type="button" data-f="medio" aria-pressed="false">Médio</button>
+    <button type="button" data-f="baixo" aria-pressed="false">Baixo</button>
+  </div>
+
+  <div id="findings">
+  <article class="finding" data-s="alto">
+    <div class="id">A1</div>
+    <div>
+      <h3>Agendadores disparam fora de hora e em dobro <span class="sev alto">alto</span></h3>
+      <p class="where"><code>src/lib/pluggy-sync.ts:356</code> · <code>src/lib/reminders.ts:368</code> e <code>:293</code></p>
+      <p>O "dia de hoje" é calculado em UTC (<code>toISOString().slice(0, 10)</code>) e a hora, no fuso de Brasília (<code>getHours()</code>). Às 21h a data UTC vira e a condição "ainda não rodou hoje" volta a valer. Além disso, a trava é uma variável de módulo, e há duas instâncias do agendador vivas com três minutos de diferença.</p>
+<pre><code>2026-10-01T00:00:14Z  Morning Pluggy Sync  Iniciando…   21:00 em Brasília
+2026-10-01T00:03:21Z  Morning Pluggy Sync  Iniciando…   segunda instância
+2026-10-01T00:45:13Z  Reminders Scheduler  Verificando…
+2026-10-01T00:48:21Z  Reminders Scheduler  Verificando…  segunda instância
+2026-10-01T10:02:28Z  Morning Pluggy Sync  Iniciando…   07:02, o disparo esperado</code></pre>
+      <p class="fix">Data local num helper único, trava em <code>globalThis</code>, e último dia executado gravado em disco. A segunda instância é hipótese (hot-reload reavaliando o módulo); a troca de fuso está confirmada pelos logs.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="alto">
+    <div class="id">A3</div>
+    <div>
+      <h3>O botão "Recorrências" do celular não faz nada <span class="sev alto">alto</span></h3>
+      <p class="where"><code>src/hooks/useDashboard.ts:28</code> · <code>mobile/MobileBottomNav.tsx:176</code></p>
+      <p>O toque muda o estado <code>recurringOpen</code>, e nenhum componente lê esse estado. No desktop a mesma prop é passada ao cabeçalho e ignorada.</p>
+      <p class="fix">Abrir Configurações na aba de recorrências (<code>SettingsDrawer</code> precisa de uma prop <code>initialTab</code>) e apagar o estado.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="alto">
+    <div class="id">A4</div>
+    <div>
+      <h3>Cerca de 90 usos de classes que o Tailwind 3 ignora <span class="sev alto">alto</span></h3>
+      <p class="where">Todo o diretório <code>src/components</code></p>
+      <div class="tw"><table class="t">
+        <thead><tr><th>Classe</th><th class="n">Usos</th><th>O que acontece hoje</th></tr></thead>
+        <tbody>
+          <tr><td><code>shadow-xs</code></td><td class="n">69</td><td>Cartões sem sombra</td></tr>
+          <tr><td><code>py-0.2</code></td><td class="n">7</td><td>Sem espaçamento vertical</td></tr>
+          <tr><td><code>shadow-2xs</code></td><td class="n">4</td><td>Sem sombra</td></tr>
+          <tr><td><code>backdrop-blur-xs</code></td><td class="n">3</td><td>Sem desfoque</td></tr>
+          <tr><td><code>w-13 h-13</code></td><td class="n">1</td><td>Botão flutuante do celular sem tamanho definido</td></tr>
+          <tr><td><code>focus:outline-hidden</code>, <code>rounded-xs</code>, <code>drop-shadow-xs</code>, <code>no-scrollbar</code></td><td class="n">4</td><td>Sem efeito</td></tr>
+        </tbody>
+      </table></div>
+      <p class="fix">Quinze minutos: registrar esses nomes em <code>tailwind.config.js</code>. O bloco pronto está no handoff.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="medio">
+    <div class="id">A5</div>
+    <div>
+      <h3>A fonte Geist é baixada e nunca aparece <span class="sev medio">médio</span></h3>
+      <p class="where"><code>src/app/layout.tsx</code> · <code>tailwind.config.js</code> · <code>src/app/globals.css</code></p>
+      <p>O layout carrega a Geist numa variável CSS, mas o Tailwind não a conhece e o <code>body</code> fixa a fonte do sistema. O usuário paga o download e vê San Francisco ou Segoe UI.</p>
+      <p class="fix">Três linhas: <code>fontFamily.sans</code> no Tailwind, remover o <code>font-family</code> do <code>body</code>, carregar também a Geist Mono para os valores.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="medio">
+    <div class="id">A6</div>
+    <div>
+      <h3>Modo escuro pronto e desligado <span class="sev medio">médio</span></h3>
+      <p class="where"><code>globals.css</code> (bloco <code>.dark</code>) · 320 classes <code>dark:</code></p>
+      <p>Os tokens existem, o Tailwind está configurado, os componentes novos já têm as variantes. Falta só quem ponha a classe <code>dark</code> no <code>html</code>.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="medio">
+    <div class="id">A10</div>
+    <div>
+      <h3>O padrão de UI manda usar componentes que não existem <span class="sev medio">médio</span></h3>
+      <p class="where"><code>.agents/skills/ui-standards/SKILL.md:19</code> · <code>openspec/specs/ui/orphan-primitives-adoption</code></p>
+      <p><code>PageHeader.tsx</code> é documentado e exigido, e o arquivo não existe. O padrão também pede skeletons e não há componente de skeleton. Um agente que siga a skill vai importar um arquivo inexistente.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="medio">
+    <div class="id">A11</div>
+    <div>
+      <h3><code>ModalShell</code> não fecha no clique fora e não prende o foco <span class="sev medio">médio</span></h3>
+      <p class="where"><code>src/components/ModalShell.tsx:70</code></p>
+      <p>Sem <code>role="dialog"</code>, sem focus trap, sem devolver o foco, sem travar a rolagem do fundo. O corpo usa <code>bg-slate-50/50</code> fixo.</p>
+      <p class="fix">Reescrever sobre o Radix Dialog, que já é dependência, mantendo as props. Os 19 arquivos que usam o componente não mudam.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A2</div>
+    <div>
+      <h3>Log da sincronização diz "Contas: 16/14" <span class="sev baixo">baixo</span></h3>
+      <p>Mais contas sincronizadas do que existem. Causa não investigada; provavelmente efeito das duas execuções simultâneas do A1.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A7</div>
+    <div>
+      <h3>Seta de entrada aponta para lados opostos no desktop e no celular <span class="sev baixo">baixo</span></h3>
+      <p class="where"><code>MonthHeader.tsx</code> usa <code>ArrowDownRight</code>; <code>MobileHeader.tsx</code> usa <code>ArrowUpRight</code></p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A8</div>
+    <div>
+      <h3><code>Dashboard.tsx</code> procura um id que nenhuma linha tem <span class="sev baixo">baixo</span></h3>
+      <p class="where"><code>src/components/Dashboard.tsx:139-141</code></p>
+      <p>Busca <code>tx-cc-</code>; as linhas de cartão usam <code>tx-card-</code>. Só funciona porque outro trecho faz o mesmo scroll. O bloco inteiro pode sair.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A9</div>
+    <div>
+      <h3>"Colar TSV de extrato" abre a tela do Pluggy <span class="sev baixo">baixo</span></h3>
+      <p class="where"><code>MonthHeader.tsx:475-486</code> · <code>Dashboard.tsx:96</code></p>
+      <p>O modal é sempre aberto com <code>initialSourceMode="pluggy"</code>. O rótulo já mente antes mesmo da remoção.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A12</div>
+    <div>
+      <h3>Projeção dispensada não tem volta <span class="sev baixo">baixo</span></h3>
+      <p class="where"><code>src/lib/actions/projections.ts:346</code></p>
+      <p><code>undismissProjection</code> existe no servidor e nenhuma tela a chama.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A13</div>
+    <div>
+      <h3>Cor padrão de tag é a palavra "slate" <span class="sev baixo">verificar</span></h3>
+      <p class="where"><code>src/db/schema.ts:97</code> · <code>DesktopView.tsx:295</code></p>
+      <p>A tela aplica o valor direto em <code>backgroundColor</code>, e "slate" não é uma cor CSS. Conferir se alguma tag chega a ser gravada com o padrão.</p>
+    </div>
+  </article>
+
+  <article class="finding" data-s="baixo">
+    <div class="id">A14</div>
+    <div>
+      <h3>Menu de contexto pode sair da tela <span class="sev baixo">baixo</span></h3>
+      <p class="where"><code>src/components/TransactionContextMenu.tsx:34</code></p>
+      <p>Posicionado nas coordenadas do clique, sem limite na borda. Sem teclado, e com <code>bg-white</code> fixo.</p>
+    </div>
+  </article>
+  </div>
+</section>
+
+<section id="tsv">
+  <h2>Remover a ingestão de TSV</h2>
+  <p>O fluxo "copie o prompt, cole no Gemini, cole o TSV de volta" tem um ponto de entrada visível e raízes em nove arquivos. Sai inteiro sem tocar no fluxo do Pluggy, desde que quatro funções compartilhadas fiquem.</p>
+
+  <div class="tw"><table class="t">
+    <thead><tr><th>Arquivo</th><th>Ação</th><th>O quê</th></tr></thead>
+    <tbody>
+      <tr><td><code>MonthHeader.tsx:475-486</code></td><td><span class="tag del">remover</span></td><td>Item "Importação Manual" e a prop <code>onOpenImport</code></td></tr>
+      <tr><td><code>staging/StagingManualStep.tsx</code></td><td><span class="tag del">apagar</span></td><td>66 linhas, só serve ao TSV</td></tr>
+      <tr><td><code>ImportStagingModal.tsx</code></td><td><span class="tag edit">enxugar</span></td><td>Sai <code>handleParse</code> (linhas 288 a 488), os dois prompts (137 a 176), as abas de origem, cinco estados e duas props. De 970 para cerca de 580 linhas</td></tr>
+      <tr><td><code>StagingBanner</code>, <code>StagingTable</code>, <code>StagingRow</code></td><td><span class="tag edit">ajustar</span></td><td>Remover a prop <code>sourceMode</code></td></tr>
+      <tr><td><code>Dashboard.tsx:92, 96</code></td><td><span class="tag edit">ajustar</span></td><td>Remover <code>existingTransactions</code> e <code>initialSourceMode</code></td></tr>
+      <tr><td><code>lib/staging-utils.ts</code></td><td><span class="tag del">remover</span></td><td><code>buildCategoryPromptList</code> e seus testes</td></tr>
+      <tr><td><code>lib/actions/transactions.ts:440</code></td><td><span class="tag del">remover</span></td><td><code>getAccountTransactionsForMonths</code> fica sem chamador</td></tr>
+      <tr><td><code>ImportStagingModal.test.ts</code></td><td><span class="tag edit">mover</span></td><td>Vira <code>lib/staging-utils.test.ts</code>, importando direto</td></tr>
+      <tr><td>3 specs em <code>openspec/specs</code></td><td><span class="tag edit">atualizar</span></td><td>Cabeçalho, roteamento por tipo de conta, seleção de categorias</td></tr>
+      <tr><td><code>resolveTargetMonth</code>, <code>matchExtractedCategory</code>, <code>normalizeDescription</code>, <code>isDbDuplicate</code>, <code>filterStagingRows</code>, <code>isInvoicePaymentDescription</code></td><td><span class="tag keep">manter</span></td><td>Usadas pela sincronização Pluggy e pela detecção de duplicadas</td></tr>
+      <tr><td><code>copyToClipboard</code></td><td><span class="tag keep">manter</span></td><td>Usada pela exportação e pela triagem</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Critério de pronto: <code>grep -rni tsv src</code> sem resultado, testes verdes, e uma sincronização de conta e de cartão feita pela tela.</p>
+</section>
+
+<section id="morto">
+  <h2>Código morto</h2>
+  <p>Há pouco. O Knip acusa bastante coisa, mas a maior parte é só a palavra <code>export</code> sobrando em funções que o próprio arquivo usa.</p>
+
+  <h3>Sem nenhum uso</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Item</th><th>Onde</th><th>Nota</th></tr></thead>
+    <tbody>
+      <tr><td><code>cleanupDuplicateTransactionRulesAction</code></td><td><code>lib/transaction-rules.ts:50</code></td><td>Sem chamador</td></tr>
+      <tr><td><code>undismissProjection</code></td><td><code>lib/actions/projections.ts:346</code></td><td>Melhor criar a tela que falta do que apagar</td></tr>
+      <tr><td><code>shouldShowPurchaseDate</code></td><td><code>lib/date-helpers.ts</code></td><td>Apelido de outra função, usado só num teste</td></tr>
+      <tr><td>Estado <code>recurringOpen</code></td><td><code>hooks/useDashboard.ts:28</code></td><td>Ver A3</td></tr>
+      <tr><td><code>scripts/poc-pluggy.ts</code> e o script <code>poc:pluggy</code></td><td>raiz</td><td>Prova de conceito, 191 linhas</td></tr>
+      <tr><td><code>@base-ui/react</code>, <code>shadcn</code>, <code>tw-animate-css</code>, <code>@testing-library/user-event</code></td><td><code>package.json</code></td><td>Nenhum import</td></tr>
+      <tr><td>86 imports e variáveis locais</td><td>vários</td><td><code>WealthDashboard</code> 12, <code>CreditCardColumn</code> 8, <code>BankAccountColumn</code> 7</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout">
+    <p><strong>Três caminhos para a mesma coisa.</strong> Lembretes de vencimento podem ser disparados pelo agendador interno, pela rota <code>/api/reminders/dispatch</code> e pelo script <code>scripts/send-due-reminders.ts</code>. A sincronização matinal, por dois. Um agendador e um gatilho manual bastam.</p>
+  </div>
+</section>
+
+<section id="redundancia">
+  <h2>Redundâncias</h2>
+
+  <h3>A mesma tela escrita duas vezes</h3>
+  <p><code>BankAccountColumn.tsx</code> tem 712 linhas e <code>CreditCardColumn.tsx</code>, 715. Delas, 321 são idênticas: linha de transação, adição rápida, menu de contexto, modal de detalhe, cabeçalho. O estado já foi unificado num hook; o JSX, não. É a tela mais usada do sistema, e toda melhoria visual hoje precisa ser feita duas vezes.</p>
+
+  <h3>Lógica repetida</h3>
+  <div class="bars" role="img" aria-label="Número de lugares onde cada lógica está repetida">
+    <div class="bar"><span>Arredondar centavos</span><i style="width:100%"></i><b>37</b></div>
+    <div class="bar"><span>Conta de mês com <code>padStart</code> (arquivos)</span><i style="width:51%"></i><b>19</b></div>
+    <div class="bar"><span>Tecla Escape tratada à mão (arquivos)</span><i style="width:27%"></i><b>10</b></div>
+    <div class="bar"><span>Formatar moeda</span><i style="width:22%"></i><b>8</b></div>
+    <div class="bar"><span>Clique fora tratado à mão</span><i style="width:11%"></i><b>4</b></div>
+    <div class="bar"><span>Gravar em <code>localStorage</code> no hook principal</span><i style="width:11%"></i><b>4</b></div>
+    <div class="bar"><span>Normalizar texto sem acento</span><i style="width:8%"></i><b>3</b></div>
+    <div class="bar"><span>Seletor de mês anterior e próximo</span><i style="width:8%"></i><b>3</b></div>
+  </div>
+
+  <h3>Arquivos que cresceram demais</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Arquivo</th><th class="n">Linhas</th><th>Sintoma</th></tr></thead>
+    <tbody>
+      <tr><td><code>AccountsTab.tsx</code></td><td class="n">2156</td><td>Cerca de 45 <code>useState</code> num único componente: criar, editar e escolher conta Pluggy misturados</td></tr>
+      <tr><td><code>actions/pluggy.ts</code></td><td class="n">1347</td><td>Contas, cartões, investimentos e consentimento no mesmo arquivo</td></tr>
+      <tr><td><code>backup.ts</code></td><td class="n">1019</td><td>Exportar, restaurar e agendar juntos</td></tr>
+      <tr><td><code>InsightsModal.tsx</code></td><td class="n">804</td><td>—</td></tr>
+      <tr><td><code>WealthDashboard.tsx</code></td><td class="n">762</td><td>Três pilares repetem o mesmo cartão</td></tr>
+      <tr><td><code>MonthHeader.tsx</code></td><td class="n">602</td><td>Seletor de mês copiado duas vezes; menu feito à mão</td></tr>
+      <tr><td><code>useDashboard.ts</code></td><td class="n">480</td><td>Devolve cerca de 85 chaves; todo modal, filtro e carregamento num hook só</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="ui-hoje">
+  <h2>A interface hoje</h2>
+  <p>A estrutura é boa: cabeçalho em dois níveis, três modos de visão, colunas por conta, privacidade com PIN, busca global em Ctrl+K. O problema está no acabamento, e ele é mensurável.</p>
+
+  <div class="tw"><table class="t">
+    <thead><tr><th>Sintoma</th><th class="n">Quanto</th><th>Efeito para quem usa</th></tr></thead>
+    <tbody>
+      <tr><td>Sem cor de marca</td><td class="n">—</td><td>O <code>--primary</code> é o cinza quase preto padrão do shadcn. O app não tem identidade; parece um template</td></tr>
+      <tr><td>Texto em 9, 10 e 11 px</td><td class="n">258</td><td>Leitura cansativa, principalmente em rótulos de tabela e subtítulos</td></tr>
+      <tr><td>Três azuis para a mesma função</td><td class="n">164</td><td>indigo 86, blue 52, sky 26. Transferência, informação e link não têm cor estável</td></tr>
+      <tr><td>Projeção em laranja no desktop e âmbar no celular</td><td class="n">2</td><td>A mesma legenda com duas cores</td></tr>
+      <tr><td>Spinner em vez de skeleton</td><td class="n">26</td><td>A tela "pula" quando o dado chega</td></tr>
+      <tr><td>Diálogos do navegador</td><td class="n">23</td><td>Caixa cinza do sistema no meio de um app cuidado; trava a aba</td></tr>
+      <tr><td><code>&lt;select&gt;</code> nativo</td><td class="n">15</td><td>Aparência diferente por sistema; o <code>Select</code> do projeto existe e quase não é usado</td></tr>
+      <tr><td>Dica só no <code>title=</code></td><td class="n">202</td><td>Não aparece no toque nem para leitor de tela; há 5 <code>aria-label</code> no projeto todo</td></tr>
+      <tr><td>Sem toast</td><td class="n">0</td><td>Sucesso é silencioso; erro vira <code>alert()</code></td></tr>
+      <tr><td>Privacidade borra tudo que tem <code>tabular-nums</code></td><td class="n">120</td><td>Datas e contagens borram junto; um valor sem a classe vaza</td></tr>
+      <tr><td>Tela de login com cores fixas</td><td class="n">1</td><td>A primeira tela é a menos cuidada e não acompanha tema</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="ui-proposta">
+  <h2>A interface que dá para ter</h2>
+  <p>A direção é manter a densidade de planilha, que é o que torna o app rápido de usar, e investir em três coisas: tipografia de verdade para números, uma cor própria, e hierarquia por superfície em vez de borda cinza em tudo.</p>
+
+  <div class="compare">
+    <figure>
+      <p class="label">Hoje</p>
+      <div class="stage old">
+        <div class="oc">
+          <div class="oc-h"><b>Itaú Corrente</b><span>R$ 8.412,37</span></div>
+          <div class="oc-r"><span class="oc-th">Dia</span><span class="oc-th">Descrição</span><span class="oc-th">Categoria</span><span class="oc-th">Valor</span></div>
+          <div class="oc-r"><span class="d">02</span><span>Salário</span><span class="c">Receita</span><span class="v pos">5.917,92</span></div>
+          <div class="oc-r"><span class="d">05</span><span>Mercado Extra</span><span class="c">Mercado</span><span class="v neg">-312,40</span></div>
+          <div class="oc-r"><span class="d">09</span><span>Posto Shell</span><span class="c">Transporte</span><span class="v neg">-180,00</span></div>
+          <div class="oc-r pj"><span class="d">15</span><span>Aluguel</span><span class="c">Moradia</span><span class="v">-2.400,00</span></div>
+        </div>
+      </div>
+      <figcaption>Reconstrução aproximada a partir das classes do código, não uma captura. Fonte do sistema, rótulos em 9px, sem sombra (a classe não gera CSS), projeção só em itálico cinza.</figcaption>
+    </figure>
+    <figure>
+      <p class="label">Proposta</p>
+      <div class="stage new" id="mockNew">
+        <div class="nc">
+          <div class="nc-h">
+            <div><div class="nm"><i></i>Itaú Corrente</div><div class="sub">Sincronizado às 07:02</div></div>
+            <div class="bal">R$ 8.412<small>,37</small></div>
+          </div>
+          <div class="nc-r"><span class="d">02</span><span class="ds">Salário <span class="chip g">Receita</span></span><span class="v pos">+5.917<small>,92</small></span></div>
+          <div class="nc-r"><span class="d">05</span><span class="ds">Mercado Extra <span class="chip a">Mercado</span></span><span class="v">−312<small>,40</small></span></div>
+          <div class="nc-r"><span class="d">09</span><span class="ds">Posto Shell <span class="chip b">Transporte</span></span><span class="v">−180<small>,00</small></span></div>
+          <div class="nc-r pj"><span class="d">15</span><span class="ds">Aluguel <span class="prev">previsto</span></span><span class="v">−2.400<small>,00</small></span></div>
+          <div class="nc-f"><span>4 lançamentos, 1 previsto</span><b>Saldo previsto R$ 6.012,37</b></div>
+        </div>
+      </div>
+      <button class="mock-toggle" id="mockBtn" type="button">Ver no escuro</button>
+      <figcaption>Geist e Geist Mono, centavos em segundo plano, categoria como etiqueta colorida, saída em tinta neutra (só a entrada ganha cor), projeção com textura e palavra, rodapé fixo com o saldo previsto.</figcaption>
+    </figure>
+  </div>
+
+  <h3>Fundação</h3>
+  <div class="swatches" aria-label="Paleta proposta">
+    <div class="sw"><i style="background:#0E5560"></i>Marca<span>azul-petróleo</span></div>
+    <div class="sw"><i style="background:#0A7D58"></i>Entrada<span>--income</span></div>
+    <div class="sw"><i style="background:#D11F4A"></i>Saída em alerta<span>--expense</span></div>
+    <div class="sw"><i style="background:#A66300"></i>Previsto e aviso<span>--projected</span></div>
+    <div class="sw"><i style="background:#0B6E9E"></i>Transferência<span>--info</span></div>
+    <div class="sw"><i style="background:#F5F7F6"></i>Página<span>--surface-1</span></div>
+  </div>
+  <ul>
+    <li><strong>Tokens financeiros.</strong> <code>text-income</code>, <code>text-expense</code>, <code>bg-projected/10</code> no lugar de <code>emerald-600</code>, <code>rose-600</code>, <code>amber-50</code> espalhados. Um azul só.</li>
+    <li><strong>Escala de texto fechada.</strong> 12px é o piso. Um único tamanho menor (11px) reservado a rótulo de tabela densa.</li>
+    <li><strong>Menos vermelho.</strong> Num extrato quase tudo é saída; pintar todas de rosa deixa a tela inteira em alerta. Saída comum em tinta neutra com sinal de menos; rosa só para o que pede atenção (atraso, saldo negativo).</li>
+    <li><strong>Duas elevações.</strong> Cartão e flutuante. Bordas só onde separam conteúdo.</li>
+    <li><strong>Modo escuro ligado</strong>, com alternador ao lado do botão de privacidade.</li>
+  </ul>
+
+  <h3>Componentes que faltam</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Componente</th><th>Substitui</th></tr></thead>
+    <tbody>
+      <tr><td><code>&lt;Money&gt;</code></td><td>Oito formatações de moeda, a regra de privacidade e a cor por sinal</td></tr>
+      <tr><td><code>AccountColumn</code> + <code>TransactionRow</code></td><td>As duas colunas duplicadas</td></tr>
+      <tr><td>Toast (<code>sonner</code>)</td><td>16 <code>alert()</code> e todo sucesso silencioso</td></tr>
+      <tr><td><code>useConfirm()</code> sobre o <code>ConfirmDialog</code> existente</td><td>7 <code>confirm()</code></td></tr>
+      <tr><td><code>Skeleton</code></td><td>26 spinners</td></tr>
+      <tr><td>Menu Radix</td><td>O menu "Ações" e o menu de contexto, ambos feitos à mão</td></tr>
+      <tr><td><code>MonthStepper</code></td><td>Três implementações; ganha grade de 12 meses e botão "Hoje"</td></tr>
+      <tr><td><code>SegmentedControl</code>, <code>Tabs</code></td><td>Modo de visão, horizonte do runway, filtro do patrimônio, sete abas copiadas das Configurações</td></tr>
+      <tr><td><code>PageHeader</code></td><td>Cumpre a spec que já o exige</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Usabilidade</h3>
+  <ul>
+    <li><strong>Sincronizar à vista.</strong> É a ação mais frequente do mês e está dentro de um menu. Vira botão no cabeçalho com o horário da última sincronização.</li>
+    <li><strong>Menu "Ações" agrupado.</strong> Sincronizar, Revisar, Analisar. Transferência sai do menu e vira botão.</li>
+    <li><strong>Ctrl+K vira paleta de comandos.</strong> O atalho já existe e abre a busca. Com <code>cmdk</code>, a mesma caixa passa a executar ações e navegar: "sincronizar", "ir para março", "nova transação", "aba recorrências".</li>
+    <li><strong>Atalhos de teclado.</strong> Setas trocam o mês, <kbd>N</kbd> abre lançamento, <kbd>?</kbd> lista os atalhos.</li>
+    <li><strong>Ações na linha.</strong> Passar o mouse revela confirmar, dispensar e detalhes. O clique direito continua, mas deixa de ser o único caminho, porque não existe no toque.</li>
+    <li><strong>Comparação com o mês anterior</strong> nos cartões de indicador, e uma sparkline de seis meses em cada um. O <code>StatCard</code> já tem a prop <code>trend</code>; ninguém a preenche.</li>
+    <li><strong>Catálogo único de ações.</strong> Um arquivo com id, rótulo, ícone e handler de cada ação; desktop, celular e paleta leem dele. Acaba com rótulos divergentes e com ação faltando numa plataforma.</li>
+  </ul>
+</section>
+
+<section id="mobile">
+  <h2>Mobile</h2>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Problema</th><th>Onde</th></tr></thead>
+    <tbody>
+      <tr><td>Botão "Recorrências" sem efeito</td><td>A3</td></tr>
+      <tr><td>Botão flutuante sem tamanho definido</td><td>A4, <code>MobileBottomNav.tsx</code></td></tr>
+      <tr><td>Faltam sincronizar todas, duplicadas e triagem de sem categoria</td><td>Folha "Mais"</td></tr>
+      <tr><td>"Análises (Gastos)" aqui, "Visão de Gastos" no desktop; "Exportar Período" aqui, "Exportar para IA" lá</td><td><code>MobileBottomNav.tsx</code></td></tr>
+      <tr><td>Logotipo "MC" em texto; no desktop é um ícone de carteira</td><td><code>MobileHeader.tsx</code></td></tr>
+      <tr><td>Quatro <code>confirm()</code> e <code>alert()</code> do navegador</td><td><code>MobileAccountTabs.tsx</code></td></tr>
+      <tr><td>Sete abas com espaçamento largo nas Configurações, provável estouro em tela estreita</td><td><code>SettingsDrawer.tsx</code></td></tr>
+      <tr><td>Desktop e mobile são renderizados juntos até a montagem</td><td><code>Dashboard.tsx:47-55</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="specs">
+  <h2>O projeto contra as próprias specs</h2>
+  <p>Das dez specs de interface em <code>openspec/specs/ui</code>, sete foram conferidas; cinco delas não estão sendo cumpridas por inteiro. Elas já descrevem boa parte do que este relatório propõe; falta executar.</p>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Spec</th><th>Exige</th><th>Situação</th></tr></thead>
+    <tbody>
+      <tr><td><code>custom-confirmation-dialog</code></td><td>Nenhum <code>confirm</code> ou <code>alert</code> nativo</td><td><span class="tag del">23 chamadas</span></td></tr>
+      <tr><td><code>semantic-color-tokens</code></td><td>Nenhum <code>slate-*</code> fixo</td><td><span class="tag del">≈320 usos</span></td></tr>
+      <tr><td><code>modalshell-standardization</code></td><td>Nenhum modal feito à mão</td><td><span class="tag del">2 modais</span></td></tr>
+      <tr><td><code>orphan-primitives-adoption</code></td><td>Usar <code>PageHeader</code> e <code>EmptyState</code></td><td><span class="tag del">PageHeader não existe</span></td></tr>
+      <tr><td><code>mobile-interface</code></td><td>Botão flutuante, abas, navegação inferior</td><td><span class="tag warn">parcial</span></td></tr>
+      <tr><td><code>design-system-and-readability</code></td><td>Valores em mono tabular à direita</td><td><span class="tag keep">cumprida</span></td></tr>
+      <tr><td><code>header-navigation-and-actions</code></td><td>Menu "Ações", Ctrl+K, utilitários no nível 1</td><td><span class="tag keep">cumprida</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="anterior">
+  <h2>O que o relatório anterior errou</h2>
+  <p><code>doc/specs_cleanup.md</code> é, na prática, a saída do Knip sem conferência. Seguir aquele arquivo ao pé da letra quebraria três coisas.</p>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Recomendação</th><th>Problema</th></tr></thead>
+    <tbody>
+      <tr><td>Apagar <code>runMorningPluggySync</code>, <code>getDueReminders</code>, <code>initDatabase</code> e mais quatro funções "sem uso"</td><td><span class="tag del">quebra</span> Todas são usadas no próprio arquivo. Sem elas não há agendador nem banco. Só o <code>export</code> sobra</td></tr>
+      <tr><td><code>npm uninstall eslint-config-next</code></td><td><span class="tag del">quebra</span> O <code>eslint.config.mjs</code> importa três plugins que só existem por causa dele</td></tr>
+      <tr><td>Apagar os dois scripts de <code>scripts/</code> como "arquivos mortos"</td><td><span class="tag warn">impreciso</span> São ferramentas manuais com <code>--dry-run</code>. Remover é uma escolha, não limpeza</td></tr>
+      <tr><td>Remover <code>cleanupDuplicateTransactions</code></td><td><span class="tag warn">impreciso</span> O nome real é <code>cleanupDuplicateTransactionRulesAction</code></td></tr>
+      <tr><td>"Mudar a fonte para Geist ou Inter"</td><td><span class="tag warn">impreciso</span> A Geist já está instalada; o defeito é não estar ligada</td></tr>
+      <tr><td>Trocar fundos por <code>bg-white/80</code> e <code>shadow-sm</code></td><td><span class="tag warn">contra a spec</span> Adiciona cor fixa, e não percebeu que as sombras atuais não geram CSS</td></tr>
+      <tr><td>Remoção do TSV em três passos</td><td><span class="tag warn">incompleto</span> Faltaram seis arquivos, uma server action, um teste e três specs</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="plano">
+  <h2>Plano</h2>
+  <ol class="phases">
+    <li><div><b>Bugs rápidos</b><span>Agendadores, botão morto do celular, classes do Tailwind, fonte, id errado.</span></div><em>meio dia · risco baixo</em></li>
+    <li><div><b>Remover o TSV</b><span>De fora para dentro, com testes a cada passo.</span></div><em>meio dia · risco baixo</em></li>
+    <li><div><b>Código morto e dependências</b><span>Quatro funções, quatro pacotes, 86 imports; ligar <code>noUnusedLocals</code>.</span></div><em>3 horas · risco baixo</em></li>
+    <li><div><b>Fundação visual</b><span>Tokens, <code>ModalShell</code> sobre Radix, primitivas que faltam.</span></div><em>1 a 2 dias · risco médio</em></li>
+    <li><div><b>Cumprir as specs</b><span>Zerar diálogos nativos, migrar <code>slate</code> para tokens, ligar o modo escuro.</span></div><em>1 a 2 dias · risco médio</em></li>
+    <li><div><b>Coluna de conta unificada</b><span>A tela principal. Protegida pelo teste de navegação por Tab.</span></div><em>1 a 2 dias · risco alto</em></li>
+    <li><div><b>Cabeçalho, paleta de comandos, paridade no celular</b><span>Catálogo único de ações.</span></div><em>1 a 2 dias · risco médio</em></li>
+    <li><div><b>Consolidação contínua</b><span>Helpers duplicados, arquivos gigantes, gráficos, acessibilidade.</span></div><em>sem prazo</em></li>
+  </ol>
+  <div class="callout">
+    <p><strong>Antes de começar:</strong> há alterações locais não commitadas em 28 arquivos, incluindo as duas colunas, o cabeçalho e o hook principal. Commitar ou guardar esse trabalho primeiro.</p>
+  </div>
+</section>
+
+<section id="decisoes">
+  <h2>Decisões que são suas</h2>
+  <div class="tw"><table class="t">
+    <thead><tr><th></th><th>Pergunta</th><th>Recomendação</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td>Ficar no Tailwind 3 ou migrar para o 4?</td><td>Registrar os nomes agora; migrar depois, como projeto separado</td></tr>
+      <tr><td>D2</td><td>Ter modo escuro?</td><td>Sim. A maior parte do trabalho já está no código</td></tr>
+      <tr><td>D3</td><td>Restaurar projeção dispensada: criar a tela ou apagar a função?</td><td>Criar</td></tr>
+      <tr><td>D4</td><td>Renomear <code>ImportStagingModal</code> para <code>PluggySyncModal</code>?</td><td>Sim, depois da remoção do TSV</td></tr>
+      <tr><td>D5</td><td>Manter os scripts manuais de lembrete e sincronização?</td><td>Manter, e remover a rota <code>/api/reminders/dispatch</code> se nada externo a chama</td></tr>
+      <tr><td>D6</td><td>Qual a cor de marca?</td><td>Azul-petróleo; qualquer cor fora de verde, rosa e âmbar funciona</td></tr>
+      <tr><td>D7</td><td>Adotar biblioteca de gráficos?</td><td>Só se forem dois ou mais gráficos novos</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>
+  <p>Nenhum arquivo do sistema foi alterado por esta auditoria. Itens visuais foram deduzidos do código e precisam de conferência no navegador. Passo a passo, linhas e critérios de verificação: <code>doc/handoff-limpeza-e-ui.md</code>.</p>
+</footer>
+
+</main>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  document.getElementById("themeBtn").addEventListener("click", function () {
+    var dark = root.dataset.theme
+      ? root.dataset.theme === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+  });
+
+  var buttons = document.querySelectorAll(".filters button");
+  var items = document.querySelectorAll("#findings .finding");
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
+      var f = btn.dataset.f;
+      items.forEach(function (it) { it.hidden = f !== "all" && it.dataset.s !== f; });
+    });
+  });
+
+  var mock = document.getElementById("mockNew");
+  var mockBtn = document.getElementById("mockBtn");
+  mockBtn.addEventListener("click", function () {
+    var on = mock.classList.toggle("dk");
+    mockBtn.textContent = on ? "Ver no claro" : "Ver no escuro";
+  });
+})();
+</script>
+</body>
+</html>

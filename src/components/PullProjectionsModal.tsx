@@ -29,8 +29,14 @@ export function PullProjectionsModal({
 
   useEffect(() => {
     getPendingProjections(month).then(data => {
-      // sort by day
-      data.sort((a, b) => a.day - b.day);
+      // sort by day, income before debits
+      data.sort((a, b) => {
+        if (a.day !== b.day) return a.day - b.day;
+        const isIncomeA = a.amount > 0;
+        const isIncomeB = b.amount > 0;
+        if (isIncomeA !== isIncomeB) return isIncomeA ? -1 : 1;
+        return 0;
+      });
       setProjections(data);
       setIsLoading(false);
     });
@@ -159,6 +165,10 @@ export function PullProjectionsModal({
                                 {row.projectedInstallmentCurrent ? (
                                   <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700">
                                     {row.projectedInstallmentCurrent}/{row.projectedInstallmentTotal}
+                                  </span>
+                                ) : row.isEstimate ? (
+                                  <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                    Estimativa
                                   </span>
                                 ) : (
                                   <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700">

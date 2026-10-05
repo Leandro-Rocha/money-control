@@ -27,6 +27,7 @@ import {
   ListFilter,
   Search,
   RefreshCw,
+  Copy,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { ProjectionState } from "@/lib/types";
@@ -62,6 +63,7 @@ interface MonthHeaderProps {
   onOpenSearch?: () => void;
   hasPluggyAccounts?: boolean;
   onOpenSyncAll?: () => void;
+  onOpenDuplicates?: () => void;
 }
 
 const PROJECTION_INFO: Record<ProjectionState, { label: string; dotClass: string } | null> = {
@@ -105,6 +107,7 @@ export default function MonthHeader({
   onOpenSearch,
   hasPluggyAccounts,
   onOpenSyncAll,
+  onOpenDuplicates,
 }: MonthHeaderProps) {
   const { isPrivate, togglePrivacy } = usePrivacy();
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -422,6 +425,20 @@ export default function MonthHeader({
                     <ListPlus className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span>Puxar Recorrentes</span>
                   </button>
+
+                  {onOpenDuplicates && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        onOpenDuplicates();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                    >
+                      <Copy className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>Identificar Duplicadas</span>
+                    </button>
+                  )}
 
                   <div className="h-px bg-border/50 my-1" />
 

@@ -167,6 +167,14 @@ export async function getMonthData(month: string): Promise<MonthData> {
           if (groupA !== groupB) return groupA - groupB;
         }
         if (a.day !== b.day) return a.day - b.day;
+
+        // Receitas antes dos débitos no mesmo dia
+        const isIncomeA = a.amount > 0;
+        const isIncomeB = b.amount > 0;
+        if (isIncomeA !== isIncomeB) {
+          return isIncomeA ? -1 : 1;
+        }
+
         return (a.id > 0 ? a.id : 0) - (b.id > 0 ? b.id : 0);
       });
 
@@ -656,4 +664,12 @@ export async function deleteTransaction(id: number) {
 
   revalidatePath("/");
   return { success: true };
+}
+
+export async function deleteMultipleTransactions(ids: number[]) {
+  for (const id of ids) {
+    await deleteTransaction(id);
+  }
+  revalidatePath("/");
+  return { success: true, count: ids.length };
 }

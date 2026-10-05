@@ -77,6 +77,7 @@ export function createTestDb() {
       amount REAL NOT NULL,
       month INTEGER,
       active INTEGER NOT NULL DEFAULT 1,
+      is_estimate INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 

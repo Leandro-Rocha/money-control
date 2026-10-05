@@ -14,6 +14,7 @@ import TransferAssistantModal from "./TransferAssistantModal";
 import { ExportPeriodModal } from "./ExportPeriodModal";
 import { SyncAllAccountsModal } from "./SyncAllAccountsModal";
 import { UncategorizedTriageModal } from "./UncategorizedTriageModal";
+import { AccountDuplicatesModal } from "./AccountDuplicatesModal";
 import { GlobalSearchModal } from "./GlobalSearchModal";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { PrivacyProvider } from "@/context/PrivacyContext";
@@ -119,6 +120,28 @@ function DashboardContent({
           categories={state.allCategories}
           onClose={() => state.setTriageOpen(false)}
           onSuccess={() => state.loadMonth(state.currentMonth)}
+        />
+      )}
+
+      {state.duplicatesOpen && (
+        <AccountDuplicatesModal
+          open={state.duplicatesOpen}
+          onClose={state.handleCloseDuplicates}
+          month={state.currentMonth}
+          accounts={state.data.accountsData.map((a: any) => a.account)}
+          accountsData={state.data.accountsData}
+          initialAccountId={state.duplicatesAccountId}
+          onRefresh={state.refreshCurrentMonth}
+          onHighlightTransaction={(txId) => {
+            state.setHighlightedTxId(txId);
+            setTimeout(() => {
+              const el =
+                document.getElementById(`tx-bank-${txId}`) ||
+                document.getElementById(`tx-cc-${txId}`) ||
+                document.getElementById(`tx-mobile-${txId}`);
+              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 100);
+          }}
         />
       )}
 

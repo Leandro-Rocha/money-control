@@ -40,6 +40,7 @@ export function DesktopView(state: DashboardState) {
     setSyncAllOpen,
     triageOpen,
     setTriageOpen,
+    handleOpenDuplicates,
     uncategorizedCount,
     setSearchOpen,
     highlightedTxId,
@@ -145,6 +146,7 @@ export function DesktopView(state: DashboardState) {
         onOpenSyncAll={() => setSyncAllOpen(true)}
         uncategorizedCount={uncategorizedCount}
         onOpenTriage={() => setTriageOpen(true)}
+        onOpenDuplicates={() => handleOpenDuplicates()}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={() => {
           setSettingsInitialAccountType(null);
@@ -472,6 +474,7 @@ export function DesktopView(state: DashboardState) {
                       allAccounts={allAccounts}
                       onRefresh={refreshCurrentMonth}
                       onSyncPluggy={(accId) => handleOpenImport(accId, true)}
+                      onOpenDuplicates={handleOpenDuplicates}
                       filterText={filterText}
                       filterCategoryId={filterCategoryId}
                       filterHighValue={filterHighValue}
@@ -520,6 +523,7 @@ export function DesktopView(state: DashboardState) {
                       allAccountsData={data.accountsData}
                       onRefresh={refreshCurrentMonth}
                       onSyncPluggy={(accId) => handleOpenImport(accId, true)}
+                      onOpenDuplicates={handleOpenDuplicates}
                       filterText={filterText}
                       filterCategoryId={filterCategoryId}
                       filterHighValue={filterHighValue}

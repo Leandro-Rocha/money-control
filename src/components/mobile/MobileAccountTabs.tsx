@@ -14,11 +14,14 @@ import {
   X,
   ArrowRightLeft,
   RefreshCw,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteTransaction } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection, payCreditCardBillAction } from "@/lib/actions/projections";
 import { isCreditCardBillPaid, calculateDueStatus } from "@/lib/due-dates";
+import { cn } from "@/lib/utils";
+import { getDuplicateStats } from "@/lib/duplicates";
 
 interface MobileAccountTabsProps {
   bankAccounts: AccountData[];
@@ -29,6 +32,7 @@ interface MobileAccountTabsProps {
   onRefresh: () => void;
   onOpenQuickAdd: (accountId?: number) => void;
   onSyncPluggy?: (accountId: number) => void;
+  onOpenDuplicates?: (accountId: number) => void;
   highlightedTxId?: number | null;
 }
 
@@ -41,6 +45,7 @@ export function MobileAccountTabs({
   onRefresh,
   onOpenQuickAdd,
   onSyncPluggy,
+  onOpenDuplicates,
   highlightedTxId,
 }: MobileAccountTabsProps) {
   const [activeTab, setActiveTab] = useState<"bank" | "credit">("bank");
@@ -224,6 +229,31 @@ export function MobileAccountTabs({
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        {onOpenDuplicates && (() => {
+                          const dupStats = getDuplicateStats(accData.transactions);
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenDuplicates(acc.id);
+                              }}
+                              title={
+                                dupStats.hasDuplicates
+                                  ? `Identificar duplicadas (${dupStats.groupsCount} grupo(s) identificado(s))`
+                                  : "Identificar transações duplicadas nesta conta"
+                              }
+                              className={cn(
+                                "p-1 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                dupStats.hasDuplicates
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                                  : "text-muted-foreground hover:text-foreground active:bg-muted"
+                              )}
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })()}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
                         {isCredit ? "Fatura Atual" : "Saldo Final"}

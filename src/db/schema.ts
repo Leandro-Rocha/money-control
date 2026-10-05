@@ -78,6 +78,7 @@ export const recurringEntries = sqliteTable("recurring_entries", {
   amount: real("amount").notNull(), // Positive for income, negative for expense
   month: integer("month"), // 1-12 (null = every month, 1-12 = annual in specific month)
   active: integer("active").notNull().default(1), // 1 = active, 0 = inactive
+  isEstimate: integer("is_estimate").notNull().default(0), // 1 = estimativa orçamentária redutível, 0 = compromisso fixo
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 

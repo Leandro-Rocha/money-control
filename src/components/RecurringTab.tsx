@@ -32,6 +32,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [newAccountId, setNewAccountId] = useState("");
   const [newCategoryId, setNewCategoryId] = useState("");
   const [newMonth, setNewMonth] = useState("");
+  const [newIsEstimate, setNewIsEstimate] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -41,6 +42,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [editAccountId, setEditAccountId] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editMonth, setEditMonth] = useState("");
+  const [editIsEstimate, setEditIsEstimate] = useState(false);
 
   const handleAdd = async () => {
     if (!newDesc || !newAmount || !newDay || !newAccountId) return;
@@ -54,9 +56,10 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       day: parseInt(newDay, 10),
       amount: amountVal,
       month: newMonth ? parseInt(newMonth, 10) : null,
+      isEstimate: newIsEstimate,
     });
 
-    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewMonth("");
+    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewMonth(""); setNewIsEstimate(false);
     setIsAdding(false);
     onRefresh();
   };
@@ -81,6 +84,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
     setEditAccountId(e.accountId.toString());
     setEditCategoryId(e.categoryId ? e.categoryId.toString() : "");
     setEditMonth(e.month ? String(e.month) : "");
+    setEditIsEstimate(Boolean(e.isEstimate));
   };
 
   const saveEdit = async () => {
@@ -95,6 +99,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       accountId: parseInt(editAccountId, 10),
       categoryId: editCategoryId ? parseInt(editCategoryId, 10) : null,
       month: editMonth ? parseInt(editMonth, 10) : null,
+      isEstimate: editIsEstimate,
     });
     setEditingId(null);
     onRefresh();
@@ -145,6 +150,15 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
               className="w-full h-9"
             />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-foreground select-none">
+            <input
+              type="checkbox"
+              checked={newIsEstimate}
+              onChange={(e) => setNewIsEstimate(e.target.checked)}
+              className="rounded border-input h-4 w-4 text-primary focus:ring-primary"
+            />
+            <span>Estimativa de gastos (abater automaticamente conforme gastos reais na categoria)</span>
+          </label>
           <Button onClick={handleAdd} className="w-full">Salvar Lançamento</Button>
         </div>
       )}
@@ -192,6 +206,15 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
                     className="w-full h-8"
                   />
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground select-none">
+                  <input
+                    type="checkbox"
+                    checked={editIsEstimate}
+                    onChange={(e) => setEditIsEstimate(e.target.checked)}
+                    className="rounded border-input h-3.5 w-3.5 text-primary focus:ring-primary"
+                  />
+                  <span>Estimativa de gastos (abater automaticamente conforme gastos reais)</span>
+                </label>
                 <div className="flex justify-end gap-2 pt-1 border-t mt-2">
                   <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}><X className="w-4 h-4" /></Button>
                   <Button variant="default" size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1"/> Salvar</Button>
@@ -209,6 +232,11 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
                     ) : (
                       <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         Mensal
+                      </span>
+                    )}
+                    {entry.isEstimate && (
+                      <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                        Estimativa
                       </span>
                     )}
                     <span className="font-semibold text-sm">{entry.description}</span>

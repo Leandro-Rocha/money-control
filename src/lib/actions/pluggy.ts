@@ -779,8 +779,14 @@ export async function fetchPluggyTransactionsForMonth(
     }
   }
 
-  // Ordenar cronologicamente pelo dia
-  stagingRows.sort((a, b) => a.day - b.day);
+  // Ordenar cronologicamente pelo dia, com receitas antes dos débitos no mesmo dia
+  stagingRows.sort((a, b) => {
+    if (a.day !== b.day) return a.day - b.day;
+    const isIncomeA = a.amount > 0;
+    const isIncomeB = b.amount > 0;
+    if (isIncomeA !== isIncomeB) return isIncomeA ? -1 : 1;
+    return 0;
+  });
 
   return {
     success: true,

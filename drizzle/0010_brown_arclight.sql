@@ -1,0 +1,1 @@
+ALTER TABLE `recurring_entries` ADD `is_estimate` integer DEFAULT 0 NOT NULL;

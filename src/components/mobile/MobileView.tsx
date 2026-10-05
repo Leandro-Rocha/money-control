@@ -46,6 +46,7 @@ export function MobileView(state: DashboardState) {
     netCashPosition,
     triageOpen,
     setTriageOpen,
+    handleOpenDuplicates,
     uncategorizedCount,
     setSearchOpen,
     highlightedTxId,
@@ -100,6 +101,7 @@ export function MobileView(state: DashboardState) {
             onRefresh={refreshCurrentMonth}
             onOpenQuickAdd={handleOpenQuickAdd}
             onSyncPluggy={(accId) => handleOpenImport(accId, true)}
+            onOpenDuplicates={handleOpenDuplicates}
             highlightedTxId={highlightedTxId}
           />
         </div>

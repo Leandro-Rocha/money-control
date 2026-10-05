@@ -52,6 +52,8 @@ export interface TransactionWithCategory extends Transaction {
   projectionSourceId?: number | null;
   projectedInstallmentCurrent?: number | null; // The computed future installment number
   projectedInstallmentTotal?: number | null;
+  isEstimate?: boolean;
+  originalEstimateAmount?: number;
 }
 
 export interface Account {
@@ -141,6 +143,7 @@ export interface RecurringEntryUI {
   amount: number;
   month?: number | null;
   active: number;
+  isEstimate?: boolean | number;
 }
 
 export interface ExportTransactionItem {

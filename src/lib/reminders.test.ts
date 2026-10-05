@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatReminderNotification, DueItem } from "./reminders";
+import { formatReminderNotification, type DueItem } from "./reminders";
 
 describe("formatReminderNotification", () => {
   const baseItem: DueItem = {

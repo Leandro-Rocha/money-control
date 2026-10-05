@@ -42,12 +42,15 @@ export interface PluggyTransactionsResponse {
   page?: number;
   total?: number;
   totalPages?: number;
+  next?: string | null;
 }
 
 export interface FetchPluggyTransactionsParams {
   accountId: string;
   from?: string; // Format: "YYYY-MM-DD"
   to?: string;   // Format: "YYYY-MM-DD"
+  dateFrom?: string; // Format: "YYYY-MM-DD" (Pluggy v2)
+  dateTo?: string;   // Format: "YYYY-MM-DD" (Pluggy v2)
   billId?: string;
   pageSize?: number;
   credentialId?: string;
@@ -345,7 +348,7 @@ export async function resolveCredentialForItem(
 }
 
 /**
- * Fetches transactions for a specific Pluggy account and date period, handling pagination.
+ * Fetches transactions for a specific Pluggy account and date period using Pluggy API V2 (cursor pagination).
  */
 export async function fetchPluggyTransactions(
   params: FetchPluggyTransactionsParams,
@@ -359,21 +362,24 @@ export async function fetchPluggyTransactions(
   const apiKey = await getPluggyApiKey(targetCredentialId);
   const baseUrl = getPluggyBaseUrl();
   const allTransactions: PluggyTransaction[] = [];
-  const pageSize = params.pageSize || 500;
-  let page = 1;
-  let totalPages = 1;
 
-  do {
-    const url = new URL(`${baseUrl}/transactions`);
-    const realAccountId = params.accountId.split("#")[0];
-    url.searchParams.set("accountId", realAccountId);
-    if (params.from) url.searchParams.set("from", params.from);
-    if (params.to) url.searchParams.set("to", params.to);
-    if (params.billId) url.searchParams.set("billId", params.billId);
-    url.searchParams.set("page", String(page));
-    url.searchParams.set("pageSize", String(pageSize));
+  const realAccountId = params.accountId.split("#")[0];
+  const dateFrom = params.dateFrom || params.from;
+  const dateTo = params.dateTo || params.to;
 
-    const res = await fetch(url.toString(), {
+  const initialUrl = new URL(`${baseUrl}/v2/transactions`);
+  initialUrl.searchParams.set("accountId", realAccountId);
+  if (dateFrom) initialUrl.searchParams.set("dateFrom", dateFrom);
+  if (dateTo) initialUrl.searchParams.set("dateTo", dateTo);
+
+  let nextUrl: string | null = initialUrl.toString();
+  const visitedCursors = new Set<string>();
+  let pageCount = 0;
+  const MAX_PAGES = 50;
+
+  while (nextUrl && pageCount < MAX_PAGES) {
+    pageCount++;
+    const res = await fetch(nextUrl, {
       method: "GET",
       headers: {
         "X-API-KEY": apiKey,
@@ -392,9 +398,28 @@ export async function fetchPluggyTransactions(
     if (data.results && Array.isArray(data.results)) {
       allTransactions.push(...data.results);
     }
-    totalPages = data.totalPages || 1;
-    page++;
-  } while (page <= totalPages);
+
+    if (data.next) {
+      const queryString = data.next.startsWith("?") ? data.next : `?${data.next}`;
+      const parsedParams = new URLSearchParams(queryString);
+      const afterCursor = parsedParams.get("after");
+      if (afterCursor && visitedCursors.has(afterCursor)) {
+        break;
+      }
+      if (afterCursor) {
+        visitedCursors.add(afterCursor);
+      }
+      nextUrl = `${baseUrl}/v2/transactions${queryString}`;
+    } else {
+      nextUrl = null;
+    }
+  }
+
+  if (params.billId) {
+    return allTransactions.filter(
+      (tx) => tx.creditCardMetadata?.billId === params.billId
+    );
+  }
 
   return allTransactions;
 }

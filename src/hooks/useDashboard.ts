@@ -65,6 +65,20 @@ export function useDashboard(
   // Triage modal state
   const [triageOpen, setTriageOpen] = useState(false);
 
+  // Duplicates modal state
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  const [duplicatesAccountId, setDuplicatesAccountId] = useState<number | null>(null);
+
+  const handleOpenDuplicates = (accountId?: number) => {
+    setDuplicatesAccountId(accountId ?? null);
+    setDuplicatesOpen(true);
+  };
+
+  const handleCloseDuplicates = () => {
+    setDuplicatesOpen(false);
+    setDuplicatesAccountId(null);
+  };
+
   // Global search modal & highlight states
   const [searchOpen, setSearchOpen] = useState(false);
   const [highlightedTxId, setHighlightedTxId] = useState<number | null>(null);
@@ -397,6 +411,11 @@ export function useDashboard(
     handleCloseImport,
     triageOpen,
     setTriageOpen,
+    duplicatesOpen,
+    setDuplicatesOpen,
+    duplicatesAccountId,
+    handleOpenDuplicates,
+    handleCloseDuplicates,
     uncategorizedCount,
     searchOpen,
     setSearchOpen,

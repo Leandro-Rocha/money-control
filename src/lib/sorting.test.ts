@@ -3,6 +3,7 @@ import {
   getTransactionTier,
   getSortableDate,
   sortCreditCardTransactions,
+  compareTransactions,
 } from "./sorting";
 import { TransactionWithCategory } from "./types";
 
@@ -186,5 +187,78 @@ describe("sorting utilities", () => {
       expect(sorted[4].description).toBe("Farmácia");
       expect(sorted[5].description).toBe("Restaurante");
     });
+
+    it("orders credits/refunds (positive amount) before debits on the same date", () => {
+      const list: TransactionWithCategory[] = [
+        {
+          id: 1,
+          accountId: 2,
+          month: "2026-08",
+          day: 10,
+          description: "Compra Loja A",
+          amount: -120,
+          categoryId: 1,
+        },
+        {
+          id: 2,
+          accountId: 2,
+          month: "2026-08",
+          day: 10,
+          description: "Estorno Loja B",
+          amount: 50,
+          categoryId: 1,
+        },
+        {
+          id: 3,
+          accountId: 2,
+          month: "2026-08",
+          day: 10,
+          description: "Compra Loja C",
+          amount: -80,
+          categoryId: 1,
+        },
+      ];
+
+      const sorted = sortCreditCardTransactions(list);
+      expect(sorted.map((t) => t.description)).toEqual([
+        "Estorno Loja B",
+        "Compra Loja A",
+        "Compra Loja C",
+      ]);
+    });
+  });
+
+  describe("compareTransactions", () => {
+    it("orders by day chronologically", () => {
+      const a = { day: 5, amount: -100, id: 1 };
+      const b = { day: 10, amount: -50, id: 2 };
+      expect(compareTransactions(a, b)).toBeLessThan(0);
+      expect(compareTransactions(b, a)).toBeGreaterThan(0);
+    });
+
+    it("places income before debits within the same day", () => {
+      const debit1 = { day: 5, amount: -200, id: 1 };
+      const debit2 = { day: 5, amount: -50, id: 2 };
+      const income1 = { day: 5, amount: 5000, id: 3 };
+      const income2 = { day: 5, amount: 150, id: 4 };
+
+      const list = [debit1, income1, debit2, income2];
+      list.sort(compareTransactions);
+
+      expect(list).toEqual([income1, income2, debit1, debit2]);
+    });
+
+    it("preserves id order among transactions of the same type on the same day", () => {
+      const incomeA = { day: 5, amount: 100, id: 1 };
+      const incomeB = { day: 5, amount: 200, id: 2 };
+      const debitA = { day: 5, amount: -50, id: 3 };
+      const debitB = { day: 5, amount: -100, id: 4 };
+
+      const list = [debitB, incomeB, debitA, incomeA];
+      list.sort(compareTransactions);
+
+      expect(list).toEqual([incomeA, incomeB, debitA, debitB]);
+    });
   });
 });
+

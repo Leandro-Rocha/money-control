@@ -31,6 +31,7 @@ export async function getRecurringEntries(): Promise<RecurringEntryUI[]> {
       amount: r.amount,
       month: r.month,
       active: r.active,
+      isEstimate: Boolean(r.isEstimate),
     };
   });
 }
@@ -42,6 +43,7 @@ export async function createRecurringEntry(data: {
   day: number;
   amount: number;
   month?: number | null;
+  isEstimate?: boolean | number;
 }) {
   await db.insert(recurringEntries).values({
     accountId: data.accountId,
@@ -50,6 +52,7 @@ export async function createRecurringEntry(data: {
     day: data.day,
     amount: data.amount,
     month: data.month ?? null,
+    isEstimate: data.isEstimate ? 1 : 0,
     active: 1,
   });
   revalidatePath("/");
@@ -66,6 +69,7 @@ export async function updateRecurringEntry(
     amount?: number;
     month?: number | null;
     active?: number;
+    isEstimate?: boolean | number;
   }
 ) {
   await db
@@ -78,6 +82,7 @@ export async function updateRecurringEntry(
       ...(data.amount !== undefined ? { amount: data.amount } : {}),
       ...(data.month !== undefined ? { month: data.month } : {}),
       ...(data.active !== undefined ? { active: data.active } : {}),
+      ...(data.isEstimate !== undefined ? { isEstimate: data.isEstimate ? 1 : 0 } : {}),
     })
     .where(eq(recurringEntries.id, id));
   revalidatePath("/");

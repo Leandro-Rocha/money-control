@@ -35,11 +35,59 @@ export async function buildProjectedMonthData(
     projectedTxByAccount.set(row.accountId, existing);
   }
 
-  // 3. Inject recurring entries
+  // 3. Fetch real transactions already confirmed for this month (so we can offset estimates and detect state)
+  const realTxForMonth = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.month, targetMonth));
+
+  // Compute net spent by category from real transactions in targetMonth.
+  // In money-control, expenses are negative amounts (e.g. -150.00). Positive amounts are credits/refunds (e.g. +30.00).
+  // Net contribution towards category spending = -tx.amount.
+  // Propagates to parent category if exists, allowing child category expenses to offset parent budget estimates.
+  const netSpentByCategory = new Map<number, number>();
+  for (const tx of realTxForMonth) {
+    if (tx.categoryId != null) {
+      const netContribution = -tx.amount;
+      netSpentByCategory.set(tx.categoryId, (netSpentByCategory.get(tx.categoryId) ?? 0) + netContribution);
+
+      const parentId = categoryMap.get(tx.categoryId)?.parentId;
+      if (parentId != null) {
+        netSpentByCategory.set(parentId, (netSpentByCategory.get(parentId) ?? 0) + netContribution);
+      }
+    }
+  }
+
+  // Track consumed spending per category so multiple estimates in the same category don't double count
+  const consumedSpentByCategory = new Map<number, number>();
+
+  // 4. Inject recurring entries (with dynamic offset for estimates)
   for (const row of projectedRecurring) {
-    const existing = projectedTxByAccount.get(row.accountId) ?? [];
-    existing.push(row);
-    projectedTxByAccount.set(row.accountId, existing);
+    if (row.isEstimate && row.categoryId != null) {
+      const totalSpent = Math.max(0, netSpentByCategory.get(row.categoryId) ?? 0);
+      const consumed = consumedSpentByCategory.get(row.categoryId) ?? 0;
+      const availableSpent = Math.max(0, totalSpent - consumed);
+      const estimateBudget = Math.abs(row.amount);
+      const deduction = Math.min(estimateBudget, availableSpent);
+      consumedSpentByCategory.set(row.categoryId, consumed + deduction);
+
+      const remaining = Math.round((estimateBudget - deduction) * 100) / 100;
+      if (remaining > 0) {
+        const adjustedRow: TransactionWithCategory = {
+          ...row,
+          amount: row.amount < 0 ? -remaining : remaining,
+          originalEstimateAmount: estimateBudget,
+        };
+        const existing = projectedTxByAccount.get(adjustedRow.accountId) ?? [];
+        existing.push(adjustedRow);
+        projectedTxByAccount.set(adjustedRow.accountId, existing);
+      }
+      // If remaining <= 0, the estimate is completely covered by real transactions and omitted
+    } else {
+      const existing = projectedTxByAccount.get(row.accountId) ?? [];
+      existing.push(row);
+      projectedTxByAccount.set(row.accountId, existing);
+    }
   }
 
   // Fetch dismissed list to support credit card bill logic
@@ -53,12 +101,6 @@ export async function buildProjectedMonthData(
       (d) => d.sourceType === sourceType && d.sourceId === sourceId && d.accountId === accountId
     );
   };
-
-  // 4. Fetch real transactions already confirmed for this month (so we can detect partial state)
-  const realTxForMonth = await db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.month, targetMonth));
 
   // 5.5 Fetch and inject credit card bills from previous month
   for (const acc of accList) {
