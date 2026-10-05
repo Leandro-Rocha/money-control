@@ -13,16 +13,17 @@ Branch `feat/caixa-diario` (worktree `.worktrees/caixa-diario`). Interface antig
 - [x] test-db e backup/restore cientes das tabelas novas
 
 ## Fase B — Motor de previsão diário (`src/lib/forecast/`, funções puras + loader)
-- [ ] Série diária por conta bancária, ancorada no saldo real (snapshot) quando houver
-- [ ] Recorrências com frequência/início/fim; estimativas abatidas pelo gasto real da categoria
-- [ ] Parcelas projetadas (reuso de `getProjectedInstallments`)
-- [ ] Fatura por cartão → evento na conta pagadora no vencimento
-- [ ] Conciliação automática previsto × realizado (recorrência e fatura); status prevista/atrasada/realizada
-- [ ] Linha de base de gasto não planejado por conta (mediana 3 meses) → faixa otimista/realista/pessimista
-- [ ] Reembolsos pendentes como entrada prevista
-- [ ] KPIs: saldo hoje, livre até o próximo salário, menor saldo (dia/conta), reservas, primeiro negativo
-- [ ] Sugestões: transferir entre contas / resgatar reserva
-- [ ] Resumo mensal (Planejar) + cenários (compra extra parcelada, sem linha de base, sem reembolsos)
+- [x] Série diária por conta bancária, ancorada no saldo real (snapshot) quando houver
+- [x] Recorrências com frequência/início/fim; estimativas abatidas pelo gasto real da categoria
+- [x] Parcelas projetadas (reuso de `getProjectedInstallments`)
+- [x] Fatura por cartão → evento na conta pagadora no vencimento
+- [x] Conciliação automática previsto × realizado (recorrência e fatura); status prevista/atrasada/realizada
+- [x] Linha de base: mediana do líquido mensal não planejado por conta (realista) e pior mês (pessimista);
+      ignora o 1º mês da conta; ocorrências descartadas ainda conciliam
+- [x] Reembolsos pendentes como entrada prevista
+- [x] KPIs: saldo hoje, livre até o próximo salário, menor saldo (dia/conta), reservas, primeiro negativo
+- [x] Sugestões: transferir entre contas / resgatar reserva
+- [x] Resumo mensal (Planejar) + cenários (compra extra parcelada, sem linha de base, sem reembolsos)
 
 ## Fase C — Telas (funcionais, sem estética)
 - [ ] Modos: Hoje (home) · Extrato · Planejar · Patrimônio · Revisar (desktop + mobile)
