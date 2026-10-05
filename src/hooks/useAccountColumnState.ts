@@ -10,14 +10,13 @@ export interface AccountColumnFilterOptions {
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
-  filterTagId?: number | "";
 }
 
 export function filterAccountTransactions(
   transactions: TransactionWithCategory[],
   filters: AccountColumnFilterOptions
 ): TransactionWithCategory[] {
-  const { filterText, filterCategoryId, filterHighValue, filterTagId } = filters;
+  const { filterText, filterCategoryId, filterHighValue } = filters;
 
   return transactions.filter((tx) => {
     if (filterText && !tx.description.toLowerCase().includes(filterText.toLowerCase())) {
@@ -37,10 +36,6 @@ export function filterAccountTransactions(
     if (filterHighValue !== undefined && filterHighValue !== "") {
       const absAmount = Math.abs(tx.amount);
       if (absAmount <= Number(filterHighValue)) return false;
-    }
-
-    if (filterTagId !== undefined && filterTagId !== "") {
-      if (!tx.tags?.some((t) => t.id === filterTagId)) return false;
     }
 
     return true;
@@ -322,8 +317,7 @@ export function useAccountColumnState<TField extends string>({
   const hasActiveFilter = Boolean(
     filters.filterText ||
     filters.filterCategoryId !== "" ||
-    filters.filterHighValue !== "" ||
-    (filters.filterTagId !== undefined && filters.filterTagId !== "")
+    filters.filterHighValue !== ""
   );
   const hasZeroFilterMatches = hasActiveFilter && filteredTransactions.length === 0;
   const effectiveExpanded = hasZeroFilterMatches ? false : isExpanded;

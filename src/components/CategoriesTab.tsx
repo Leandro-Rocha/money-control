@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Category } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "./EmptyState";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -48,7 +47,6 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
   const [newParentType, setNewParentType] = useState<"income" | "expense" | "both">("expense");
   const [newParentColor, setNewParentColor] = useState("#3b82f6");
   const [newParentShow, setNewParentShow] = useState(true);
-  const [newParentBudget, setNewParentBudget] = useState("");
 
   // Estado para adicionar subcategoria a um pai específico
   const [addingSubToParentId, setAddingSubToParentId] = useState<number | null>(null);
@@ -60,7 +58,6 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, cat: Category | null, msg: string}>({ isOpen: false, cat: null, msg: "" });
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState<"income" | "expense" | "both">("expense");
-  const [editBudget, setEditBudget] = useState("");
 
   // Separação de pais e filhas
   const parentCategories = categories.filter((c) => !c.parentId);
@@ -76,21 +73,18 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
   const handleAddParent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newParentName.trim()) return;
-    const parsedBudget = newParentBudget.trim() ? parseFloat(newParentBudget.replace(",", ".")) : null;
     const res = await createCategory({
       name: newParentName.trim(),
       type: newParentType,
       color: newParentColor,
       showInSummary: newParentShow ? 1 : 0,
       parentId: null,
-      budget: parsedBudget && !isNaN(parsedBudget) ? parsedBudget : null,
     });
     if (!res.success && res.error) {
       alert(res.error);
       return;
     }
     setNewParentName("");
-    setNewParentBudget("");
     setIsAddingParent(false);
     onRefresh();
   };
@@ -140,16 +134,13 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
     setEditingId(cat.id);
     setEditName(cat.name);
     setEditType(cat.type);
-    setEditBudget(cat.budget != null ? String(cat.budget) : "");
   };
 
   const saveEdit = async () => {
     if (!editingId || !editName.trim()) return;
-    const parsedBudget = editBudget.trim() ? parseFloat(editBudget.replace(",", ".")) : null;
     const res = await updateCategory(editingId, {
       name: editName.trim(),
       type: editType,
-      budget: parsedBudget && !isNaN(parsedBudget) ? parsedBudget : null,
     });
     if (!res.success && res.error) {
       alert(res.error);
@@ -205,18 +196,6 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                 <option value="income">Receita</option>
                 <option value="both">Ambos</option>
               </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Meta Mensal (R$)</label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={newParentBudget}
-                onChange={(e) => setNewParentBudget(e.target.value)}
-                placeholder="Ex: 1500 (Opcional)"
-                className="h-9"
-              />
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Cor de Identificação</label>
@@ -292,15 +271,6 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                             <option value="income">Receita</option>
                             <option value="both">Ambos</option>
                           </select>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="Meta R$"
-                            value={editBudget}
-                            onChange={(e) => setEditBudget(e.target.value)}
-                            className="h-6 py-0 w-28 text-xs"
-                          />
                         </div>
                       </div>
                     ) : (
@@ -310,11 +280,6 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                           {children.length > 0 && (
                             <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                               {children.length} {children.length === 1 ? "subcategoria" : "subcategorias"}
-                            </span>
-                          )}
-                          {parent.budget != null && parent.budget > 0 && (
-                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
-                              Meta: {formatCurrency(parent.budget)}
                             </span>
                           )}
                           <Pencil

@@ -25,7 +25,6 @@ export function MobileView(state: DashboardState) {
     openSettingsTab,
     handleOpenImport,
     setInsightsOpen,
-    setPullOpen,
     setTransfersOpen,
     setExportOpen,
     setSettingsOpen,

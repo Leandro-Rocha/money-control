@@ -21,7 +21,6 @@ export interface CanonicalDump {
   meta: CanonicalDumpMeta;
   data: {
     accounts: any[];
-    monthlyInitialBalances: any[];
     categories: any[];
     transactions: any[];
     recurringEntries: any[];
@@ -128,7 +127,6 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
   };
 
   const accounts = safeQuery("accounts");
-  const monthlyInitialBalances = safeQuery("monthly_initial_balances");
   const categories = safeQuery("categories");
   const transactions = safeQuery("transactions");
   const recurringEntries = safeQuery("recurring_entries");
@@ -142,7 +140,6 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
 
   const counts: Record<string, number> = {
     accounts: accounts.length,
-    monthlyInitialBalances: monthlyInitialBalances.length,
     categories: categories.length,
     transactions: transactions.length,
     recurringEntries: recurringEntries.length,
@@ -164,7 +161,6 @@ export function exportCanonicalDump(db: Database.Database, appVersion: string = 
     },
     data: {
       accounts,
-      monthlyInitialBalances,
       categories,
       transactions,
       recurringEntries,
@@ -663,7 +659,6 @@ export function restoreBackup(
         "transactions",
         "tags",
         "categories",
-        "monthly_initial_balances",
         "accounts",
         "app_settings",
       ];
@@ -681,7 +676,6 @@ export function restoreBackup(
 
         const mapping: Record<string, string> = {
           accounts: "accounts",
-          monthlyInitialBalances: "monthly_initial_balances",
           categories: "categories",
           transactions: "transactions",
           transactionRules: "transaction_rules",
@@ -879,7 +873,6 @@ export async function restoreLiveDatabase(
         "transactions",
         "tags",
         "categories",
-        "monthly_initial_balances",
         "accounts",
         "app_settings",
       ];
@@ -974,7 +967,6 @@ export async function restoreLiveDatabase(
         "transactions",
         "tags",
         "categories",
-        "monthly_initial_balances",
         "accounts",
         "app_settings",
       ];
@@ -993,7 +985,6 @@ export async function restoreLiveDatabase(
 
         const mapping: Record<string, string> = {
           accounts: "accounts",
-          monthlyInitialBalances: "monthly_initial_balances",
           categories: "categories",
           transactions: "transactions",
           transactionRules: "transaction_rules",

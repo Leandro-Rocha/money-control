@@ -85,6 +85,13 @@
       "when": 1791241082156,
       "tag": "0011_slow_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791243339936,
+      "tag": "0012_plano_mensal",
+      "breakpoints": true
     }
   ]
 }

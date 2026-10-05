@@ -33,7 +33,6 @@ interface BankAccountColumnProps {
   filterText?: string;
   filterCategoryId?: number | "";
   filterHighValue?: number | "";
-  filterTagId?: number | "";
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   highlightedTxId?: number | null;
@@ -54,7 +53,6 @@ export default function BankAccountColumn({
   filterText = "",
   filterCategoryId = "",
   filterHighValue = "",
-  filterTagId = "",
   isExpanded: propIsExpanded,
   onToggleExpanded,
   highlightedTxId,
@@ -92,7 +90,7 @@ export default function BankAccountColumn({
     transactions: data.transactions,
     fields: BANK_FIELDS,
     onRefresh,
-    filters: { filterText, filterCategoryId, filterHighValue, filterTagId },
+    filters: { filterText, filterCategoryId, filterHighValue },
     highlightedTxId,
     elementIdPrefix: "tx-bank-",
     isExpanded: propIsExpanded,

@@ -170,6 +170,32 @@ describe("buildForecast — saldo e série", () => {
     expect(ev).toMatchObject({ amount: -600, date: "2026-10-05" });
     expect(r.events.find((e) => e.key === "est:1:2026-11")!.amount).toBe(-1000);
   });
+
+  it("gasto em subcategoria abate a estimativa da categoria-mãe", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [tx({ accountId: 1, month: "2026-10", day: 2, amount: -250, categoryId: 71, parentCategoryId: 7 })],
+        recurring: [rec({ id: 1, accountId: 1, day: 28, amount: -1000, isEstimate: true, categoryId: 7, description: "Carro" })],
+      }),
+    );
+    expect(r.events.find((e) => e.key === "est:1:2026-10")!.amount).toBe(-750);
+  });
+
+  it("gasto em subcategoria com estimativa própria não abate a da categoria-mãe", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [tx({ accountId: 1, month: "2026-10", day: 2, amount: -300, categoryId: 71, parentCategoryId: 7 })],
+        recurring: [
+          rec({ id: 1, accountId: 1, day: 28, amount: -250, isEstimate: true, categoryId: 7, description: "Carro (outros)" }),
+          rec({ id: 2, accountId: 1, day: 28, amount: -500, isEstimate: true, categoryId: 71, description: "Combustível" }),
+        ],
+      }),
+    );
+    expect(r.events.find((e) => e.key === "est:1:2026-10")!.amount).toBe(-250);
+    expect(r.events.find((e) => e.key === "est:2:2026-10")!.amount).toBe(-200);
+  });
 });
 
 describe("buildForecast — faturas", () => {

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { accounts, transactions, monthlyInitialBalances } from "@/db/schema";
+import { accounts, transactions } from "@/db/schema";
 import { eq, inArray, and, lte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { Account } from "@/lib/types";

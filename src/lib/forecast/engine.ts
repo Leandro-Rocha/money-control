@@ -161,8 +161,15 @@ export function buildForecast(input: ForecastInput): ForecastResult {
   const estimateCategoryIds = new Set(estimates.map((r) => r.categoryId).filter((c): c is number => c != null));
   const spentByCatMonth = new Map<string, number>();
   for (const t of input.transactions) {
-    if (t.categoryId == null || !estimateCategoryIds.has(t.categoryId)) continue;
-    const k = `${t.categoryId}|${t.month}`;
+    // Abate a estimativa mais específica: a da própria categoria; sem ela, a da categoria-mãe.
+    const c =
+      t.categoryId != null && estimateCategoryIds.has(t.categoryId)
+        ? t.categoryId
+        : t.parentCategoryId != null && estimateCategoryIds.has(t.parentCategoryId)
+          ? t.parentCategoryId
+          : null;
+    if (c == null) continue;
+    const k = `${c}|${t.month}`;
     spentByCatMonth.set(k, (spentByCatMonth.get(k) ?? 0) - t.amount);
   }
   const consumed = new Map<string, number>();
@@ -199,7 +206,8 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     t.isReimbursable ||
     t.isReimbursementCredit ||
     used.has(t.id) ||
-    (t.categoryId != null && estimateCategoryIds.has(t.categoryId));
+    (t.categoryId != null && estimateCategoryIds.has(t.categoryId)) ||
+    (t.parentCategoryId != null && estimateCategoryIds.has(t.parentCategoryId));
 
   // ───────────────────────── 4. Faturas de cartão ─────────────────────────
   const installmentsByAccountMonth = new Map<string, typeof input.installments>();

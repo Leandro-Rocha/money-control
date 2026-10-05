@@ -45,28 +45,6 @@ export function resolveTargetMonth(
   return `${uiYear}-${String(extractedMonth).padStart(2, "0")}`;
 }
 
-export function buildCategoryPromptList(categories: Category[]): string {
-  const parentCategories = categories.filter((c) => !c.parentId);
-  const subByParent = new Map<number, Category[]>();
-  for (const cat of categories) {
-    if (cat.parentId) {
-      const list = subByParent.get(cat.parentId) || [];
-      list.push(cat);
-      subByParent.set(cat.parentId, list);
-    }
-  }
-
-  return parentCategories
-    .map((parent) => {
-      const subs = subByParent.get(parent.id) || [];
-      if (subs.length > 0) {
-        return `- ${parent.name} (Subcategorias: ${subs.map((s) => s.name).join(", ")})`;
-      }
-      return `- ${parent.name}`;
-    })
-    .join("\n");
-}
-
 export function matchExtractedCategory(
   catExtracted: string | undefined | null,
   categories: Category[]

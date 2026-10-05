@@ -256,7 +256,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
             </h3>
             {drilldownData?.category.budget != null && drilldownData.category.budget > 0 ? (
               <span className="text-xs font-medium">
-                Meta: <strong className="font-mono tabular-nums">{formatCurrency(drilldownData.category.budget)}</strong>
+                Plano: <strong className="font-mono tabular-nums">{formatCurrency(drilldownData.category.budget)}</strong>
                 {" · "}
                 {drilldownData.expense > drilldownData.category.budget ? (
                   <span className="text-rose-600 font-semibold font-mono tabular-nums">
@@ -441,7 +441,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                               <div className="mt-2 pt-1.5 border-t border-slate-100 flex flex-col gap-1">
                                 <div className="flex items-center justify-between text-[11px]">
                                   <span className="text-slate-500 font-medium">
-                                    Meta Mensal: <strong className="text-slate-700 font-mono tabular-nums">{formatCurrency(group.budget)}</strong>
+                                    Plano do mês: <strong className="text-slate-700 font-mono tabular-nums">{formatCurrency(group.budget)}</strong>
                                   </span>
                                   {group.netExpense > group.budget ? (
                                     <span className="text-rose-600 font-semibold font-mono tabular-nums">

@@ -26,18 +26,27 @@ Branch `feat/caixa-diario` (worktree `.worktrees/caixa-diario`). Interface antig
 - [x] Resumo mensal (Planejar) + cenários (compra extra parcelada, sem linha de base, sem reembolsos)
 
 ## Fase C — Telas (funcionais, sem estética)
-- [ ] Modos: Hoje (home) · Extrato · Planejar · Patrimônio · Revisar (desktop + mobile)
-- [ ] Hoje: 3 números, curva 90 dias, agenda 14 dias com saldo após cada item, sugestões
-- [ ] Planejar: matriz mensal, cenários, simulador "posso comprar?"
-- [ ] Revisar: sem categoria, duplicadas, recorrências sugeridas, atrasadas, diferença de saldo,
+- [x] Modos: Hoje (home) · Extrato · Planejar · Patrimônio · Revisar (desktop + mobile)
+- [x] Hoje: 3 números, curva 90 dias, agenda 14 dias com saldo após cada item, sugestões
+- [x] Planejar: matriz mensal, cenários, simulador "posso comprar?"
+- [x] Revisar: sem categoria, duplicadas, recorrências sugeridas, atrasadas, diferença de saldo,
       transferências não vinculadas, reembolsos pendentes
-- [ ] Configurações: natureza da categoria, liquidez da conta, recorrência avançada, colchão
+- [x] Configurações: natureza da categoria, liquidez da conta, recorrência avançada, colchão
 
 ## Fase D — Alertas e integrações
-- [ ] Snapshot de saldo na sincronização Pluggy (manhã e manual)
-- [ ] Alerta ntfy de liquidez com sugestão
-- [ ] Bugs A1 (fuso dos agendadores) e A3 (botão Recorrências)
+- [x] Snapshot de saldo na sincronização Pluggy (manhã e manual)
+- [x] Alerta ntfy de liquidez com sugestão
+- [x] Bugs A1 (fuso dos agendadores) e A3 (botão Recorrências)
 
 ## Fase E — Cortes
-- [ ] Card "Posição Líquida", Runway antigo, "Puxar recorrentes", TSV, tags na UI principal,
+- [x] Card "Posição Líquida", Runway antigo, "Puxar recorrentes", TSV, tags na UI principal,
       orçamento por categoria (vira plano via estimativas), `monthly_initial_balances`
+      - Migração 0012: orçamento → estimativa "<categoria> (outros)" descontando as estimativas das
+        subcategorias; coluna `categories.budget` fica sem uso (zerada)
+      - Gasto abate a estimativa mais específica (subcategoria; sem ela, a categoria-mãe)
+      - Resumo por categoria mostra "Plano" = soma das estimativas do mês
+
+## Pendências
+- [ ] Estética (depois da validação funcional)
+- [ ] Remover `getCarryForwardBalance`/`buildProjectedMonthData` quando cartões também usarem o motor
+- [ ] Transferências automáticas na sincronização (hoje: item em Revisar)

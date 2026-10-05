@@ -8,7 +8,8 @@ import { formatMonthLabel } from "../format";
 import { revalidatePath } from "next/cache";
 import { isFutureMonth, addMonths } from "../date-helpers";
 import { getCarryForwardBalance } from "./projections";
-import { computeForecast } from "../forecast/loader";
+import { computeForecast, toFRecurring } from "../forecast/loader";
+import { occursInMonth } from "../forecast/matching";
 import { forecastRowsForMonth } from "../forecast/extrato";
 import { dateOf, diffDays, localToday } from "../forecast/dates";
 import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
@@ -253,6 +254,15 @@ export async function getMonthData(month: string): Promise<MonthData> {
     subMap: Map<string, { id: number; name: string; total: number; color?: string | null; items: any[] }>;
   }
 
+  // Plano do mês por categoria-mãe = soma das estimativas ativas (da própria categoria e das subcategorias).
+  const planByParent = new Map<number, number>();
+  for (const r of allRecurring) {
+    if (r.isEstimate !== 1 || r.categoryId == null || !occursInMonth(toFRecurring(r), month)) continue;
+    const cat = categoryMap.get(r.categoryId);
+    const parentId = cat?.parentId ?? r.categoryId;
+    planByParent.set(parentId, (planByParent.get(parentId) ?? 0) + Math.abs(r.amount));
+  }
+
   const catGroupMap = new Map<string, TempGroup>();
 
   for (const cat of catList) {
@@ -260,7 +270,7 @@ export async function getMonthData(month: string): Promise<MonthData> {
       catGroupMap.set(cat.name, {
         categoryId: cat.id,
         categoryColor: cat.color,
-        budget: cat.budget,
+        budget: planByParent.get(cat.id) ?? null,
         total: 0,
         items: [],
         subMap: new Map(),

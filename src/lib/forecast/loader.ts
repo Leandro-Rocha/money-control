@@ -14,7 +14,7 @@ import { addMonths } from "../date-helpers";
 import { getProjectedInstallments } from "../repositories/projections";
 import { addDays, localToday, monthOf } from "./dates";
 import { buildForecast, BASELINE_MONTHS } from "./engine";
-import type { CategoryKind, FInstallment, FTransaction, ForecastInput, ForecastResult, ForecastSettings, Scenario } from "./types";
+import type { CategoryKind, FInstallment, FRecurring, FTransaction, ForecastInput, ForecastResult, ForecastSettings, Scenario } from "./types";
 
 export const DEFAULT_SETTINGS: ForecastSettings & { horizonDays: number } = {
   cushion: 500,
@@ -69,8 +69,9 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
   const accRows = await db.select().from(accounts).where(eq(accounts.isActive, 1));
   const activeIds = new Set(accRows.map((a) => a.id));
 
-  const catRows = await db.select({ id: categories.id, kind: categories.kind }).from(categories);
+  const catRows = await db.select({ id: categories.id, kind: categories.kind, parentId: categories.parentId }).from(categories);
   const kindById = new Map(catRows.map((c) => [c.id, c.kind as CategoryKind]));
+  const parentById = new Map(catRows.map((c) => [c.id, c.parentId ?? null]));
 
   const reimbRows = await db
     .select({
@@ -103,6 +104,7 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
       amount: t.amount,
       description: t.description,
       categoryId: t.categoryId,
+      parentCategoryId: t.categoryId != null ? parentById.get(t.categoryId) ?? null : null,
       categoryKind: t.categoryId != null ? kindById.get(t.categoryId) ?? null : null,
       sourceType: t.sourceType,
       sourceId: t.sourceId,
@@ -154,20 +156,7 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
     transactions: fTx,
     recurring: recRows
       .filter((r) => activeIds.has(r.accountId))
-      .map((r) => ({
-        id: r.id,
-        accountId: r.accountId,
-        categoryId: r.categoryId,
-        description: r.description,
-        day: r.day,
-        amount: r.amount,
-        isEstimate: r.isEstimate === 1,
-        frequency: r.frequency,
-        intervalMonths: r.intervalMonths,
-        legacyMonth: r.month,
-        startMonth: r.startMonth,
-        endMonth: r.endMonth,
-      })),
+      .map(toFRecurring),
     installments,
     snapshots: snapRows.map((s) => ({ accountId: s.accountId, date: s.date, balance: s.balance })),
     dismissals: dismissRows.map((d) => ({ accountId: d.accountId, month: d.month, sourceType: d.sourceType, sourceId: d.sourceId })),
@@ -177,6 +166,23 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
       overdueLookbackDays: settings.overdueLookbackDays,
     },
     scenario: opts.scenario,
+  };
+}
+
+export function toFRecurring(r: typeof recurringEntries.$inferSelect): FRecurring {
+  return {
+    id: r.id,
+    accountId: r.accountId,
+    categoryId: r.categoryId,
+    description: r.description,
+    day: r.day,
+    amount: r.amount,
+    isEstimate: r.isEstimate === 1,
+    frequency: r.frequency,
+    intervalMonths: r.intervalMonths,
+    legacyMonth: r.month,
+    startMonth: r.startMonth,
+    endMonth: r.endMonth,
   };
 }
 

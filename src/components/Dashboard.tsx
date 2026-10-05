@@ -10,7 +10,6 @@ import { DesktopView } from "./desktop/DesktopView";
 import { MobileView } from "./mobile/MobileView";
 import { ImportStagingModal } from "./ImportStagingModal";
 import { InsightsModal } from "./InsightsModal";
-import { PullProjectionsModal } from "./PullProjectionsModal";
 import TransferAssistantModal from "./TransferAssistantModal";
 import { ExportPeriodModal } from "./ExportPeriodModal";
 import { SyncAllAccountsModal } from "./SyncAllAccountsModal";
@@ -68,15 +67,6 @@ function DashboardContent({
         accounts={state.data.accountsData.map((a: any) => a.account)}
       />
 
-      {state.pullOpen && (
-        <PullProjectionsModal
-          month={state.currentMonth}
-          accounts={state.data.accountsData.map((a: any) => a.account)}
-          onClose={() => state.setPullOpen(false)}
-          onSuccess={() => state.loadMonth(state.currentMonth)}
-        />
-      )}
-
       {state.insightsOpen && (
         <InsightsModal
           monthLabel={state.data.monthLabel}
@@ -94,7 +84,6 @@ function DashboardContent({
           onClose={state.handleCloseImport}
           onSuccess={() => state.loadMonth(state.currentMonth)}
           initialAccountId={state.importInitialAccountId}
-          initialSourceMode="pluggy"
           autoFetch={state.importAutoFetch}
         />
       )}

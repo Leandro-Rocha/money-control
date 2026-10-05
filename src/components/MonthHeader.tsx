@@ -7,7 +7,6 @@ import {
   Calendar,
   UploadCloud,
   PieChart,
-  ListPlus,
   ArrowUpRight,
   ArrowDownRight,
   ArrowRightLeft,
@@ -64,7 +63,6 @@ interface MonthHeaderProps {
   onOpenRecurring: () => void;
   onOpenImport: () => void;
   onOpenInsights: () => void;
-  onOpenPullProjections: () => void;
   onOpenTransfers: () => void;
   onOpenExport?: () => void;
   onOpenSettings?: () => void;
@@ -108,7 +106,6 @@ export default function MonthHeader({
   onOpenRecurring,
   onOpenImport,
   onOpenInsights,
-  onOpenPullProjections,
   onOpenTransfers,
   onOpenExport,
   onOpenSettings,
@@ -400,18 +397,6 @@ export default function MonthHeader({
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionsOpen(false);
-                      onOpenPullProjections();
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                  >
-                    <ListPlus className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span>Puxar Recorrentes</span>
-                  </button>
-
                   {onOpenDuplicates && (
                     <button
                       type="button"
@@ -466,8 +451,8 @@ export default function MonthHeader({
                   >
                     <UploadCloud className="w-4 h-4 text-sky-500 shrink-0" />
                     <div className="flex flex-col">
-                      <span>Importação Manual</span>
-                      <span className="text-[10px] text-muted-foreground">Colar TSV de extrato</span>
+                      <span>Sincronizar uma Conta</span>
+                      <span className="text-[10px] text-muted-foreground">Revisar lançamentos do Pluggy antes de salvar</span>
                     </div>
                   </button>
                 </div>

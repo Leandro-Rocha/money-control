@@ -21,6 +21,8 @@ export interface FTransaction {
   amount: number;
   description: string;
   categoryId: number | null;
+  /** Categoria-mãe, para abater estimativas lançadas na categoria principal. */
+  parentCategoryId?: number | null;
   categoryKind: CategoryKind | null;
   sourceType: SourceType | null;
   sourceId: number | null;

@@ -3,18 +3,11 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Category, TransactionWithCategory, Account } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowRight,
-  UploadCloud,
-  RefreshCw,
-  CreditCard,
-  FileText,
-} from "lucide-react";
+import { ArrowRight, RefreshCw, CreditCard } from "lucide-react";
 import { ModalShell } from "./ModalShell";
-import { createMultipleTransactions, getAccountTransactionsForMonths } from "@/lib/actions/transactions";
+import { createMultipleTransactions } from "@/lib/actions/transactions";
 import { getTransactionRules } from "@/lib/actions/transaction-rules";
 import { fetchPluggyTransactionsForMonth, importTransactionsWithReplaceAction } from "@/lib/actions/pluggy";
-import { copyToClipboard } from "@/lib/clipboard";
 import { formatMonthLabel } from "@/lib/format";
 import {
   findBillPaymentCandidatesAction,
@@ -22,34 +15,16 @@ import {
 } from "@/lib/actions/projections";
 import { BillPaymentCandidate } from "@/lib/due-dates";
 
-import {
-  resolveTargetMonth,
-  buildCategoryPromptList,
-  matchExtractedCategory,
-  normalizeDescription,
-  isDbDuplicate,
-  filterStagingRows,
-  type StagingFilterMode,
-} from "@/lib/staging-utils";
+import { filterStagingRows, type StagingFilterMode } from "@/lib/staging-utils";
 
 import { ParsedRow, StagingTableGroup } from "./staging/types";
 import { StagingBanner } from "./staging/StagingBanner";
 import { StagingFilterBar } from "./staging/StagingFilterBar";
 import { StagingTable } from "./staging/StagingTable";
-import { StagingManualStep } from "./staging/StagingManualStep";
 import { StagingPluggyStep } from "./staging/StagingPluggyStep";
 import { StagingBillPaymentStep } from "./staging/StagingBillPaymentStep";
 
 export type { ParsedRow };
-export {
-  resolveTargetMonth,
-  buildCategoryPromptList,
-  matchExtractedCategory,
-  normalizeDescription,
-  isDbDuplicate,
-  filterStagingRows,
-  type StagingFilterMode,
-};
 
 interface ImportStagingModalProps {
   month: string;
@@ -59,7 +34,6 @@ interface ImportStagingModalProps {
   onClose: () => void;
   onSuccess: () => void;
   initialAccountId?: number;
-  initialSourceMode?: "manual" | "pluggy";
   autoFetch?: boolean;
 }
 
@@ -71,24 +45,20 @@ export function ImportStagingModal({
   onClose,
   onSuccess,
   initialAccountId,
-  initialSourceMode = "pluggy",
   autoFetch = false,
 }: ImportStagingModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [sourceMode, setSourceMode] = useState<"manual" | "pluggy">(initialSourceMode);
+  const sourceMode = "pluggy" as const;
   const [accountId, setAccountId] = useState<number>(() => {
     if (initialAccountId && accounts.some((a) => a.id === initialAccountId)) {
       return initialAccountId;
     }
     return accounts[0]?.id || 0;
   });
-  const [pastedText, setPastedText] = useState("");
   const [rules, setRules] = useState<any[]>([]);
-  const [copied, setCopied] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [filterMode, setFilterMode] = useState<StagingFilterMode>("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
   const [isFetchingPluggy, setIsFetchingPluggy] = useState(false);
   const [pluggyError, setPluggyError] = useState<string | null>(null);
   const [replaceExisting, setReplaceExisting] = useState(false);
@@ -120,7 +90,7 @@ export function ImportStagingModal({
       onClose();
       return;
     }
-    if (pastedText.trim().length > 0 || step === 2) {
+    if (step === 2) {
       if (window.confirm("Tem certeza que deseja fechar? Os dados da importação serão perdidos.")) {
         onClose();
       }
@@ -132,48 +102,6 @@ export function ImportStagingModal({
   const selectedAccount = accounts.find((a) => a.id === accountId);
   const isBankAccount = (selectedAccount?.type ?? "bank_account") === "bank_account";
   const isSupportedByPluggy = selectedAccount?.type === "bank_account" || selectedAccount?.type === "credit_card";
-
-  // -- Prompt Generation
-  const promptText = useMemo(() => {
-    const categoriesPromptList = buildCategoryPromptList(categories);
-
-    if (isBankAccount) {
-      return `Vou colar um extrato bancário. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 5 colunas:
-
-Data	Nome Original	Nome Limpo	Valor	Categoria
-
-Regras:
-1. Data: Extraia a data no formato DD/MM/AAAA (ex: 02/07/2026). Se o extrato omitir o ano, deduza do contexto ou período do extrato.
-2. Nome Original: Exatamente como aparece no extrato, sem limpar (ex: PIX TRANSF LEANDRO 02/07).
-3. Nome Limpo: Versão amigável e limpa (ex: Pix Leandro, Mercado Extra, Salário).
-4. Valor: Numérico, sem 'R$'. Saídas/Débitos/Gastos devem ser negativos (ex: -150.00). Entradas/Créditos/Depósitos devem ser positivos (ex: 3500.00).
-5. Categoria: Categorize preferencialmente na subcategoria mais específica correspondente (ex: Supermercado), ou na categoria principal caso não haja subcategoria aplicável (ex: Alimentação). Utilize ESTRITAMENTE as categorias e subcategorias cadastradas abaixo:
-${categoriesPromptList}
-Se não souber ou não se encaixar em nenhuma, deixe em branco.
-6. O que incluir: INCLUA TODOS os lançamentos (PIX enviados e recebidos, transferências, pagamentos de títulos/boletos/faturas de cartão, salários, rendimentos e tarifas). NÃO ignore nenhum lançamento.
-7. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos presentes no extrato, mesmo que abranja múltiplos meses.
-8. Ordem: Retorne as linhas em ordem cronológica por Data (da mais antiga para a mais recente).`;
-    }
-
-    return `Vou colar uma fatura de cartão de crédito. Extraia as transações e retorne APENAS uma tabela no formato TSV (Tab-Separated Values) estrito, sem formatação markdown em volta, com exatamente 8 colunas:
-
-Data	Nome Original	Nome Limpo	Valor	Categoria	Parcela Atual	Total Parcelas	Data Compra
-
-Regras:
-1. Data: Extraia a data no formato em que aparece, preferencialmente DD/MM (ex: 02/10).
-2. Nome Original: Exatamente como aparece na fatura, sem limpar (ex: PGTO *UBER SAOPAULO 02/10).
-3. Nome Limpo: Versão amigável e limpa, SEM informações de parcelamento (ex: Uber).
-4. Valor: Numérico, sem 'R$'. Saídas/Gastos devem ser negativos.
-5. Categoria: Categorize preferencialmente na subcategoria mais específica correspondente (ex: Supermercado), ou na categoria principal caso não haja subcategoria aplicável (ex: Alimentação). Utilize ESTRITAMENTE as categorias e subcategorias cadastradas abaixo:
-${categoriesPromptList}
-Se não souber ou não se encaixar em nenhuma, deixe em branco.
-6. Parcela Atual e Total: Se o nome original indicar parcelamento (ex: 02/05, PARC 2/5), extraia o número da parcela atual para a Coluna 6 e o total para a Coluna 7. Se não houver, deixe ambas em branco.
-7. O que ignorar: IGNORE seções como "Pagamentos efetuados" (pagamento da fatura) e "Compras parceladas - próximas faturas".
-8. O que incluir: INCLUA tarifas de serviço, IOF, compras internacionais e lançamentos do mês atual.
-9. Data Compra: A data exata da compra no formato DD/MM/YYYY na Coluna 8. Se omitir o ano, deduza do contexto da fatura. Se não aplicável, deixe em branco.
-10. Não filtre por mês: extraia ABSOLUTAMENTE TODOS os lançamentos cobrados nesta fatura, respeitando as regras 7 e 8.
-11. Ordem: Retorne as linhas ordenadas por Dia (do menor para o maior).`;
-  }, [categories, isBankAccount]);
 
   useEffect(() => {
     getTransactionRules().then((data) => setRules(data.filter((r: any) => r.active === 1)));
@@ -203,14 +131,6 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       setCommitError(null);
     }
   }, [accountId, parsedRows.length, step]);
-
-  const handleCopyPrompt = async () => {
-    const success = await copyToClipboard(promptText);
-    if (success) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   // Fetch directly from Pluggy Open Finance
   const handleFetchPluggy = async (targetAccountId?: number) => {
@@ -284,209 +204,6 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
     }
   };
 
-  // TSV Parser & Deduplication
-  const handleParse = async () => {
-    if (!pastedText.trim()) return;
-
-    setIsParsing(true);
-    const lines = pastedText.trim().split("\n");
-    const tempRows: {
-      idx: number;
-      day: number;
-      description: string;
-      originalDescription: string;
-      amount: number;
-      categoryId: number | null;
-      catExtracted: string;
-      resolvedMonth: string;
-      isPastMonth: boolean;
-      instCur?: number;
-      instTot?: number;
-      purchaseDate?: string;
-      matchedRuleId?: number | null;
-      matchedRulePattern?: string | null;
-    }[] = [];
-
-    lines.forEach((line, idx) => {
-      const parts = line.split("\t");
-      if (parts.length < 4) return; // Skip invalid lines
-
-      if (
-        parts[0].toLowerCase().includes("data") &&
-        (parts[1].toLowerCase().includes("nome") || parts[1].toLowerCase().includes("desc"))
-      ) {
-        return;
-      }
-
-      let dayStr = parts[0].trim();
-      let extractedMonth: number | null = null;
-      let extractedYear: number | null = null;
-
-      if (dayStr.includes("/")) {
-        const dParts = dayStr.split("/");
-        dayStr = dParts[0].replace(/\D/g, "");
-        const mStr = dParts[1]?.replace(/\D/g, "");
-        if (mStr) extractedMonth = parseInt(mStr, 10);
-        const yStr = dParts[2]?.replace(/\D/g, "");
-        if (yStr && yStr.length === 4) {
-          extractedYear = parseInt(yStr, 10);
-        } else if (yStr && yStr.length === 2) {
-          extractedYear = 2000 + parseInt(yStr, 10);
-        }
-      } else {
-        dayStr = dayStr.replace(/\D/g, "");
-      }
-
-      const day = parseInt(dayStr, 10);
-      if (isNaN(day)) return;
-
-      const originalDescription = parts[1].trim();
-      let description = parts[2].trim();
-
-      let amountStr = parts[3].replace(/[R$\s]/g, "");
-      if (amountStr.includes(",") && amountStr.includes(".")) {
-        if (amountStr.lastIndexOf(",") > amountStr.lastIndexOf(".")) {
-          amountStr = amountStr.replace(/\./g, "").replace(",", ".");
-        } else {
-          amountStr = amountStr.replace(/,/g, "");
-        }
-      } else if (amountStr.includes(",")) {
-        amountStr = amountStr.replace(",", ".");
-      }
-      const amount = parseFloat(amountStr);
-      if (isNaN(amount)) return;
-
-      let catExtracted = parts[4]?.trim() || "";
-      const lowerCat = catExtracted.toLowerCase();
-      if (lowerCat === "sem categoria" || lowerCat === "outros" || lowerCat === "outro") {
-        catExtracted = "";
-      }
-      let matchedCatId: number | null = null;
-
-      // RULE ENGINE (Longest Match Wins)
-      let matchedRule: any = null;
-      const lowerOrig = originalDescription.toLowerCase();
-
-      rules.forEach((rule) => {
-        if (lowerOrig.includes(rule.pattern.toLowerCase())) {
-          if (
-            !matchedRule ||
-            rule.pattern.length > matchedRule.pattern.length ||
-            (rule.pattern.length === matchedRule.pattern.length && (rule.id ?? 0) > (matchedRule.id ?? 0))
-          ) {
-            matchedRule = rule;
-          }
-        }
-      });
-
-      if (matchedRule) {
-        description = matchedRule.targetDescription;
-        matchedCatId = matchedRule.categoryId || null;
-        catExtracted = "Definido por Regra";
-      } else {
-        matchedCatId = matchExtractedCategory(catExtracted, categories);
-      }
-
-      let purchaseDate: string | undefined = parts[7]?.trim();
-      if (!purchaseDate) purchaseDate = undefined;
-
-      if (!extractedYear && purchaseDate && purchaseDate.includes("/")) {
-        const pParts = purchaseDate.split("/");
-        const pyStr = pParts[2]?.replace(/\D/g, "");
-        if (pyStr && pyStr.length === 4) {
-          extractedYear = parseInt(pyStr, 10);
-        } else if (pyStr && pyStr.length === 2) {
-          extractedYear = 2000 + parseInt(pyStr, 10);
-        }
-      }
-
-      const accountType = selectedAccount?.type ?? "bank_account";
-      const resolvedMonth = resolveTargetMonth(month, extractedMonth, accountType, extractedYear);
-      const isPastMonth = resolvedMonth !== month;
-
-      let instCur: number | undefined;
-      let instTot: number | undefined;
-      if (!isBankAccount) {
-        if (parts[5] && parts[5].trim() !== "") {
-          const parsed = parseInt(parts[5].trim().replace(/\D/g, ""), 10);
-          if (!isNaN(parsed)) instCur = parsed;
-        }
-        if (parts[6] && parts[6].trim() !== "") {
-          const parsed = parseInt(parts[6].trim().replace(/\D/g, ""), 10);
-          if (!isNaN(parsed)) instTot = parsed;
-        }
-      }
-
-      tempRows.push({
-        idx,
-        day,
-        description,
-        originalDescription,
-        amount,
-        categoryId: matchedCatId,
-        catExtracted,
-        resolvedMonth,
-        isPastMonth,
-        instCur,
-        instTot,
-        purchaseDate,
-        matchedRuleId: matchedRule?.id ?? null,
-        matchedRulePattern: matchedRule?.pattern ?? null,
-      });
-    });
-
-    const distinctMonths = Array.from(new Set(tempRows.map((r) => r.resolvedMonth)));
-    let dbExistingTx: { month: string; day: number; amount: number; description?: string }[] = [];
-    try {
-      dbExistingTx = await getAccountTransactionsForMonths(accountId, distinctMonths);
-    } catch {
-      dbExistingTx = existingTransactions
-        .filter((t) => t.accountId === accountId)
-        .map((t) => ({ month: t.month, day: t.day, amount: t.amount, description: t.description }));
-    }
-
-    const rows: ParsedRow[] = [];
-    const seenInBatch = new Set<string>();
-
-    for (const r of tempRows) {
-      const normDesc = normalizeDescription(r.description);
-      const existsInDb = isDbDuplicate(r, dbExistingTx);
-      const batchKey = `${r.resolvedMonth}_${r.day}_${r.amount}_${normDesc}`;
-      const duplicateInBatch = seenInBatch.has(batchKey);
-      seenInBatch.add(batchKey);
-
-      const isDup = existsInDb || duplicateInBatch;
-
-      rows.push({
-        id: `temp-${r.idx}`,
-        day: r.day,
-        description: r.description,
-        originalDescription: r.originalDescription,
-        amount: r.amount,
-        categoryId: r.categoryId,
-        categoryNameExtracted: r.categoryId ? "" : r.catExtracted,
-        isDuplicate: isDup,
-        isAlreadyImported: existsInDb,
-        isDuplicateInBatch: duplicateInBatch,
-        ignored: isDup,
-        isPastMonth: r.isPastMonth,
-        resolvedMonth: r.resolvedMonth,
-        createRule: false,
-        rulePattern: r.matchedRulePattern || r.originalDescription,
-        matchedRuleId: r.matchedRuleId ?? null,
-        matchedRulePattern: r.matchedRulePattern ?? null,
-        installmentCurrent: r.instCur,
-        installmentTotal: r.instTot,
-        purchaseDate: r.purchaseDate,
-        pluggyTransactionId: null,
-      });
-    }
-
-    setParsedRows(rows);
-    setIsParsing(false);
-    setStep(2);
-  };
-
   const toggleIgnore = (id: string) => {
     setParsedRows((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ignored: !r.ignored } : r))
@@ -526,9 +243,9 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
   const alreadyImportedCount = useMemo(
     () =>
       parsedRows.filter(
-        (r) => r.isAlreadyImported ?? (sourceMode === "pluggy" ? r.isDuplicate : false)
+        (r) => r.isAlreadyImported ?? r.isDuplicate
       ).length,
-    [parsedRows, sourceMode]
+    [parsedRows]
   );
   const batchDuplicateCount = useMemo(
     () => parsedRows.filter((r) => r.isDuplicateInBatch).length,
@@ -719,15 +436,11 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       title={
         step === 3
           ? "Pagamento de Fatura Detectado"
-          : sourceMode === "pluggy"
-          ? "Sincronização Bancária"
-          : "Importação Manual (TSV)"
+          : "Sincronização Bancária"
       }
       subtitle={
         step === 1
-          ? sourceMode === "pluggy"
-            ? "Consulte os lançamentos do mês diretamente via Open Finance."
-            : "Cole os dados TSV gerados por IA a partir do seu extrato."
+          ? "Consulte os lançamentos do mês diretamente via Open Finance."
           : step === 2
           ? "Passo 2: Revise os dados e identifique duplicatas antes de salvar."
           : "Identificamos lançamentos compatíveis com faturas de cartão pendentes de quitação."
@@ -735,32 +448,14 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
       icon={
         step === 3 ? (
           <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-        ) : sourceMode === "pluggy" ? (
-          <RefreshCw className="w-5 h-5 text-primary" />
         ) : (
-          <UploadCloud className="w-5 h-5 text-primary" />
+          <RefreshCw className="w-5 h-5 text-primary" />
         )
       }
       escapeCloses={false}
       footer={
         step === 1 ? (
-          sourceMode === "manual" ? (
-            <>
-              <Button variant="ghost" onClick={handleModalClose}>
-                Cancelar
-              </Button>
-              <Button onClick={handleParse} disabled={!pastedText.trim() || isParsing}>
-                {isParsing ? (
-                  "Processando..."
-                ) : (
-                  <>
-                    Avançar para Revisão <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </>
-                )}
-              </Button>
-            </>
-          ) : (
-            <>
+          <>
               <Button variant="ghost" onClick={handleModalClose} disabled={isFetchingPluggy}>
                 Cancelar
               </Button>
@@ -780,7 +475,6 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
                 )}
               </Button>
             </>
-          )
         ) : step === 2 ? (
           <>
             <Button
@@ -820,40 +514,6 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
     >
       {step === 1 ? (
         <div className="space-y-4">
-          {/* Seletor de Origem: Manual vs Pluggy */}
-          <div className="flex border-b border-border">
-            <button
-              type="button"
-              onClick={() => {
-                setSourceMode("pluggy");
-                setPluggyError(null);
-              }}
-              className={`pb-2.5 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                sourceMode === "pluggy"
-                  ? "border-primary text-primary font-semibold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <RefreshCw className="w-4 h-4" />
-              Sincronização Bancária
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSourceMode("manual");
-                setPluggyError(null);
-              }}
-              className={`pb-2.5 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                sourceMode === "manual"
-                  ? "border-primary text-primary font-semibold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Importação Manual
-            </button>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Conta de Destino</label>
@@ -871,37 +531,15 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
             </div>
             <div>
               <label className="text-sm font-medium mb-1.5 block">
-                {sourceMode === "pluggy"
-                  ? selectedAccount?.type === "credit_card"
-                    ? "Fatura da Consulta"
-                    : "Mês da Consulta"
-                  : isBankAccount
-                  ? "Mês dos Lançamentos"
-                  : "Mês da Fatura"}
+                {selectedAccount?.type === "credit_card" ? "Fatura da Consulta" : "Mês da Consulta"}
               </label>
               <div className="h-10 rounded-md border border-input bg-muted px-3 flex items-center text-xs sm:text-sm font-medium text-muted-foreground">
-                {sourceMode === "pluggy"
-                  ? selectedAccount?.type === "credit_card"
-                    ? `Fatura de ${formatMonthLabel(month)}`
-                    : formatMonthLabel(month)
-                  : isBankAccount
-                  ? "Automático (definido pela data de cada lançamento)"
-                  : month}
+                {selectedAccount?.type === "credit_card" ? `Fatura de ${formatMonthLabel(month)}` : formatMonthLabel(month)}
               </div>
             </div>
           </div>
 
-          {sourceMode === "manual" ? (
-            <StagingManualStep
-              promptText={promptText}
-              pastedText={pastedText}
-              onPastedTextChange={setPastedText}
-              isBankAccount={isBankAccount}
-              copied={copied}
-              onCopyPrompt={handleCopyPrompt}
-            />
-          ) : (
-            <StagingPluggyStep
+          <StagingPluggyStep
               selectedAccount={selectedAccount}
               isSupportedByPluggy={isSupportedByPluggy}
               month={month}
@@ -909,7 +547,6 @@ Se não souber ou não se encaixar em nenhuma, deixe em branco.
               pluggyError={pluggyError}
               onFetchPluggy={() => handleFetchPluggy()}
             />
-          )}
         </div>
       ) : step === 2 ? (
         <div className="space-y-4">

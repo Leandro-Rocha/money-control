@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveTargetMonth } from "./ImportStagingModal";
+import { resolveTargetMonth } from "./staging-utils";
 
 describe("resolveTargetMonth", () => {
   it("always returns uiMonth for credit_card", () => {
@@ -49,23 +49,8 @@ describe("resolveTargetMonth", () => {
   });
 });
 
-import { buildCategoryPromptList, matchExtractedCategory } from "./ImportStagingModal";
+import { matchExtractedCategory } from "./staging-utils";
 import { Category } from "@/lib/types";
-
-describe("buildCategoryPromptList", () => {
-  it("formats hierarchical categories and subcategories clearly for AI prompt", () => {
-    const categories: Category[] = [
-      { id: 1, name: "Alimentação", type: "expense", showInSummary: 1 },
-      { id: 2, name: "Supermercado", type: "expense", showInSummary: 1, parentId: 1 },
-      { id: 3, name: "Restaurante", type: "expense", showInSummary: 1, parentId: 1 },
-      { id: 4, name: "Salário", type: "income", showInSummary: 1 },
-    ];
-
-    const result = buildCategoryPromptList(categories);
-    expect(result).toContain("- Alimentação (Subcategorias: Supermercado, Restaurante)");
-    expect(result).toContain("- Salário");
-  });
-});
 
 describe("matchExtractedCategory", () => {
   const categories: Category[] = [
@@ -97,7 +82,7 @@ describe("matchExtractedCategory", () => {
   });
 });
 
-import { normalizeDescription, isDbDuplicate, filterStagingRows } from "./ImportStagingModal";
+import { normalizeDescription, isDbDuplicate, filterStagingRows } from "./staging-utils";
 
 describe("normalizeDescription", () => {
   it("lowercases, trims, removes punctuation and normalizes spacing", () => {

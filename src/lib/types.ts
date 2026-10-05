@@ -211,50 +211,6 @@ export interface ExportPeriodData {
   transactions: ExportTransactionItem[];
 }
 
-export type RunwayHorizon = 6 | 12;
-
-export interface RunwayItemDetail {
-  id: string | number;
-  description: string;
-  amount: number;
-  accountName?: string;
-  categoryName?: string;
-  type: "income" | "bank_expense" | "credit_card";
-}
-
-export interface RunwayMonthSummary {
-  month: string; // YYYY-MM
-  monthLabel: string; // ex: "Set/26"
-  initialBalance: number;
-  projectedIncome: number;
-  projectedBankExpenses: number;
-  projectedCreditCardBills: number;
-  totalExpenses: number; // projectedBankExpenses + projectedCreditCardBills
-  netResult: number; // projectedIncome - totalExpenses
-  finalBalance: number; // initialBalance + netResult
-  isNegativeBalance: boolean; // finalBalance < 0
-  isNegativeResult: boolean; // netResult < 0
-  incomeItems: RunwayItemDetail[];
-  bankExpenseItems: RunwayItemDetail[];
-  creditCardItems: RunwayItemDetail[];
-}
-
-export interface RunwayKPIs {
-  criticalPointBalance: number; // lowest projected final balance in horizon
-  criticalPointMonth: string; // month where lowest balance occurs
-  criticalPointMonthLabel: string;
-  runwayMonths: number; // months until balance drops below 0 (or horizon length if always positive)
-  isAlwaysPositive: boolean;
-  averageMonthlyBurnOrGain: number; // average net result across the horizon
-}
-
-export interface RunwayData {
-  startMonth: string;
-  horizon: RunwayHorizon;
-  months: RunwayMonthSummary[];
-  kpis: RunwayKPIs;
-}
-
 export interface GlobalSearchResultItem {
   id: number;
   accountId: number;

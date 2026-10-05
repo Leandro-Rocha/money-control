@@ -37,7 +37,6 @@ export function useDashboard(
   const [importInitialAccountId, setImportInitialAccountId] = useState<number | undefined>(undefined);
   const [importAutoFetch, setImportAutoFetch] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
-  const [pullOpen, setPullOpen] = useState(false);
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [syncAllOpen, setSyncAllOpen] = useState(false);
@@ -74,7 +73,6 @@ export function useDashboard(
   const [filterText, setFilterText] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState<number | "">("");
   const [filterHighValue, setFilterHighValue] = useState<number | "">("");
-  const [filterTagId, setFilterTagId] = useState<number | "">("");
 
   // Triage modal state
   const [triageOpen, setTriageOpen] = useState(false);
@@ -422,8 +420,6 @@ export function useDashboard(
     handleSelectSearchedTransaction,
     insightsOpen,
     setInsightsOpen,
-    pullOpen,
-    setPullOpen,
     transfersOpen,
     setTransfersOpen,
     exportOpen,
@@ -443,8 +439,6 @@ export function useDashboard(
     setFilterCategoryId,
     filterHighValue,
     setFilterHighValue,
-    filterTagId,
-    setFilterTagId,
     allTags,
     expandedMap,
     handleToggleExpanded,

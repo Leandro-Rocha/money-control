@@ -36,13 +36,6 @@ export const appSettings = sqliteTable("app_settings", {
   value: text("value").notNull(),
 });
 
-export const monthlyInitialBalances = sqliteTable("monthly_initial_balances", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  accountId: integer("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  month: text("month").notNull(), // Format: "YYYY-MM"
-  initialBalance: real("initial_balance").notNull().default(0),
-});
-
 export const categories = sqliteTable("categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -138,7 +131,6 @@ export const transactionTags = sqliteTable("transaction_tags", {
 
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
-export type MonthlyInitialBalance = typeof monthlyInitialBalances.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
