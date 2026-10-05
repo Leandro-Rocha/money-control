@@ -4,20 +4,9 @@ import { Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ForecastAccount } from "@/lib/actions/forecast";
-import type { EventKind, Suggestion } from "@/lib/forecast/types";
+import type { EventKind } from "@/lib/forecast/types";
 
-const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-
-/** "2026-10-05" → "05/10". */
-export function fmtDate(d: string): string {
-  return `${d.slice(8, 10)}/${d.slice(5, 7)}`;
-}
-
-/** "2026-10-05" → "seg 05/10". */
-export function fmtDateWeekday(d: string): string {
-  const [y, m, day] = d.split("-").map(Number);
-  return `${WEEKDAYS[new Date(y, m - 1, day).getDay()]} ${fmtDate(d)}`;
-}
+export { fmtDate, fmtDateWeekday, suggestionText } from "@/lib/forecast/text";
 
 export function Money({ value, className, sign = false }: { value: number; className?: string; sign?: boolean }) {
   return (
@@ -48,13 +37,6 @@ export const KIND_LABEL: Record<EventKind, string> = {
   scheduled: "Agendado",
   scenario: "Simulação",
 };
-
-export function suggestionText(s: Suggestion, name: (id: number | null) => string): string {
-  const v = formatCurrency(s.amount);
-  if (s.type === "transfer") return `Transferir R$ ${v} de ${name(s.fromAccountId)} para ${name(s.toAccountId)} até ${fmtDate(s.byDate)}`;
-  if (s.type === "redeem") return `Resgatar R$ ${v} de ${name(s.fromAccountId)} para ${name(s.toAccountId)} até ${fmtDate(s.byDate)}`;
-  return `Faltam R$ ${v} em ${name(s.toAccountId)} em ${fmtDate(s.deficitDate)}: nenhuma conta ou reserva cobre`;
-}
 
 export function Section({
   title,

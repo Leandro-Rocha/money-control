@@ -1,4 +1,5 @@
 import fs from "fs";
+import { localToday } from "@/lib/forecast/dates";
 import path from "path";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
@@ -353,7 +354,7 @@ export function startMorningPluggyScheduler(options?: { intervalMs?: number }): 
   const checkAndRun = async () => {
     try {
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = localToday(now);
       const hour = now.getHours();
 
       // Dispara a partir das 07:00 se ainda não rodou hoje

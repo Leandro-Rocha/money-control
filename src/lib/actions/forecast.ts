@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/db";
+import { upsertBalanceSnapshot } from "@/lib/forecast/snapshots";
 import { and, eq, isNull, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
@@ -195,16 +196,7 @@ export async function createBalanceAdjustmentAction(data: { accountId: number; d
 /** Saldo informado à mão (ex.: conferido no app do banco). Substitui um manual do mesmo dia. */
 export async function recordBalanceSnapshotAction(data: { accountId: number; date: string; balance: number }) {
   if (!Number.isFinite(data.balance) || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) return { success: false };
-  await db
-    .delete(accountBalanceSnapshots)
-    .where(
-      and(
-        eq(accountBalanceSnapshots.accountId, data.accountId),
-        eq(accountBalanceSnapshots.date, data.date),
-        eq(accountBalanceSnapshots.source, "manual"),
-      ),
-    );
-  await db.insert(accountBalanceSnapshots).values({ ...data, source: "manual" });
+  await upsertBalanceSnapshot({ ...data, source: "manual" });
   revalidatePath("/");
   return { success: true };
 }

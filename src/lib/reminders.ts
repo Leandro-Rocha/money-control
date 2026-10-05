@@ -1,10 +1,12 @@
 import fs from "fs";
+import { localToday } from "@/lib/forecast/dates";
 import path from "path";
 import { DueItem, getDueDatesAgenda } from "./due-dates";
 export type { DueItem };
 import { getMonthData } from "./actions/transactions";
 import { formatCurrency } from "./format";
 import { addMonths } from "./date-helpers";
+import { sendLiquidityAlert } from "./liquidity-alert";
 
 let remindersTimer: NodeJS.Timeout | null = null;
 let lastCheckDateStr: string | null = null;
@@ -290,7 +292,7 @@ export async function sendDueReminders(options?: SendRemindersOptions): Promise<
   const candidates = await getDueReminders(refDate);
   const history = loadSentHistory(historyPath);
 
-  const todayStr = refDate.toISOString().slice(0, 10);
+  const todayStr = localToday(refDate);
   let sentCount = 0;
   let skippedCount = 0;
 
@@ -365,7 +367,7 @@ export function startRemindersScheduler(options?: { intervalMs?: number }): void
   const checkAndRun = async () => {
     try {
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = localToday(now);
       const hour = now.getHours();
 
       // Dispara a partir das 08:00 se ainda não rodou hoje
@@ -375,6 +377,10 @@ export function startRemindersScheduler(options?: { intervalMs?: number }): void
         lastCheckDateStr = todayStr;
         console.log(
           `[Reminders Scheduler] Finalizado. Candidatos: ${result.totalCandidates}, Enviados: ${result.sentCount}, Ignorados: ${result.skippedCount}`
+        );
+        const liquidity = await sendLiquidityAlert({ today: todayStr });
+        console.log(
+          `[Reminders Scheduler] Alerta de liquidez: ${liquidity.sent ? "enviado" : liquidity.skipped ?? liquidity.error}`
         );
       }
     } catch (e) {

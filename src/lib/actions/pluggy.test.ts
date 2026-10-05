@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestDb } from "../test-db";
-import { accounts, categories, transactionRules, transactions } from "@/db/schema";
+import { accountBalanceSnapshots, accounts, categories, transactionRules, transactions } from "@/db/schema";
+import { localToday } from "@/lib/forecast/dates";
 import { eq, and } from "drizzle-orm";
 import {
   fetchPluggyTransactionsForMonth,
@@ -348,6 +349,50 @@ describe("fetchPluggyTransactionsForMonth Server Action", () => {
       if (res.success) {
         expect(res.transactions).toEqual([]);
       }
+      const snaps = await testDb.select().from(accountBalanceSnapshots);
+      expect(snaps).toMatchObject([{ accountId: 5, balance: 100, source: "pluggy", date: localToday() }]);
+    });
+
+    it("grava o saldo do banco a cada consulta, substituindo o do mesmo dia", async () => {
+      await testDb.insert(accounts).values({
+        id: 6,
+        name: "Conta Corrente",
+        type: "bank_account",
+        color: "blue",
+        pluggyAccountId: "pluggy-acc-6",
+      });
+      vi.spyOn(pluggyIntegration, "fetchPluggyTransactions").mockResolvedValue([
+        { id: "t1", description: "PIX", amount: -10, date: "2026-07-03T12:00:00.000Z" } as any,
+      ]);
+      const accSpy = vi
+        .spyOn(pluggyIntegration, "fetchPluggyAccount")
+        .mockResolvedValueOnce({ id: "pluggy-acc-6", balance: 500 } as any)
+        .mockResolvedValueOnce({ id: "pluggy-acc-6", balance: 490.5 } as any);
+
+      await fetchPluggyTransactionsForMonth(6, "2026-07");
+      await fetchPluggyTransactionsForMonth(6, "2026-07");
+
+      expect(accSpy).toHaveBeenCalledTimes(2);
+      const snaps = await testDb.select().from(accountBalanceSnapshots);
+      expect(snaps).toMatchObject([{ accountId: 6, balance: 490.5, source: "pluggy" }]);
+    });
+
+    it("não falha a importação se o saldo não puder ser lido mas houver transações", async () => {
+      await testDb.insert(accounts).values({
+        id: 7,
+        name: "Conta Corrente 2",
+        type: "bank_account",
+        color: "blue",
+        pluggyAccountId: "pluggy-acc-7",
+      });
+      vi.spyOn(pluggyIntegration, "fetchPluggyTransactions").mockResolvedValue([
+        { id: "t1", description: "PIX", amount: -10, date: "2026-07-03T12:00:00.000Z" } as any,
+      ]);
+      vi.spyOn(pluggyIntegration, "fetchPluggyAccount").mockRejectedValue(new Error("HTTP 500"));
+
+      const res = await fetchPluggyTransactionsForMonth(7, "2026-07");
+      expect(res.success).toBe(true);
+      expect(await testDb.select().from(accountBalanceSnapshots)).toEqual([]);
     });
   });
 

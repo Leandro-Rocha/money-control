@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { localToday } from "@/lib/forecast/dates";
 import { cookies } from "next/headers";
 import fs from "fs";
 import path from "path";
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   const format = req.nextUrl.searchParams.get("format");
-  const today = new Date().toISOString().split("T")[0];
+  const today = localToday();
 
   // Suporte a download de Dump Canônico JSON
   if (format === "json") {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendDueReminders } from "@/lib/reminders";
+import { sendLiquidityAlert } from "@/lib/liquidity-alert";
 
 export async function GET(req: NextRequest) {
   return handleDispatch(req);
@@ -26,9 +27,11 @@ async function handleDispatch(req: NextRequest) {
 
   try {
     const result = await sendDueReminders({ force, dryRun });
+    const liquidity = await sendLiquidityAlert({ force, dryRun });
     return NextResponse.json({
       success: true,
       result,
+      liquidity,
     });
   } catch (err: any) {
     console.error("[Reminders Dispatch] Falha ao disparar lembretes:", err);

@@ -28,6 +28,8 @@ import {
   resolveTargetMonth,
 } from "@/lib/staging-utils";
 import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
+import { upsertBalanceSnapshot } from "@/lib/forecast/snapshots";
+import { localToday } from "@/lib/forecast/dates";
 import { createMultipleTransactions } from "./transactions";
 import { autoLinkTransfersAction } from "./transfers";
 import { adjustInvestmentBalance } from "./wealth";
@@ -510,18 +512,29 @@ export async function fetchPluggyTransactionsForMonth(
   }
 
   // 3.1 Se nenhuma transação foi encontrada, valida se a conta ainda existe no Pluggy
-  if (pluggyTxs.length === 0) {
+  //     Conta corrente: sempre consulta, para gravar o saldo do banco como âncora da previsão.
+  if (pluggyTxs.length === 0 || account.type === "bank_account") {
     try {
-      if (targetCredentialId && targetCredentialId !== "default") {
-        await fetchPluggyAccount(account.pluggyAccountId, targetCredentialId);
-      } else {
-        await fetchPluggyAccount(account.pluggyAccountId);
+      const pluggyAccount =
+        targetCredentialId && targetCredentialId !== "default"
+          ? await fetchPluggyAccount(account.pluggyAccountId, targetCredentialId)
+          : await fetchPluggyAccount(account.pluggyAccountId);
+      if (account.type === "bank_account" && typeof pluggyAccount?.balance === "number") {
+        await upsertBalanceSnapshot({
+          accountId: account.id,
+          date: localToday(),
+          balance: pluggyAccount.balance,
+          source: "pluggy",
+        });
       }
     } catch {
-      return {
-        success: false,
-        error: `A conta "${account.name}" não foi encontrada no Pluggy (ID: ${account.pluggyAccountId}). Ela pode ter sido desconectada ou reconectada com outro identificador. Atualize o identificador nas configurações da conta.`,
-      };
+      // Com transações em mãos, falhar ao ler o saldo não impede a importação.
+      if (pluggyTxs.length === 0) {
+        return {
+          success: false,
+          error: `A conta "${account.name}" não foi encontrada no Pluggy (ID: ${account.pluggyAccountId}). Ela pode ter sido desconectada ou reconectada com outro identificador. Atualize o identificador nas configurações da conta.`,
+        };
+      }
     }
   }
 
