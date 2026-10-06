@@ -324,7 +324,7 @@ describe("buildForecast — linha de base e faixas", () => {
 });
 
 describe("buildForecast — linha de base líquida", () => {
-  it("com menos de 3 meses de histórico não projeta gasto típico, só o pessimista", () => {
+  it("com menos de 3 meses de histórico não projeta linha de base", () => {
     const r = buildForecast(
       base({
         accounts: [bank(1)],
@@ -336,9 +336,8 @@ describe("buildForecast — linha de base líquida", () => {
         scenario: {},
       }),
     );
-    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, worst: -3300, monthly: [-3300, 10] });
-    expect(r.events.some((e) => e.band === "baseline")).toBe(false);
-    expect(r.events.some((e) => e.band === "baselinePessimistic")).toBe(true);
+    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, worst: 0, monthly: [-3300, 10] });
+    expect(r.events.some((e) => e.kind === "baseline")).toBe(false);
   });
 
   it("estornos e pares despesa/entrada no mesmo mês se anulam", () => {

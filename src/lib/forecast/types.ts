@@ -242,7 +242,7 @@ export interface Baseline {
   accountId: number;
   /** Mediana do líquido mensal não planejado (realista; pode ser positivo). 0 com menos de 3 meses de histórico. */
   typical: number;
-  /** Pior líquido mensal recente, limitado a ≤ 0 (pessimista). */
+  /** Pior líquido mensal recente, limitado a ≤ 0 (pessimista). 0 com menos de 3 meses de histórico. */
   worst: number;
   /** Líquido não planejado de cada mês da janela. */
   monthly: number[];
