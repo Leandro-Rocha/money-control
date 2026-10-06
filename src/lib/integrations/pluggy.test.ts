@@ -246,6 +246,16 @@ describe("Pluggy Integration Client", () => {
           ok: false,
           status: 401,
           text: async () => "Token expired",
+        })
+        // Nova chave e nova tentativa, que também falha
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ apiKey: "new-key" }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          text: async () => "Token expired",
         });
       global.fetch = mockFetch;
 
@@ -254,6 +264,30 @@ describe("Pluggy Integration Client", () => {
       ).rejects.toThrow("Falha ao buscar transações do Pluggy (HTTP 401): Token expired");
 
       expect(getCachedPluggyToken()).toBeNull();
+    });
+
+    it("on 403 API_KEY_MISSING_OR_INVALID gets a new key and retries once", async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKey: "stale-key" }) })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          text: async () => '{"code":403,"codeDescription":"API_KEY_MISSING_OR_INVALID"}',
+        })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKey: "fresh-key" }) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ results: [{ id: "tx-1" }] }) });
+      global.fetch = mockFetch;
+
+      const txs = await fetchPluggyTransactions({ accountId: "acc-uuid-123" });
+
+      expect(txs.map((t) => t.id)).toEqual(["tx-1"]);
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        expect.stringContaining("/v2/transactions"),
+        expect.objectContaining({ headers: { "X-API-KEY": "fresh-key" } })
+      );
+      expect(getCachedPluggyToken()?.apiKey).toBe("fresh-key");
     });
 
     it("filters by billId in memory and parses creditCardMetadata", async () => {
@@ -535,6 +569,15 @@ describe("Pluggy Integration Client", () => {
           ok: false,
           status: 401,
           text: async () => "Unauthorized",
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ apiKey: "new-key" }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          text: async () => "Unauthorized",
         });
       global.fetch = mockFetch;
 
@@ -626,6 +669,15 @@ describe("Pluggy Integration Client", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ apiKey: "mock-api-key" }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          text: async () => "Unauthorized",
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ apiKey: "new-key" }),
         })
         .mockResolvedValueOnce({
           ok: false,

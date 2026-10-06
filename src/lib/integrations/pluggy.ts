@@ -241,6 +241,19 @@ export function getPluggyCredentialProfiles(): PluggyCredentialProfile[] {
 }
 
 /**
+ * GET autenticado no Pluggy. Chave recusada (401/403, ex.: API_KEY_MISSING_OR_INVALID) descarta o
+ * cache e tenta mais uma vez com uma chave nova, em vez de reusar a inválida até o cache expirar.
+ */
+async function pluggyGet(url: string, credentialId?: string): Promise<Response> {
+  const res = await fetch(url, { method: "GET", headers: { "X-API-KEY": await getPluggyApiKey(credentialId) } });
+  if (res.status !== 401 && res.status !== 403) return res;
+  clearPluggyTokenCache();
+  const retry = await fetch(url, { method: "GET", headers: { "X-API-KEY": await getPluggyApiKey(credentialId) } });
+  if (retry.status === 401 || retry.status === 403) clearPluggyTokenCache();
+  return retry;
+}
+
+/**
  * Obtains an active apiKey from Pluggy for a specific credential profile,
  * using cached token if still within its 2-hour TTL.
  */
@@ -327,11 +340,7 @@ export async function resolveCredentialForItem(
 
   for (const profile of profiles) {
     try {
-      const apiKey = await getPluggyApiKey(profile.id);
-      const res = await fetch(`${baseUrl}/items/${cleanItemId}`, {
-        method: "GET",
-        headers: { "X-API-KEY": apiKey },
-      });
+      const res = await pluggyGet(`${baseUrl}/items/${cleanItemId}`, profile.id);
 
       if (res.ok) {
         itemCredentialCache.set(cleanItemId, profile.id);
@@ -359,7 +368,6 @@ export async function fetchPluggyTransactions(
   }
 
   const targetCredentialId = credentialId || params.credentialId;
-  const apiKey = await getPluggyApiKey(targetCredentialId);
   const baseUrl = getPluggyBaseUrl();
   const allTransactions: PluggyTransaction[] = [];
 
@@ -379,17 +387,9 @@ export async function fetchPluggyTransactions(
 
   while (nextUrl && pageCount < MAX_PAGES) {
     pageCount++;
-    const res = await fetch(nextUrl, {
-      method: "GET",
-      headers: {
-        "X-API-KEY": apiKey,
-      },
-    });
+    const res = await pluggyGet(nextUrl, targetCredentialId);
 
     if (!res.ok) {
-      if (res.status === 401) {
-        clearPluggyTokenCache(targetCredentialId);
-      }
       const errText = await res.text();
       throw new Error(`Falha ao buscar transações do Pluggy (HTTP ${res.status}): ${errText}`);
     }
@@ -436,15 +436,10 @@ export async function fetchPluggyItem(
   }
 
   const targetCredentialId = credentialId || (await resolveCredentialForItem(itemId));
-  const apiKey = await getPluggyApiKey(targetCredentialId);
   const baseUrl = getPluggyBaseUrl();
-  const res = await fetch(`${baseUrl}/items/${itemId}`, {
-    method: "GET",
-    headers: { "X-API-KEY": apiKey },
-  });
+  const res = await pluggyGet(`${baseUrl}/items/${itemId}`, targetCredentialId);
 
   if (!res.ok) {
-    if (res.status === 401) clearPluggyTokenCache(targetCredentialId);
     const errText = await res.text();
     throw new Error(`Falha ao consultar Item do Pluggy (HTTP ${res.status}): ${errText}`);
   }
@@ -464,15 +459,10 @@ export async function fetchPluggyAccount(
   }
 
   const [baseId, reservedPart] = accountId.split("#reserved:");
-  const apiKey = await getPluggyApiKey(credentialId);
   const baseUrl = getPluggyBaseUrl();
-  const res = await fetch(`${baseUrl}/accounts/${baseId}`, {
-    method: "GET",
-    headers: { "X-API-KEY": apiKey },
-  });
+  const res = await pluggyGet(`${baseUrl}/accounts/${baseId}`, credentialId);
 
   if (!res.ok) {
-    if (res.status === 401) clearPluggyTokenCache(credentialId);
     const errText = await res.text();
     throw new Error(`Falha ao consultar conta do Pluggy (HTTP ${res.status}): ${errText}`);
   }
@@ -512,15 +502,10 @@ export async function fetchPluggyAccounts(
   }
 
   const targetCredentialId = credentialId || (await resolveCredentialForItem(itemId));
-  const apiKey = await getPluggyApiKey(targetCredentialId);
   const baseUrl = getPluggyBaseUrl();
-  const res = await fetch(`${baseUrl}/accounts?itemId=${itemId}`, {
-    method: "GET",
-    headers: { "X-API-KEY": apiKey },
-  });
+  const res = await pluggyGet(`${baseUrl}/accounts?itemId=${itemId}`, targetCredentialId);
 
   if (!res.ok) {
-    if (res.status === 401) clearPluggyTokenCache(targetCredentialId);
     const errText = await res.text();
     throw new Error(`Falha ao consultar contas do Pluggy (HTTP ${res.status}): ${errText}`);
   }
@@ -564,15 +549,10 @@ export async function fetchPluggyBills(
     throw new Error("Identificador de conta do Pluggy (accountId) é obrigatório.");
   }
 
-  const apiKey = await getPluggyApiKey(credentialId);
   const baseUrl = getPluggyBaseUrl();
-  const res = await fetch(`${baseUrl}/bills?accountId=${accountId}`, {
-    method: "GET",
-    headers: { "X-API-KEY": apiKey },
-  });
+  const res = await pluggyGet(`${baseUrl}/bills?accountId=${accountId}`, credentialId);
 
   if (!res.ok) {
-    if (res.status === 401) clearPluggyTokenCache(credentialId);
     const errText = await res.text();
     throw new Error(`Falha ao consultar faturas do Pluggy (HTTP ${res.status}): ${errText}`);
   }
@@ -593,7 +573,6 @@ export async function fetchPluggyInvestments(
   }
 
   const targetCredentialId = credentialId || (await resolveCredentialForItem(itemId));
-  const apiKey = await getPluggyApiKey(targetCredentialId);
   const baseUrl = getPluggyBaseUrl();
   const allInvestments: PluggyInvestment[] = [];
   let page = 1;
@@ -605,13 +584,9 @@ export async function fetchPluggyInvestments(
     url.searchParams.set("page", String(page));
     url.searchParams.set("pageSize", "500");
 
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: { "X-API-KEY": apiKey },
-    });
+    const res = await pluggyGet(url.toString(), targetCredentialId);
 
     if (!res.ok) {
-      if (res.status === 401) clearPluggyTokenCache(targetCredentialId);
       const errText = await res.text();
       throw new Error(`Falha ao consultar investimentos do Pluggy (HTTP ${res.status}): ${errText}`);
     }
