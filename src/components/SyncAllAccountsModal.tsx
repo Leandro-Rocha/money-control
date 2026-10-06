@@ -144,7 +144,7 @@ export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccou
                           <div className="font-semibold text-foreground">
                             Fatura {c.cardName} ({formatCurrency(c.cardExpenseTotal)})
                           </div>
-                          <div className="text-muted-foreground text-[11px] truncate">
+                          <div className="text-muted-foreground text-2xs truncate">
                             {c.transactionDescription} • {c.reason}
                           </div>
                         </div>

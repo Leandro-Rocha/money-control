@@ -229,7 +229,7 @@ export function AccountDuplicatesModal({
                             <span className="font-medium">{acc.name}</span>
                           </div>
                           {stats.hasDuplicates && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                            <span className="text-2xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">
                               {stats.groupsCount} {stats.groupsCount === 1 ? "duplicada" : "duplicadas"}
                             </span>
                           )}
@@ -292,7 +292,7 @@ export function AccountDuplicatesModal({
                     <div className="text-xs font-semibold text-foreground">
                       {groups.length} {groups.length === 1 ? "grupo suspeito" : "grupos suspeitos"} identificado(s)
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-2xs text-muted-foreground">
                       {redundantCount} {redundantCount === 1 ? "lançamento excedente pode ser removido" : "lançamentos excedentes podem ser removidos"}.
                     </div>
                   </div>
@@ -329,7 +329,7 @@ export function AccountDuplicatesModal({
                           <Badge
                             variant="outline"
                             className={cn(
-                              "text-[10px] font-semibold py-0.5",
+                              "text-2xs font-semibold py-0.5",
                               group.matchType === "exact"
                                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
                                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
@@ -399,7 +399,7 @@ export function AccountDuplicatesModal({
                               <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                                 <span
                                   className={cn(
-                                    "px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5 sm:mt-0",
+                                    "px-1.5 py-0.5 rounded text-2xs font-bold shrink-0 mt-0.5 sm:mt-0",
                                     isEarliest
                                       ? "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20"
                                       : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
@@ -419,7 +419,7 @@ export function AccountDuplicatesModal({
                                   </span>
                                   {tx.originalDescription &&
                                     tx.originalDescription !== tx.description && (
-                                      <span className="text-[11px] text-muted-foreground truncate font-mono">
+                                      <span className="text-2xs text-muted-foreground truncate font-mono">
                                         Original: {tx.originalDescription}
                                       </span>
                                     )}
@@ -427,7 +427,7 @@ export function AccountDuplicatesModal({
 
                                 {tx.categoryName && (
                                   <span
-                                    className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0"
+                                    className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium shrink-0"
                                     style={{
                                       backgroundColor: `${tx.categoryColor || "#64748b"}20`,
                                       color: tx.categoryColor || "#64748b",
@@ -440,20 +440,20 @@ export function AccountDuplicatesModal({
                                 {tx.pluggyTransactionId ? (
                                   <Badge
                                     variant="outline"
-                                    className="hidden lg:inline-flex text-[9px] py-0 h-4 border-sky-500/30 text-sky-600 bg-sky-500/5 shrink-0"
+                                    className="hidden lg:inline-flex text-2xs py-0 h-4 border-sky-500/30 text-sky-600 bg-sky-500/5 shrink-0"
                                   >
                                     Pluggy
                                   </Badge>
                                 ) : (
                                   <Badge
                                     variant="outline"
-                                    className="hidden lg:inline-flex text-[9px] py-0 h-4 border-border text-muted-foreground shrink-0"
+                                    className="hidden lg:inline-flex text-2xs py-0 h-4 border-border text-muted-foreground shrink-0"
                                   >
                                     Manual
                                   </Badge>
                                 )}
 
-                                <span className="hidden xl:inline text-[10px] font-mono text-muted-foreground shrink-0">
+                                <span className="hidden xl:inline text-2xs font-mono text-muted-foreground shrink-0">
                                   ID #{tx.id}
                                 </span>
                               </div>

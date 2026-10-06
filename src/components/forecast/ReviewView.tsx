@@ -109,7 +109,7 @@ export function ReviewView({ state }: { state: DashboardState }) {
                 </Button>
               </div>
             ))}
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               O ajuste cria um lançamento “Ajuste de saldo” (fora dos resumos). Prefira antes procurar lançamento faltando ou duplicado.
             </p>
           </div>
@@ -136,7 +136,7 @@ export function ReviewView({ state }: { state: DashboardState }) {
               <div key={`${s.accountId}|${s.description}`} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <div className="min-w-0">
                   <div className="truncate">{s.description}</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-2xs text-muted-foreground">
                     {accountName(s.accountId)} · dia {s.day} · em {s.months.map((m) => m.slice(5)).join(", ")}
                   </div>
                 </div>
@@ -276,7 +276,7 @@ function OverdueRow({
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <div className="min-w-0">
         <div className="truncate">{e.description}</div>
-        <div className="text-[11px] text-muted-foreground">
+        <div className="text-2xs text-muted-foreground">
           {accountName(e.accountId)} · {KIND_LABEL[e.kind]} · previsto {fmtDate(e.dueDate)}
         </div>
       </div>
@@ -340,7 +340,7 @@ function ReimbursementCandidateRow({
         <Money value={c.credit.amount} sign />
       </div>
       {c.expenses.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Parece reembolso, mas não há despesa marcada como reembolsável antes dele. Marque a despesa no detalhe do lançamento.
         </p>
       ) : (

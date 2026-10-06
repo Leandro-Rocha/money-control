@@ -140,6 +140,8 @@
   --radius-md: calc(1rem - 2px);
   --radius-sm: calc(1rem - 4px);
   --radius-tile: 12px;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 16px;
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 

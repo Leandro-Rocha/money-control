@@ -269,7 +269,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                 )}
               </span>
             ) : !drilldownData ? (
-              <span className="text-[11px] text-slate-400">
+              <span className="text-2xs text-slate-400">
                 Clique em uma categoria para ver detalhes
               </span>
             ) : null}
@@ -344,7 +344,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                         />
                         <span className="truncate max-w-[140px]" title={sub.name}>{sub.name}</span>
                         <span className="font-semibold">{sub.percentage.toFixed(0)}%</span>
-                        <span className={`text-[11px] font-medium ${sub.isIncome ? "text-emerald-600" : "text-slate-400"}`}>
+                        <span className={`text-2xs font-medium ${sub.isIncome ? "text-emerald-600" : "text-slate-400"}`}>
                           ({sub.isIncome ? "+" : ""}{formatCurrency(Math.abs(sub.totalAmount))})
                         </span>
                       </div>
@@ -411,7 +411,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                   <button
                                     type="button"
                                     onClick={() => setSelectedCategoryName(group.categoryName)}
-                                    className="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium transition-colors cursor-pointer"
+                                    className="text-2xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium transition-colors cursor-pointer"
                                     title="Ver detalhamento por subcategoria"
                                   >
                                     {group.subcategories?.length} subcategorias →
@@ -421,7 +421,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                               <div className="text-right">
                                 <span className="text-sm font-bold font-mono tabular-nums privacy-sensitive text-rose-600">{formatCurrency(group.netExpense)}</span>
                                 {group.incomeAmount > 0 && (
-                                  <div className="text-[10px] text-slate-500 font-normal">
+                                  <div className="text-2xs text-slate-500 font-normal">
                                     <span className="font-mono tabular-nums privacy-sensitive">{formatCurrency(group.expenseAmount)}</span> saídas • +<span className="font-mono tabular-nums privacy-sensitive">{formatCurrency(group.incomeAmount)}</span> entradas
                                   </div>
                                 )}
@@ -439,7 +439,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                             {/* Indicador de Orçamento/Meta se configurado */}
                             {group.budget != null && group.budget > 0 && (
                               <div className="mt-2 pt-1.5 border-t border-slate-100 flex flex-col gap-1">
-                                <div className="flex items-center justify-between text-[11px]">
+                                <div className="flex items-center justify-between text-2xs">
                                   <span className="text-slate-500 font-medium">
                                     Plano do mês: <strong className="text-slate-700 font-mono tabular-nums">{formatCurrency(group.budget)}</strong>
                                   </span>
@@ -482,19 +482,19 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                             {group.items.map((tx, idx) => (
                               <div key={`${tx.id}-${idx}`} className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-200/50 rounded">
                                 <span className="text-slate-600 truncate pr-4 text-xs flex items-center">
-                                  <span className="font-medium text-slate-400 mr-2 text-[10px] uppercase w-5 inline-block">{tx.day}</span>
+                                  <span className="font-medium text-slate-400 mr-2 text-2xs uppercase w-5 inline-block">{tx.day}</span>
                                   <span className="truncate">{tx.description}</span>
                                   {tx.subcategoryName && (
-                                    <span className="text-[10px] ml-1.5 px-1.5 py-px rounded bg-slate-200/80 text-slate-600 font-medium">
+                                    <span className="text-2xs ml-1.5 px-1.5 py-px rounded bg-slate-200/80 text-slate-600 font-medium">
                                       {tx.subcategoryName}
                                     </span>
                                   )}
                                   {tx.installmentCurrent && tx.installmentTotal && (
-                                    <span className="text-[10px] text-blue-600 font-medium ml-1">
+                                    <span className="text-2xs text-blue-600 font-medium ml-1">
                                       ({tx.installmentCurrent}/{tx.installmentTotal})
                                     </span>
                                   )}
-                                  {tx.isProjected && <span className="text-[9px] ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
+                                  {tx.isProjected && <span className="text-2xs ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
                                 </span>
                                 <span className={`font-medium font-mono tabular-nums privacy-sensitive text-xs whitespace-nowrap ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                                   {tx.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
@@ -511,7 +511,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                 {/* Categorias de Receita / Entradas no Mês */}
                 {data.incomeGroups.length > 0 && (
                   <div>
-                    <div className="px-5 py-2.5 bg-emerald-50/70 border-b border-t border-emerald-100/70 text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex justify-between items-center">
+                    <div className="px-5 py-2.5 bg-emerald-50/70 border-b border-t border-emerald-100/70 text-2xs font-bold text-emerald-800 uppercase tracking-wider flex justify-between items-center">
                       <span>Categorias de Receita ({data.incomeGroups.length})</span>
                       <span className="text-emerald-600 font-semibold font-mono tabular-nums privacy-sensitive">+{formatCurrency(data.totalIncome)}</span>
                     </div>
@@ -547,7 +547,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                         <button
                                           type="button"
                                           onClick={() => setSelectedCategoryName(group.categoryName)}
-                                          className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-medium transition-colors cursor-pointer"
+                                          className="text-2xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-medium transition-colors cursor-pointer"
                                           title="Ver detalhamento por subcategoria"
                                         >
                                           {group.subcategories?.length} subcategorias →
@@ -569,7 +569,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                   {group.items.map((tx, idx) => (
                                     <div key={`${tx.id}-${idx}`} className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-200/50 rounded">
                                       <span className="text-slate-600 truncate pr-4 text-xs flex items-center">
-                                        <span className="font-medium text-slate-400 mr-2 text-[10px] uppercase w-5 inline-block">{tx.day}</span>
+                                        <span className="font-medium text-slate-400 mr-2 text-2xs uppercase w-5 inline-block">{tx.day}</span>
                                         <span className="truncate">{tx.description}</span>
                                       </span>
                                       <span className="font-medium font-mono tabular-nums privacy-sensitive text-xs whitespace-nowrap text-emerald-600">
@@ -595,7 +595,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                   {drilldownData.expenseSubs.length > 0 && (
                     <div>
                       {drilldownData.incomeSubs.length > 0 && (
-                        <div className="px-5 py-2 bg-slate-100/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider flex justify-between items-center">
+                        <div className="px-5 py-2 bg-slate-100/80 border-b border-slate-200/80 text-2xs font-bold text-slate-600 uppercase tracking-wider flex justify-between items-center">
                           <span>Saídas ({drilldownData.expenseSubs.length})</span>
                           <span className="text-rose-600 font-semibold font-mono tabular-nums privacy-sensitive">{formatCurrency(drilldownData.expense)}</span>
                         </div>
@@ -624,7 +624,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                       <div className="flex items-center gap-2">
                                         <CornerDownRight className="w-3.5 h-3.5 text-slate-400" />
                                         <span className="font-semibold text-xs text-slate-800 truncate">{sub.name}</span>
-                                        <span className="text-[10px] text-slate-400">({sub.items.length} lançamentos)</span>
+                                        <span className="text-2xs text-slate-400">({sub.items.length} lançamentos)</span>
                                       </div>
                                       <span className="text-xs font-bold font-mono tabular-nums privacy-sensitive text-rose-600">
                                         {formatCurrency(Math.abs(sub.totalAmount))}
@@ -653,14 +653,14 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                     {sub.items.map((tx, idx) => (
                                       <div key={`${tx.id}-${idx}`} className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-200/50 rounded">
                                         <span className="text-slate-600 truncate pr-4 text-xs">
-                                          <span className="font-medium text-slate-400 mr-2 text-[10px] uppercase w-5 inline-block">{tx.day}</span>
+                                          <span className="font-medium text-slate-400 mr-2 text-2xs uppercase w-5 inline-block">{tx.day}</span>
                                           {tx.description}
                                           {tx.installmentCurrent && tx.installmentTotal && (
-                                            <span className="text-[10px] text-blue-600 font-medium ml-1">
+                                            <span className="text-2xs text-blue-600 font-medium ml-1">
                                               ({tx.installmentCurrent}/{tx.installmentTotal})
                                             </span>
                                           )}
-                                          {tx.isProjected && <span className="text-[9px] ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
+                                          {tx.isProjected && <span className="text-2xs ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
                                         </span>
                                         <span className={`font-medium font-mono tabular-nums privacy-sensitive text-xs whitespace-nowrap ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                                           {tx.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
@@ -681,7 +681,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                   {drilldownData.incomeSubs.length > 0 && (
                     <div className={drilldownData.expenseSubs.length > 0 ? "border-t border-slate-200" : ""}>
                       {drilldownData.expenseSubs.length > 0 && (
-                        <div className="px-5 py-2 bg-emerald-50/70 border-b border-emerald-100 text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex justify-between items-center">
+                        <div className="px-5 py-2 bg-emerald-50/70 border-b border-emerald-100 text-2xs font-bold text-emerald-800 uppercase tracking-wider flex justify-between items-center">
                           <span>Entradas / Reembolsos ({drilldownData.incomeSubs.length})</span>
                           <span className="text-emerald-600 font-semibold font-mono tabular-nums privacy-sensitive">+{formatCurrency(drilldownData.income)}</span>
                         </div>
@@ -710,8 +710,8 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                       <div className="flex items-center gap-2">
                                         <CornerDownRight className="w-3.5 h-3.5 text-slate-400" />
                                         <span className="font-semibold text-xs text-slate-800 truncate">{sub.name}</span>
-                                        <span className="text-[10px] text-slate-400">({sub.items.length} lançamentos)</span>
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-semibold">
+                                        <span className="text-2xs text-slate-400">({sub.items.length} lançamentos)</span>
+                                        <span className="text-2xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-semibold">
                                           Entrada
                                         </span>
                                       </div>
@@ -742,14 +742,14 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                     {sub.items.map((tx, idx) => (
                                       <div key={`${tx.id}-${idx}`} className="flex justify-between items-center py-1.5 px-2 hover:bg-slate-200/50 rounded">
                                         <span className="text-slate-600 truncate pr-4 text-xs">
-                                          <span className="font-medium text-slate-400 mr-2 text-[10px] uppercase w-5 inline-block">{tx.day}</span>
+                                          <span className="font-medium text-slate-400 mr-2 text-2xs uppercase w-5 inline-block">{tx.day}</span>
                                           {tx.description}
                                           {tx.installmentCurrent && tx.installmentTotal && (
-                                            <span className="text-[10px] text-blue-600 font-medium ml-1">
+                                            <span className="text-2xs text-blue-600 font-medium ml-1">
                                               ({tx.installmentCurrent}/{tx.installmentTotal})
                                             </span>
                                           )}
-                                          {tx.isProjected && <span className="text-[9px] ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
+                                          {tx.isProjected && <span className="text-2xs ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
                                         </span>
                                         <span className={`font-medium font-mono tabular-nums privacy-sensitive text-xs whitespace-nowrap ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                                           {tx.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}
@@ -772,14 +772,14 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                   {drilldownData.category.items.map((tx, idx) => (
                     <div key={`${tx.id}-${idx}`} className="flex justify-between items-center py-2 px-3 hover:bg-slate-50 rounded text-sm">
                       <span className="text-slate-600 truncate pr-4 text-xs flex items-center">
-                        <span className="font-medium text-slate-400 mr-2 text-[10px] uppercase w-5 inline-block">{tx.day}</span>
+                        <span className="font-medium text-slate-400 mr-2 text-2xs uppercase w-5 inline-block">{tx.day}</span>
                         <span className="truncate">{tx.description}</span>
                         {tx.installmentCurrent && tx.installmentTotal && (
-                          <span className="text-[10px] text-blue-600 font-medium ml-1">
+                          <span className="text-2xs text-blue-600 font-medium ml-1">
                             ({tx.installmentCurrent}/{tx.installmentTotal})
                           </span>
                         )}
-                        {tx.isProjected && <span className="text-[9px] ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
+                        {tx.isProjected && <span className="text-2xs ml-1 text-amber-500 font-bold" title="Projeção">*</span>}
                       </span>
                       <span className={`font-medium font-mono tabular-nums privacy-sensitive text-xs whitespace-nowrap ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                         {tx.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(tx.amount))}

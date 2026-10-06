@@ -359,7 +359,7 @@ export function TransactionDetailModal({
                       className="w-full text-left px-2 py-1.5 rounded hover:bg-hover hover:text-ink flex items-center justify-between transition-colors"
                     >
                       <span>#{tag.name}</span>
-                      <span className="text-[10px] text-muted-foreground">Adicionar</span>
+                      <span className="text-2xs text-muted-foreground">Adicionar</span>
                     </button>
                   ))}
                   {tagInput.trim() && !exactMatchExists && (
@@ -435,7 +435,7 @@ export function TransactionDetailModal({
               {tx.pluggyTransactionId && (
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-1">
                   <span className="font-semibold text-foreground">Open Finance Sync ID:</span>
-                  <span className="font-mono text-[11px] truncate">{tx.pluggyTransactionId}</span>
+                  <span className="font-mono text-2xs truncate">{tx.pluggyTransactionId}</span>
                 </div>
               )}
               {tx.linkedAccountName && (

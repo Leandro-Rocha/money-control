@@ -282,7 +282,7 @@ function MonthTable({ months, baseMonths }: { months: MonthSummary[]; baseMonths
                 {cols.map((c) => (
                   <td key={c.key} className="text-right py-1.5">
                     <Money value={m[c.key] as number} className={c.key === "closing" ? "font-semibold" : undefined} />
-                    {c.key === "min" && <div className="text-[10px] text-muted-foreground">{fmtDate(m.minDate)}</div>}
+                    {c.key === "min" && <div className="text-2xs text-muted-foreground">{fmtDate(m.minDate)}</div>}
                   </td>
                 ))}
                 {baseMonths && (

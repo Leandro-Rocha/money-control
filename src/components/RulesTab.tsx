@@ -117,11 +117,11 @@ export function RulesTab({ categories }: RulesTabProps) {
             <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Se contiver o texto:</label>
+                  <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Se contiver o texto:</label>
                   <Input value={editPattern} onChange={e => setEditPattern(e.target.value)} placeholder="Ex: *UBER" className="h-8 text-sm" autoFocus />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Renomear para:</label>
+                  <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Renomear para:</label>
                   <Input value={editTargetDesc} onChange={e => setEditTargetDesc(e.target.value)} placeholder="Ex: Uber" className="h-8 text-sm" />
                 </div>
               </div>
@@ -136,7 +136,7 @@ export function RulesTab({ categories }: RulesTabProps) {
                 </div>
               )}
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Categoria (Opcional):</label>
+                <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Categoria (Opcional):</label>
                 <CategoryPicker
                   categories={categories}
                   value={editCategoryId === "" ? null : Number(editCategoryId)}
@@ -168,11 +168,11 @@ export function RulesTab({ categories }: RulesTabProps) {
                 <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Se contiver o texto:</label>
+                      <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Se contiver o texto:</label>
                       <Input value={editPattern} onChange={e => setEditPattern(e.target.value)} className="h-8 text-sm" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Renomear para:</label>
+                      <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Renomear para:</label>
                       <Input value={editTargetDesc} onChange={e => setEditTargetDesc(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
@@ -187,7 +187,7 @@ export function RulesTab({ categories }: RulesTabProps) {
                     </div>
                   )}
                   <div>
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Categoria (Opcional):</label>
+                    <label className="text-2xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Categoria (Opcional):</label>
                     <CategoryPicker
                       categories={categories}
                       value={editCategoryId === "" ? null : Number(editCategoryId)}

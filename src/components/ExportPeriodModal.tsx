@@ -213,7 +213,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
           {preset === "custom" && (
             <div className="flex items-center gap-2 self-stretch sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="startMonth" className="text-[11px] text-muted-foreground">
+                <Label htmlFor="startMonth" className="text-2xs text-muted-foreground">
                   De:
                 </Label>
                 <Input
@@ -225,7 +225,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor="endMonth" className="text-[11px] text-muted-foreground">
+                <Label htmlFor="endMonth" className="text-2xs text-muted-foreground">
                   Até:
                 </Label>
                 <Input
@@ -245,7 +245,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
           <div className="bg-card px-3.5 py-2 rounded-lg border border-border shadow-xs flex items-center gap-2.5">
             <Calendar className="w-4 h-4 text-indigo-500 shrink-0" />
             <div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase">Duração</p>
+              <p className="text-2xs text-muted-foreground font-medium uppercase">Duração</p>
               <p className="text-sm font-semibold text-foreground">
                 {monthsCount} {monthsCount === 1 ? "mês" : "meses"}
               </p>
@@ -255,7 +255,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
           <div className="bg-card px-3.5 py-2 rounded-lg border border-border shadow-xs flex items-center gap-2.5">
             <Layers className="w-4 h-4 text-emerald-500 shrink-0" />
             <div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase">Transações</p>
+              <p className="text-2xs text-muted-foreground font-medium uppercase">Transações</p>
               <p className="text-sm font-semibold text-foreground">{txCount} itens</p>
             </div>
           </div>
@@ -263,7 +263,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
           <div className="bg-card px-3.5 py-2 rounded-lg border border-border shadow-xs flex items-center gap-2.5">
             <FileText className="w-4 h-4 text-amber-500 shrink-0" />
             <div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase">Caracteres</p>
+              <p className="text-2xs text-muted-foreground font-medium uppercase">Caracteres</p>
               <p className="text-sm font-semibold text-foreground">
                 {charCount.toLocaleString("pt-BR")}
               </p>
@@ -273,7 +273,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
           <div className="bg-card px-3.5 py-2 rounded-lg border border-border shadow-xs flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-blue-500 shrink-0" />
             <div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase">Tokens Estimados</p>
+              <p className="text-2xs text-muted-foreground font-medium uppercase">Tokens Estimados</p>
               <p className="text-sm font-semibold text-foreground">
                 ~{tokenEstimate.toLocaleString("pt-BR")}
               </p>

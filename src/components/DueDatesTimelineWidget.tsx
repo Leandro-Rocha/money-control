@@ -139,7 +139,7 @@ export function DueDatesTimelineWidget({
             {overdueItems.length > 0 && (
               <Badge
                 variant="outline"
-                className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/25 text-[11px] font-semibold"
+                className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/25 text-2xs font-semibold"
               >
                 {overdueItems.length} em atraso
               </Badge>
@@ -148,7 +148,7 @@ export function DueDatesTimelineWidget({
             {timeline.today.length > 0 && (
               <Badge
                 variant="outline"
-                className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25 text-[11px] font-semibold flex items-center gap-1.5"
+                className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25 text-2xs font-semibold flex items-center gap-1.5"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                 {timeline.today.length} vence hoje
@@ -158,7 +158,7 @@ export function DueDatesTimelineWidget({
             {timeline.upcoming.length > 0 && (
               <Badge
                 variant="outline"
-                className="bg-muted text-muted-foreground border-border text-[11px] font-normal"
+                className="bg-muted text-muted-foreground border-border text-2xs font-normal"
               >
                 {timeline.upcoming.length} na sequência
               </Badge>
@@ -167,7 +167,7 @@ export function DueDatesTimelineWidget({
             {paidItems.length > 0 && (
               <Badge
                 variant="outline"
-                className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[11px] font-normal"
+                className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-2xs font-normal"
               >
                 {paidItems.length} quitados
               </Badge>
@@ -213,7 +213,7 @@ export function DueDatesTimelineWidget({
                 <span>Já Passou</span>
               </div>
               {overdueItems.length > 0 && (
-                <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                <span className="text-2xs font-bold text-rose-600 dark:text-rose-400">
                   {overdueItems.length} pendente(s)
                 </span>
               )}
@@ -231,7 +231,7 @@ export function DueDatesTimelineWidget({
                       <div className="font-semibold text-foreground truncate">
                         {item.title}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
+                      <div className="text-2xs text-muted-foreground truncate">
                         {item.accountName}
                       </div>
                     </div>
@@ -241,7 +241,7 @@ export function DueDatesTimelineWidget({
                   </div>
 
                   <div className="flex items-center justify-between gap-2 pt-0.5">
-                    <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                    <span className="text-2xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
                       Vencida há {Math.abs(item.daysDifference)}d (dia {item.dueDay})
                     </span>
 
@@ -251,7 +251,7 @@ export function DueDatesTimelineWidget({
                         variant="outline"
                         disabled={payingCardId === item.sourceId}
                         onClick={() => handlePayBill(item)}
-                        className="h-6 text-[11px] px-2 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+                        className="h-6 text-2xs px-2 border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
                       >
                         {payingCardId === item.sourceId ? "Pagando..." : "Pagar"}
                       </Button>
@@ -267,7 +267,7 @@ export function DueDatesTimelineWidget({
                 <button
                   type="button"
                   onClick={() => setShowPaid(!showPaid)}
-                  className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1.5 py-1 select-none cursor-pointer"
+                  className="text-2xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 py-1 select-none cursor-pointer"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>
@@ -293,11 +293,11 @@ export function DueDatesTimelineWidget({
                           <span className="font-medium line-through text-muted-foreground">
                             {item.title}
                           </span>
-                          <span className="text-[10px] text-muted-foreground block truncate">
+                          <span className="text-2xs text-muted-foreground block truncate">
                             {item.accountName} {item.paidDate ? `• ${item.paidDate}` : ""}
                           </span>
                         </div>
-                        <div className="font-mono tabular-nums text-muted-foreground text-[11px] line-through shrink-0">
+                        <div className="font-mono tabular-nums text-muted-foreground text-2xs line-through shrink-0">
                           {formatCurrency(item.amount)}
                         </div>
                       </div>
@@ -322,7 +322,7 @@ export function DueDatesTimelineWidget({
                 <span>Vence Hoje</span>
               </div>
               {timeline.today.length > 0 && (
-                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                <span className="text-2xs font-bold text-amber-700 dark:text-amber-400">
                   {timeline.today.length}
                 </span>
               )}
@@ -340,7 +340,7 @@ export function DueDatesTimelineWidget({
                         <div className="font-semibold text-foreground truncate">
                           {item.title}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
+                        <div className="text-2xs text-muted-foreground truncate">
                           {item.accountName}
                         </div>
                       </div>
@@ -350,7 +350,7 @@ export function DueDatesTimelineWidget({
                     </div>
 
                     <div className="flex items-center justify-between gap-2 pt-0.5">
-                      <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/25 flex items-center gap-1">
+                      <span className="text-2xs font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/25 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                         Vence Hoje
                       </span>
@@ -361,7 +361,7 @@ export function DueDatesTimelineWidget({
                           variant="outline"
                           disabled={payingCardId === item.sourceId}
                           onClick={() => handlePayBill(item)}
-                          className="h-6 text-[11px] px-2 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/15"
+                          className="h-6 text-2xs px-2 border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/15"
                         >
                           {payingCardId === item.sourceId ? "Pagando..." : "Pagar"}
                         </Button>
@@ -385,7 +385,7 @@ export function DueDatesTimelineWidget({
                 <span>Na Sequência</span>
               </div>
               {timeline.upcoming.length > 0 && (
-                <span className="text-[11px] font-bold text-muted-foreground">
+                <span className="text-2xs font-bold text-muted-foreground">
                   {timeline.upcoming.length}
                 </span>
               )}
@@ -403,7 +403,7 @@ export function DueDatesTimelineWidget({
                         <div className="font-semibold text-foreground truncate">
                           {item.title}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
+                        <div className="text-2xs text-muted-foreground truncate">
                           {item.accountName}
                         </div>
                       </div>
@@ -413,7 +413,7 @@ export function DueDatesTimelineWidget({
                     </div>
 
                     <div className="flex items-center justify-between gap-2 pt-0.5">
-                      <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
+                      <span className="text-2xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
                         Dia {item.dueDay} • em {item.daysDifference}{" "}
                         {item.daysDifference === 1 ? "dia" : "dias"}
                       </span>
@@ -424,7 +424,7 @@ export function DueDatesTimelineWidget({
                           variant="ghost"
                           disabled={payingCardId === item.sourceId}
                           onClick={() => handlePayBill(item)}
-                          className="h-6 text-[11px] px-2 text-primary hover:bg-primary/10"
+                          className="h-6 text-2xs px-2 text-primary hover:bg-primary/10"
                         >
                           {payingCardId === item.sourceId ? "Pagando..." : "Pagar"}
                         </Button>

@@ -387,7 +387,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           onKeyDown={handleTriggerKeyDown}
           onFocus={onFocus}
           className={cn(
-            "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-[10px] uppercase font-semibold transition-all select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50",
+            "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-2xs uppercase font-semibold transition-all select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50",
             disabled
               ? "cursor-default opacity-85"
               : "cursor-pointer hover:ring-1 hover:ring-slate-300 hover:shadow-xs",
@@ -509,7 +509,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
             ) : step === 1 ? (
               /* CASO 2: NAVEGAÇÃO HIERÁRQUICA - PASSO 1 (CATEGORIAS PAI) */
               <div className="space-y-0.5 max-h-[280px] overflow-y-auto pt-1">
-                <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 py-1 text-2xs font-semibold text-slate-400 uppercase tracking-wider">
                   {mode === "filter" ? "Filtrar por categoria" : "Categorias Principais"}
                 </div>
 
@@ -587,7 +587,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                         />
                         <span className="truncate">{parent.name}</span>
                         {hasSubs && (
-                          <span className="text-[10px] text-slate-400 font-normal">
+                          <span className="text-2xs text-slate-400 font-normal">
                             ({subs.length})
                           </span>
                         )}

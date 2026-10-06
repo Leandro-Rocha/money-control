@@ -176,14 +176,14 @@ export default function WealthDashboard({
                   {formatCurrency(totalInvested)}
                 </span>
                 {totalReceivables > 0 && (
-                  <span className="text-[11px] font-medium text-sky-600 dark:text-sky-400 tabular-nums privacy-sensitive" title="Créditos a receber">
+                  <span className="text-2xs font-medium text-sky-600 dark:text-sky-400 tabular-nums privacy-sensitive" title="Créditos a receber">
                     +{formatCurrency(totalReceivables)} a receber
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <span className="text-[11px] text-muted-foreground font-medium">
+          <span className="text-2xs text-muted-foreground font-medium">
             {investments.length} {investments.length === 1 ? "ativo" : "ativos"}
           </span>
         </div>
@@ -203,7 +203,7 @@ export default function WealthDashboard({
               </div>
             </div>
           </div>
-          <span className="text-[11px] text-muted-foreground font-medium">
+          <span className="text-2xs text-muted-foreground font-medium">
             {financings.length} {financings.length === 1 ? "contrato" : "contratos"}
           </span>
         </div>
@@ -247,7 +247,7 @@ export default function WealthDashboard({
           </div>
           <span
             className={cn(
-              "text-[10px] font-bold px-2 py-0.5 rounded-full",
+              "text-2xs font-bold px-2 py-0.5 rounded-full",
               netWorth >= 0
                 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                 : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
@@ -393,12 +393,12 @@ export default function WealthDashboard({
                                 />
                                 <span className="font-semibold text-sm">{account.name}</span>
                                 {isZeroed && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground border-border bg-muted/40 font-mono">
+                                  <Badge variant="outline" className="text-2xs px-1.5 py-0 h-4 text-muted-foreground border-border bg-muted/40 font-mono">
                                     Zerado
                                   </Badge>
                                 )}
                                 {account.pluggyItemId && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 font-mono">
+                                  <Badge variant="outline" className="text-2xs px-1.5 py-0 h-4 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 font-mono">
                                     Pluggy
                                   </Badge>
                                 )}
@@ -451,7 +451,7 @@ export default function WealthDashboard({
                             </div>
 
                             {(netContributed > 0 || totalGainLoss !== 0) && (
-                              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/40 text-2xs text-muted-foreground">
                                 {netContributed > 0 && (
                                   <span className="flex items-center gap-1 font-mono">
                                     <span className="text-muted-foreground">Total Aportado:</span>{" "}
@@ -512,7 +512,7 @@ export default function WealthDashboard({
                       variant="ghost"
                       size="sm"
                       onClick={() => onOpenCreateAccount ? onOpenCreateAccount("loan_receivable") : onOpenSettings()}
-                      className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-sky-600"
+                      className="h-6 px-2 text-2xs gap-1 text-muted-foreground hover:text-sky-600"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Novo Crédito</span>
@@ -545,7 +545,7 @@ export default function WealthDashboard({
                               variant="ghost"
                               size="sm"
                               onClick={() => setEditingReceivable(item)}
-                              className="h-6 px-1.5 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                              className="h-6 px-1.5 text-2xs gap-1 text-muted-foreground hover:text-foreground"
                               title="Ajustar saldo a receber e parcelas"
                             >
                               <SlidersHorizontal className="w-3 h-3" />
@@ -556,7 +556,7 @@ export default function WealthDashboard({
 
                         {/* Barra de Progresso Fina */}
                         <div className="space-y-1">
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <div className="flex items-center justify-between text-2xs text-muted-foreground">
                             <span>Quitado: <strong>{item.progressPercent}%</strong></span>
                             {item.installmentsTotal > 0 && (
                               <span>
@@ -573,7 +573,7 @@ export default function WealthDashboard({
                         </div>
 
                         {/* Metadados compactos */}
-                        <div className="flex flex-wrap items-center justify-between pt-1 border-t border-sky-500/10 text-[10px] text-muted-foreground">
+                        <div className="flex flex-wrap items-center justify-between pt-1 border-t border-sky-500/10 text-2xs text-muted-foreground">
                           {item.totalAmount > 0 && (
                             <span>
                               Total: <strong className="font-mono tabular-nums text-foreground">{formatCurrency(item.totalAmount)}</strong>
@@ -684,7 +684,7 @@ export default function WealthDashboard({
 
                   {/* Barra de Progresso de Quitação */}
                   <div className="space-y-1.5 pt-1">
-                    <div className="flex justify-between text-[11px] text-muted-foreground font-medium">
+                    <div className="flex justify-between text-2xs text-muted-foreground font-medium">
                       <span>
                         Parcelas: {item.installmentsPaid} / {item.installmentsTotal} ({item.progressPercent}%)
                       </span>
@@ -712,7 +712,7 @@ export default function WealthDashboard({
                       {item.dueDay ? ` (Vence dia ${item.dueDay})` : ""}
                     </span>
                     {item.totalAmount > 0 && (
-                      <span className="text-[11px]">
+                      <span className="text-2xs">
                         Contrato: <span className="font-mono tabular-nums privacy-sensitive">{formatCurrency(item.totalAmount)}</span>
                       </span>
                     )}

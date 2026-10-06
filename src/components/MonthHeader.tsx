@@ -288,7 +288,7 @@ export default function MonthHeader({
               </span>
             </div>
             <div
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tabular-nums privacy-sensitive shrink-0 ${
+              className={`px-2.5 py-0.5 rounded-full text-2xs font-bold font-mono tabular-nums privacy-sensitive shrink-0 ${
                 globalBalance >= 0
                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
                   : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"
@@ -452,7 +452,7 @@ export default function MonthHeader({
                     <UploadCloud className="w-4 h-4 text-sky-500 shrink-0" />
                     <div className="flex flex-col">
                       <span>Sincronizar uma Conta</span>
-                      <span className="text-[10px] text-muted-foreground">Revisar lançamentos do Pluggy antes de salvar</span>
+                      <span className="text-2xs text-muted-foreground">Revisar lançamentos do Pluggy antes de salvar</span>
                     </div>
                   </button>
                 </div>
@@ -486,7 +486,7 @@ export default function MonthHeader({
               </span>
             </div>
             <div
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tabular-nums privacy-sensitive shrink-0 ${
+              className={`px-2.5 py-0.5 rounded-full text-2xs font-bold font-mono tabular-nums privacy-sensitive shrink-0 ${
                 (wealthNetWorth ?? 0) >= 0
                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
                   : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300"

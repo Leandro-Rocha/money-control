@@ -157,21 +157,21 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
                   
                   <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
                     {pair.confidence === "high" ? (
-                      <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                      <span className="text-2xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
                         Alta Confiança
                       </span>
                     ) : (
-                      <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                      <span className="text-2xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                         Revisão Recomendada
                       </span>
                     )}
 
                     {pair.dayDiff === 0 ? (
-                      <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                      <span className="text-2xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
                         Mesmo dia
                       </span>
                     ) : (
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                      <span className={`text-2xs font-medium px-1.5 py-0.5 rounded-full border ${
                         pair.dayDiff <= 1
                           ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                           : pair.dayDiff <= 3
@@ -190,7 +190,7 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
                       {pair.reasons
                         .filter(r => !r.includes("Mesmo dia") && !r.includes("Intervalo de") && !r.includes("Diferença de"))
                         .map((r, rIdx) => (
-                          <span key={rIdx} className="text-[9px] text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded text-center">
+                          <span key={rIdx} className="text-2xs text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded text-center">
                             {r}
                           </span>
                         ))}

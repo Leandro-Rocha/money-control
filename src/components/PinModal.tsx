@@ -130,7 +130,7 @@ export function PinModal() {
         </form>
 
         <div className="mt-4 pt-3 border-t border-border/50 text-center">
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             Esqueceu o PIN? A senha mestra também pode ser usada.
           </span>
         </div>

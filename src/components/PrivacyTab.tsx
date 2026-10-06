@@ -53,7 +53,7 @@ export function PrivacyTab() {
       <div className="bg-card border rounded-xl p-5 shadow-xs flex items-center justify-between gap-4">
         <div>
           <h4 className="text-xs font-semibold text-foreground">Ocultar Valores</h4>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-2xs text-muted-foreground mt-0.5">
             Oculta os valores manualmente. O desbloqueio exige o PIN.
           </p>
         </div>

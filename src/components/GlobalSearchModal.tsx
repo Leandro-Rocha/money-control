@@ -137,7 +137,7 @@ export function GlobalSearchModal({
             <div className="space-y-1">
               <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium flex items-center justify-between">
                 <span>{results.length} {results.length === 1 ? "resultado encontrado" : "resultados encontrados"}</span>
-                <span className="text-[11px]">Clique para ir ao mês</span>
+                <span className="text-2xs">Clique para ir ao mês</span>
               </div>
               {results.map((tx) => {
                 const isIncome = tx.amount > 0;
@@ -173,7 +173,7 @@ export function GlobalSearchModal({
                             {tx.description}
                           </span>
                           {tx.installmentTotal && tx.installmentTotal > 1 ? (
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                            <span className="text-2xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
                               {tx.installmentCurrent || 1}/{tx.installmentTotal}
                             </span>
                           ) : null}
@@ -181,7 +181,7 @@ export function GlobalSearchModal({
 
                         {/* Metadata row: Date, Account, Category */}
                         <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1 font-mono text-[11px]">
+                          <span className="flex items-center gap-1 font-mono text-2xs">
                             <Calendar className="h-3 w-3" />
                             {formattedDate} ({formatMonthLabel(tx.month)})
                           </span>
@@ -205,7 +205,7 @@ export function GlobalSearchModal({
                           ) : (
                             <>
                               <span>•</span>
-                              <span className="text-amber-600/80 dark:text-amber-400/80 italic text-[11px]">
+                              <span className="text-amber-600/80 dark:text-amber-400/80 italic text-2xs">
                                 Sem categoria
                               </span>
                             </>
@@ -216,7 +216,7 @@ export function GlobalSearchModal({
                         {tx.originalDescription &&
                         tx.originalDescription.toLowerCase().trim() !==
                           tx.description.toLowerCase().trim() ? (
-                          <p className="text-[11px] text-muted-foreground/60 truncate font-mono mt-0.5">
+                          <p className="text-2xs text-muted-foreground/60 truncate font-mono mt-0.5">
                             Orig: {tx.originalDescription}
                           </p>
                         ) : null}

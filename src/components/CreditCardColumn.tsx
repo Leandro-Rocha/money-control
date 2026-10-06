@@ -247,7 +247,7 @@ export default function CreditCardColumn({
                         : "Identificar transações duplicadas nesta conta"
                     }
                     className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+                      "px-1.5 py-0.5 rounded-md text-2xs font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
                       duplicateStats.hasDuplicates
                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800"
@@ -262,7 +262,7 @@ export default function CreditCardColumn({
                   </button>
                 )}
                 {hasActiveFilter && (
-                  <Badge variant="outline" className="text-[11px] font-normal font-sans py-0 h-5 bg-background/80">
+                  <Badge variant="outline" className="text-2xs font-normal font-sans py-0 h-5 bg-background/80">
                     {filteredTransactions.length} de {data.transactions.length} lançamentos
                   </Badge>
                 )}
@@ -276,19 +276,19 @@ export default function CreditCardColumn({
                       Vence dia <strong className="text-foreground font-semibold">{data.account.dueDay}</strong>
                     </span>
                     {billStatus?.isPaid ? (
-                      <Badge variant="outline" className="text-[10px] font-semibold py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                      <Badge variant="outline" className="text-2xs font-semibold py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
                         Fatura Paga
                       </Badge>
                     ) : billStatus?.status === "due_today" ? (
-                      <Badge variant="outline" className="text-[10px] font-bold py-0 h-4 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 animate-pulse">
+                      <Badge variant="outline" className="text-2xs font-bold py-0 h-4 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 animate-pulse">
                         Vence Hoje
                       </Badge>
                     ) : billStatus?.status === "overdue" ? (
-                      <Badge variant="outline" className="text-[10px] font-bold py-0 h-4 bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40">
+                      <Badge variant="outline" className="text-2xs font-bold py-0 h-4 bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40">
                         Vencida há {Math.abs(billStatus.daysDifference)}d
                       </Badge>
                     ) : billStatus?.daysDifference ? (
-                      <span className="text-[11px] text-muted-foreground font-medium">
+                      <span className="text-2xs text-muted-foreground font-medium">
                         (em {billStatus.daysDifference}d)
                       </span>
                     ) : null}
@@ -313,7 +313,7 @@ export default function CreditCardColumn({
                       handlePayBill();
                     }}
                     disabled={isPayingBill}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                    className="inline-flex items-center gap-1 text-2xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                     title="Registrar pagamento da fatura na conta bancária vinculada"
                   >
                     <Check className="w-3 h-3" />
@@ -431,13 +431,13 @@ export default function CreditCardColumn({
                               <span className="truncate">{tx.description}</span>
                               {tx.tags && tx.tags.length > 0 && (
                                 <span
-                                  className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
+                                  className="inline-flex items-center gap-0.5 px-1 py-px rounded text-2xs font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
                                   title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                                   <span className="truncate">#{tx.tags[0].name}</span>
                                   {tx.tags.length > 1 && (
-                                    <span className="text-[9px] text-muted-foreground shrink-0">+{tx.tags.length - 1}</span>
+                                    <span className="text-2xs text-muted-foreground shrink-0">+{tx.tags.length - 1}</span>
                                   )}
                                 </span>
                               )}
@@ -453,7 +453,7 @@ export default function CreditCardColumn({
                                       ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
                                       : "Transferência vinculada"
                                   }
-                                  className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-[10px]"
+                                  className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-2xs"
                                 >
                                   <span className="tracking-tight">
                                     {tx.linkedAccountName
@@ -464,7 +464,7 @@ export default function CreditCardColumn({
                               )}
                               {displayDate && (
                                 <span
-                                  className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-[10px] text-slate-400 rounded"
+                                  className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-2xs text-slate-400 rounded"
                                   title={tx.purchaseDate ? `Data da compra: ${tx.purchaseDate}` : `Data: ${displayDate}`}
                                 >
                                   {displayDate}
@@ -495,7 +495,7 @@ export default function CreditCardColumn({
                             />
                           ) : (
                             <span
-                              className={`inline-block w-full text-center rounded text-[11px] font-mono tabular-nums font-medium ${
+                              className={`inline-block w-full text-center rounded text-2xs font-mono tabular-nums font-medium ${
                                 installmentLabel
                                   ? isProjected
                                     ? "bg-blue-50/60 text-blue-500/90 cursor-default"

@@ -123,7 +123,7 @@ export function DesktopView(state: DashboardState) {
                   </div>
                 </div>
               </div>
-              <span className="text-[11px] text-muted-foreground font-medium">
+              <span className="text-2xs text-muted-foreground font-medium">
                 {bankAccounts.length} {bankAccounts.length === 1 ? "conta" : "contas"}
               </span>
             </div>
@@ -140,7 +140,7 @@ export function DesktopView(state: DashboardState) {
                   </div>
                 </div>
               </div>
-              <span className="text-[11px] text-muted-foreground font-medium">
+              <span className="text-2xs text-muted-foreground font-medium">
                 {creditCards.length} {creditCards.length === 1 ? "cartão" : "cartões"}
               </span>
             </div>
@@ -182,7 +182,7 @@ export function DesktopView(state: DashboardState) {
                   <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium mr-1">
                     <Filter className="h-4 w-4" />
                     {activeFiltersCount > 0 && (
-                      <span className="inline-flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4 rounded-full">
+                      <span className="inline-flex items-center justify-center bg-primary text-primary-foreground text-2xs font-bold h-4 w-4 rounded-full">
                         {activeFiltersCount}
                       </span>
                     )}

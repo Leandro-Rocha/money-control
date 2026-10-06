@@ -256,7 +256,7 @@ export function MobileAccountTabs({
                           );
                         })()}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-2xs text-muted-foreground">
                         {isCredit ? "Fatura Atual" : "Saldo Final"}
                       </div>
                     </div>
@@ -284,7 +284,7 @@ export function MobileAccountTabs({
 
                 {/* Resumo Secundário da Conta */}
                 {isExpanded && (
-                  <div className="px-4 py-2 bg-muted/20 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <div className="px-4 py-2 bg-muted/20 border-t border-border/60 flex items-center justify-between text-2xs text-muted-foreground">
                     {!isCredit ? (
                       <>
                         <span>
@@ -313,19 +313,19 @@ export function MobileAccountTabs({
                                   <span>•</span>
                                   <span>Vence dia {acc.dueDay}</span>
                                   {billPaid ? (
-                                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-2xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
                                       Paga
                                     </span>
                                   ) : dueStatus?.status === "due_today" ? (
-                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded animate-pulse">
+                                    <span className="text-2xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded animate-pulse">
                                       Vence Hoje
                                     </span>
                                   ) : dueStatus?.status === "overdue" ? (
-                                    <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/15 px-1.5 py-0.5 rounded">
+                                    <span className="text-2xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/15 px-1.5 py-0.5 rounded">
                                       Atrasada ({Math.abs(dueStatus.daysDifference)}d)
                                     </span>
                                   ) : dueStatus?.daysDifference ? (
-                                    <span className="text-[10px] text-muted-foreground">
+                                    <span className="text-2xs text-muted-foreground">
                                       (em {dueStatus.daysDifference}d)
                                     </span>
                                   ) : null}
@@ -341,7 +341,7 @@ export function MobileAccountTabs({
                                     handlePayBillMobile(acc, accData.totalExpense);
                                   }}
                                   disabled={payingCardId === acc.id}
-                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors"
+                                  className="inline-flex items-center gap-1 text-2xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors"
                                 >
                                   <Check className="w-3 h-3" />
                                   <span>{payingCardId === acc.id ? "Pagando..." : "Pagar Fatura"}</span>
@@ -392,19 +392,19 @@ export function MobileAccountTabs({
                                   </span>
 
                                   {tx.installmentTotal && tx.installmentTotal > 1 && (
-                                    <span className="text-[10px] font-mono font-medium px-1.5 py-px rounded bg-muted text-muted-foreground">
+                                    <span className="text-2xs font-mono font-medium px-1.5 py-px rounded bg-muted text-muted-foreground">
                                       {tx.installmentCurrent}/{tx.installmentTotal}
                                     </span>
                                   )}
 
                                   {isProjected && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-px rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                                    <span className="text-2xs font-bold uppercase tracking-wider px-1.5 py-px rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
                                       Projeção
                                     </span>
                                   )}
                                 </div>
 
-                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                <div className="flex items-center gap-2 mt-0.5 text-2xs text-muted-foreground">
                                   {tx.categoryName ? (
                                     <span className="inline-flex items-center gap-1">
                                       <span
@@ -418,7 +418,7 @@ export function MobileAccountTabs({
                                   )}
 
                                   {tx.linkedAccountName && (
-                                    <span className="inline-flex items-center gap-0.5 text-primary text-[10px]">
+                                    <span className="inline-flex items-center gap-0.5 text-primary text-2xs">
                                       <ArrowRightLeft className="w-2.5 h-2.5" />
                                       <span>{tx.linkedAccountName}</span>
                                     </span>
@@ -443,7 +443,7 @@ export function MobileAccountTabs({
                               </div>
 
                               {isProjected && tx.projectionSourceType == null ? (
-                                <span className="ml-1 text-[10px] text-muted-foreground" title="Estimativa da previsão">
+                                <span className="ml-1 text-2xs text-muted-foreground" title="Estimativa da previsão">
                                   estim.
                                 </span>
                               ) : isProjected ? (

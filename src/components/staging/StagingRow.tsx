@@ -87,20 +87,20 @@ export function StagingRow({
           }`}
           disabled={row.ignored}
         />
-        <div className="text-[10px] text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+        <div className="text-2xs text-slate-400 mt-1 flex flex-wrap items-center gap-2">
           <span>{row.originalDescription}</span>
           {isBatchDuplicate ? (
-            <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium">
+            <span className="text-2xs bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium">
               Duplicata no lote
             </span>
           ) : row.isDuplicate ? (
-            <span className="text-[10px] bg-slate-100 text-slate-600 dark:bg-muted dark:text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium">
+            <span className="text-2xs bg-slate-100 text-slate-600 dark:bg-muted dark:text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium">
               Já importada
             </span>
           ) : null}
           {existingRule && (
             <span
-              className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
+              className="text-2xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
               title={`Regra ativa no sistema: "${existingRule.pattern}" → "${existingRule.targetDescription}"`}
             >
               <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
@@ -109,7 +109,7 @@ export function StagingRow({
           )}
           {samePatternCount > 1 && (
             <span
-              className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border font-medium"
+              className="text-2xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border font-medium"
               title={`Existem ${samePatternCount} transações com este texto no lote`}
             >
               {samePatternCount} no lote
@@ -135,20 +135,20 @@ export function StagingRow({
         </div>
         {row.createRule && (
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-bold uppercase text-indigo-400">Match:</span>
+            <span className="text-2xs font-bold uppercase text-indigo-400">Match:</span>
             <input
               type="text"
               value={row.rulePattern}
               onChange={(e) => onUpdateRulePattern(row.id, e.target.value)}
-              className="h-5 text-[10px] px-1.5 py-0 w-36 border border-indigo-200 rounded text-indigo-700 bg-indigo-50/50"
+              className="h-5 text-2xs px-1.5 py-0 w-36 border border-indigo-200 rounded text-indigo-700 bg-indigo-50/50"
               title="Edite o pedaço de texto que servirá como regra (ex: remova datas)"
             />
             {existingRule ? (
-              <span className="text-[10px] text-amber-700 font-medium bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+              <span className="text-2xs text-amber-700 font-medium bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                 Substituirá a regra "{existingRule.pattern}" ({existingRule.targetDescription}) por "{row.description}"
               </span>
             ) : (
-              <span className="text-[10px] text-muted-foreground italic">
+              <span className="text-2xs text-muted-foreground italic">
                 Nova regra: "{row.rulePattern}" → "{row.description}"
               </span>
             )}
@@ -174,7 +174,7 @@ export function StagingRow({
           />
           {row.categoryNameExtracted && !row.categoryId && (
             <p
-              className="text-[10px] text-rose-500 mt-0.5 truncate max-w-[200px]"
+              className="text-2xs text-rose-500 mt-0.5 truncate max-w-[200px]"
               title={`A IA sugeriu: ${row.categoryNameExtracted}`}
             >
               Não encontrada: {row.categoryNameExtracted}

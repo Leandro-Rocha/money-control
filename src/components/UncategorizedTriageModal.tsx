@@ -576,14 +576,14 @@ export function UncategorizedTriageModal({
                             </span>
                           )}
                           {scope === "all" && (
-                            <span className="text-[10px] text-muted-foreground font-normal">
+                            <span className="text-2xs text-muted-foreground font-normal">
                               ({row.month.split("-")[0]})
                             </span>
                           )}
                         </div>
                         <div className="mt-1 flex items-center gap-1">
                           <span
-                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm font-medium border"
+                            className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded-sm font-medium border"
                             style={{
                               borderColor: `${row.accountColor}40`,
                               backgroundColor: `${row.accountColor}15`,
@@ -609,7 +609,7 @@ export function UncategorizedTriageModal({
                           className="w-full font-medium text-foreground bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 -mx-1 transition-colors outline-hidden text-xs"
                           placeholder="Descrição do lançamento..."
                         />
-                        <div className="text-[10px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
+                        <div className="text-2xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
                           {row.originalDescription && (
                             <span className="font-mono text-muted-foreground/80" title="Descrição original no extrato">
                               {row.originalDescription}
@@ -619,7 +619,7 @@ export function UncategorizedTriageModal({
                           {existingRule && (
                             existingRule.categoryId === null ? (
                               <span
-                                className="text-[10px] bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
+                                className="text-2xs bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
                                 title={`Regra ativa: "${existingRule.pattern}" (apenas padronização de texto, sem categoria vinculada)`}
                               >
                                 <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
@@ -627,7 +627,7 @@ export function UncategorizedTriageModal({
                               </span>
                             ) : row.categoryId === existingRule.categoryId ? (
                               <span
-                                className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+                                className="text-2xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
                                 title={`Categoria preenchida pela regra ativa: "${existingRule.pattern}" → "${existingRule.targetDescription}"`}
                               >
                                 <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
@@ -635,7 +635,7 @@ export function UncategorizedTriageModal({
                               </span>
                             ) : row.categoryId !== null ? (
                               <span
-                                className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300"
+                                className="text-2xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300"
                                 title={`Categoria alterada manualmente diferente da regra ativa: "${existingRule.pattern}"`}
                               >
                                 <Sparkles className="w-2.5 h-2.5 text-amber-500" />
@@ -643,7 +643,7 @@ export function UncategorizedTriageModal({
                               </span>
                             ) : (
                               <span
-                                className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300"
+                                className="text-2xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300"
                                 title={`Regra ativa no sistema: "${existingRule.pattern}" → "${existingRule.targetDescription}". Clique em "Aplicar regras ativas" para preencher.`}
                               >
                                 <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
@@ -654,7 +654,7 @@ export function UncategorizedTriageModal({
 
                           {samePatternCount > 1 && (
                             <span
-                              className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border font-medium"
+                              className="text-2xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border font-medium"
                               title={`Existem ${samePatternCount} transações com este mesmo texto nesta lista`}
                             >
                               {samePatternCount} no lote
@@ -681,20 +681,20 @@ export function UncategorizedTriageModal({
 
                         {row.createRule && (
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 p-1.5 rounded bg-indigo-50/50 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/40">
-                            <span className="text-[10px] font-bold uppercase text-indigo-500">Padrão de Match:</span>
+                            <span className="text-2xs font-bold uppercase text-indigo-500">Padrão de Match:</span>
                             <input
                               type="text"
                               value={row.rulePattern}
                               onChange={(e) => updateRowRulePattern(row.id, e.target.value)}
-                              className="h-5 text-[10px] px-1.5 py-0 w-40 border border-indigo-200 dark:border-indigo-800 rounded text-indigo-700 dark:text-indigo-300 bg-background outline-hidden font-mono"
+                              className="h-5 text-2xs px-1.5 py-0 w-40 border border-indigo-200 dark:border-indigo-800 rounded text-indigo-700 dark:text-indigo-300 bg-background outline-hidden font-mono"
                               title="Padrão de texto procurado na descrição original para aplicar a regra automaticamente"
                             />
                             {existingRule ? (
-                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                              <span className="text-2xs text-amber-700 dark:text-amber-400 font-medium">
                                 Substituirá a regra "{existingRule.pattern}" ({existingRule.targetDescription})
                               </span>
                             ) : (
-                              <span className="text-[10px] text-muted-foreground italic">
+                              <span className="text-2xs text-muted-foreground italic">
                                 Regra aplicará em todas as compras com este padrão
                               </span>
                             )}

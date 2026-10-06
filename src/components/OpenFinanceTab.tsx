@@ -88,12 +88,12 @@ export function OpenFinanceTab({ accounts, onRefresh }: OpenFinanceTabProps) {
                     <div className="font-medium text-foreground flex items-center gap-1.5">
                       <span>{cred.label}</span>
                       {cred.isDefault && (
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-3.5">
+                        <Badge variant="secondary" className="text-2xs px-1 py-0 h-3.5">
                           Padrão
                         </Badge>
                       )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground font-mono">
+                    <div className="text-2xs text-muted-foreground font-mono">
                       ID: {cred.id}
                     </div>
                   </div>
@@ -148,11 +148,11 @@ export function OpenFinanceTab({ accounts, onRefresh }: OpenFinanceTabProps) {
                           Conectado / Ativo
                         </span>
                         <span>•</span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                        <Badge variant="outline" className="text-2xs px-1.5 py-0 font-normal">
                           {itemCredentialLabel}
                         </Badge>
                         <span>•</span>
-                        <span className="font-mono text-[11px]">Item: {itemId.slice(0, 8)}...</span>
+                        <span className="font-mono text-2xs">Item: {itemId.slice(0, 8)}...</span>
                       </div>
                     </div>
                   </div>

@@ -130,7 +130,7 @@ export function MobileView(state: DashboardState) {
 
       {/* Global Loading Indicator no Mobile */}
       {isPending && (
-        <div className="fixed top-3 right-3 bg-slate-900/90 text-white px-2.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 text-[11px] font-medium z-50 animate-pulse">
+        <div className="fixed top-3 right-3 bg-slate-900/90 text-white px-2.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 text-2xs font-medium z-50 animate-pulse">
           <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
           <span>Atualizando</span>
         </div>

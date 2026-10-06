@@ -589,7 +589,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                   placeholder="Ex: 5000.00" 
                   className="font-mono tabular-nums"
                 />
-                <p className="text-[11px] text-muted-foreground mt-1">
+                <p className="text-2xs text-muted-foreground mt-1">
                   Opcional. Se esta conta já possui saldo na vida real, informe o valor para iniciar o saldo acumulado.
                 </p>
               </div>
@@ -620,7 +620,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     placeholder="Ex: 5b4c10..." 
                     className="font-mono text-xs"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-2xs text-muted-foreground mt-1">
                     ID da conta ou cartão no Pluggy para importação automática.
                   </p>
                 </div>
@@ -632,7 +632,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     placeholder="Ex: 9a2f3e... (opcional)" 
                     className="font-mono text-xs"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-2xs text-muted-foreground mt-1">
                     ID do item/conexão no Pluggy (opcional para rastreabilidade).
                   </p>
                 </div>
@@ -655,7 +655,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     placeholder="Ex: 50000.00" 
                     className="font-mono"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-2xs text-muted-foreground mt-1">
                     Opcional. Informe o valor que você já possui investido nesta conta para iniciar o patrimônio.
                   </p>
                 </div>
@@ -686,20 +686,20 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                   {newPluggyAccountId && (
                     <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground font-mono">
                       <span>Ativo vinculado:</span>
-                      <Badge variant="outline" className="text-[10px] font-mono text-primary">
+                      <Badge variant="outline" className="text-2xs font-mono text-primary">
                         {formatPluggyAccountBadge(newPluggyAccountId)}
                       </Badge>
                       <button
                         type="button"
                         onClick={() => setNewPluggyAccountId("")}
-                        className="text-muted-foreground hover:text-destructive text-[11px] underline"
+                        className="text-muted-foreground hover:text-destructive text-2xs underline"
                         title="Remover filtro e sincronizar custódia total"
                       >
                         (remover e usar total)
                       </button>
                     </div>
                   )}
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-2xs text-muted-foreground mt-1">
                     {newPluggyAccountId
                       ? "Esta conta será atualizada pelo ativo específico selecionado no Pluggy."
                       : "ID da conexão com a instituição no Pluggy para sincronização de custódia total ou selecione um ativo no buscador."}
@@ -898,7 +898,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     {editType === 'bank_account' && (
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground text-[11px]">Pluggy Account:</span>
+                          <span className="text-muted-foreground text-2xs">Pluggy Account:</span>
                           <Input
                             value={editPluggyAccountId}
                             onChange={e => setEditPluggyAccountId(e.target.value)}
@@ -907,7 +907,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                           />
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground text-[11px]">Item:</span>
+                          <span className="text-muted-foreground text-2xs">Item:</span>
                           <Input
                             value={editPluggyItemId}
                             onChange={e => setEditPluggyItemId(e.target.value)}
@@ -931,7 +931,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     {editType === 'investment' && (
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground text-[11px]">Pluggy Conexão:</span>
+                          <span className="text-muted-foreground text-2xs">Pluggy Conexão:</span>
                           <Input
                             value={editPluggyItemId}
                             onChange={e => setEditPluggyItemId(e.target.value)}
@@ -941,7 +941,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                         </div>
                         {editPluggyAccountId && (
                           <div className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded border border-border">
-                            <span className="text-[10px] font-mono text-foreground">
+                            <span className="text-2xs font-mono text-foreground">
                               {formatPluggyAccountBadge(editPluggyAccountId)}
                             </span>
                             <button
@@ -1015,7 +1015,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                   </span>
                   {(acc.type === "bank_account" || acc.type === "credit_card") && acc.pluggyAccountId && (
                     <span
-                      className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800"
+                      className="inline-flex items-center gap-1 text-2xs font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800"
                       title={`Pluggy Account ID: ${acc.pluggyAccountId}${acc.pluggyItemId ? `\nItem ID: ${acc.pluggyItemId}` : ""}${acc.pluggyCredentialId ? `\nCredencial: ${acc.pluggyCredentialId}` : ""}`}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -1024,7 +1024,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                   )}
                   {acc.type === "investment" && acc.pluggyItemId && (
                     <span
-                      className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800"
+                      className="inline-flex items-center gap-1 text-2xs font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800"
                       title={`Pluggy Item ID: ${acc.pluggyItemId}${acc.pluggyAccountId ? `\nAtivo/Grupo: ${acc.pluggyAccountId}` : " (Custódia Total)"}${acc.pluggyCredentialId ? `\nCredencial: ${acc.pluggyCredentialId}` : ""}`}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -1033,7 +1033,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                   )}
                   {acc.type === "investment" && (
                     <label
-                      className="inline-flex items-center gap-1 text-[11px] cursor-pointer"
+                      className="inline-flex items-center gap-1 text-2xs cursor-pointer"
                       title="Liquidez diária: a previsão pode sugerir resgatar daqui quando faltar dinheiro"
                     >
                       <input
@@ -1137,7 +1137,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                       <div className="w-1.5 h-8 rounded-full bg-slate-300" />
                       <div>
                         <h4 className="font-medium text-sm text-slate-600">{acc.name}</h4>
-                        <span className="text-[11px] text-slate-400">Arquivada</span>
+                        <span className="text-2xs text-slate-400">Arquivada</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1288,7 +1288,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Instituições Conectadas ({connectedItemsList.length})
                     </label>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-2xs text-muted-foreground">
                       Clique para consultar
                     </span>
                   </div>
@@ -1318,15 +1318,15 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                             </div>
                             {item.credentialLabel && (
                               <div className="mt-1">
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/70 max-w-full truncate">
+                                <Badge variant="outline" className="text-2xs px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/70 max-w-full truncate">
                                   {item.credentialLabel}
                                 </Badge>
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono mt-1">
+                          <div className="flex items-center justify-between text-2xs text-muted-foreground font-mono mt-1">
                             <span>{item.id.slice(0, 6)}...</span>
-                            <Badge variant={isCurrent ? "default" : "secondary"} className="text-[9px] px-1 py-0 h-4">
+                            <Badge variant={isCurrent ? "default" : "secondary"} className="text-2xs px-1 py-0 h-4">
                               {item.accounts.length} {item.accounts.length === 1 ? "conta" : "contas"}
                             </Badge>
                           </div>
@@ -1340,7 +1340,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
               {/* Opção de Item ID Manual */}
               <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/50">
                 <div className="flex-1">
-                  <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
+                  <label className="text-2xs font-medium text-muted-foreground mb-1 block">
                     Ou informe outro Item ID (UUID da conexão Pluggy):
                   </label>
                   <Input
@@ -1378,7 +1378,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     <KeyRound className="w-3.5 h-3.5 text-primary" />
                     Conta / Credencial Pluggy:
                   </span>
-                  <Badge variant="secondary" className="text-[10px] font-medium">
+                  <Badge variant="secondary" className="text-2xs font-medium">
                     {pickerCredentialLabel || selectedItem?.credentialLabel}
                   </Badge>
                 </div>
@@ -1416,7 +1416,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                       <span>Contas & Cofrinhos</span>
                       <Badge
                         variant={pickerActiveTab === "accounts" ? "default" : "secondary"}
-                        className="text-[10px] px-1.5 py-0 h-4"
+                        className="text-2xs px-1.5 py-0 h-4"
                       >
                         {pluggyAccountsList.length}
                       </Badge>
@@ -1435,7 +1435,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                       <span>Investimentos & Caixinhas</span>
                       <Badge
                         variant={pickerActiveTab === "investments" ? "default" : "secondary"}
-                        className="text-[10px] px-1.5 py-0 h-4"
+                        className="text-2xs px-1.5 py-0 h-4"
                       >
                         {showZeroedInvestments ? pluggyInvestmentsList.length : activeInvestments.length}
                       </Badge>
@@ -1506,12 +1506,12 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                                     {isReserved ? (
                                       <Badge
                                         variant="secondary"
-                                        className="text-[10px] bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                        className="text-2xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
                                       >
                                         COFRINHO / RESERVA
                                       </Badge>
                                     ) : (
-                                      <Badge variant="secondary" className="text-[10px] uppercase">
+                                      <Badge variant="secondary" className="text-2xs uppercase">
                                         {item.subtype || item.type}
                                       </Badge>
                                     )}
@@ -1567,7 +1567,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                               <span className="font-semibold text-sm text-foreground">
                                 {selectedInstitutionName} (Custódia Total)
                               </span>
-                              <Badge variant="outline" className="font-mono text-[10px]">
+                              <Badge variant="outline" className="font-mono text-2xs">
                                 {pickerItemId.slice(0, 8)}...
                               </Badge>
                             </div>
@@ -1614,7 +1614,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                               <span className="font-semibold text-sm text-foreground">
                                 Todos os Fundos de Investimento ({selectedInstitutionName})
                               </span>
-                              <Badge variant="secondary" className="font-mono text-[10px] bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20">
+                              <Badge variant="secondary" className="font-mono text-2xs bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20">
                                 MUTUAL_FUND • {fundInvestments.length} {fundInvestments.length === 1 ? "fundo" : "fundos"}
                               </Badge>
                             </div>
@@ -1664,7 +1664,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                               <span className="font-semibold text-sm text-foreground">
                                 Todo o Tesouro Direto ({selectedInstitutionName})
                               </span>
-                              <Badge variant="secondary" className="font-mono text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
+                              <Badge variant="secondary" className="font-mono text-2xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
                                 TREASURY • {treasuryInvestments.length} contratos
                               </Badge>
                             </div>
@@ -1712,7 +1712,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                               <span className="font-semibold text-sm text-foreground">
                                 Todos os CDBs ({selectedInstitutionName})
                               </span>
-                              <Badge variant="secondary" className="font-mono text-[10px] bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20">
+                              <Badge variant="secondary" className="font-mono text-2xs bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20">
                                 CDB • {cdbInvestments.length} contratos
                               </Badge>
                             </div>
@@ -1763,7 +1763,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                           <button
                             type="button"
                             onClick={() => setShowZeroedInvestments(!showZeroedInvestments)}
-                            className="text-primary hover:underline font-semibold text-[11px]"
+                            className="text-primary hover:underline font-semibold text-2xs"
                           >
                             {showZeroedInvestments ? "Ocultar zerados" : "Exibir zerados"}
                           </button>
@@ -1809,7 +1809,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                               Ativos & Grupos ({groupedInvestments.length})
                             </label>
                             <div className="flex items-center gap-3">
-                              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                              <span className="text-2xs text-muted-foreground hidden sm:inline">
                                 Lotes do mesmo título são consolidados automaticamente
                               </span>
                               {investmentsToDisplay.length > 0 && (
@@ -1824,7 +1824,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                                       setSelectedContractIds(allIds);
                                     }
                                   }}
-                                  className="text-[11px] text-primary hover:underline font-medium"
+                                  className="text-2xs text-primary hover:underline font-medium"
                                 >
                                   {investmentsToDisplay.every((i) => selectedContractIds.includes(i.id))
                                     ? "Desmarcar todos"
@@ -1887,12 +1887,12 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                                         <div className="space-y-0.5 min-w-0">
                                           <div className="flex items-center gap-2 flex-wrap">
                                             <span className="font-semibold text-sm text-foreground">{group.name}</span>
-                                            <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/20 gap-1 font-mono">
+                                            <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary border-primary/20 gap-1 font-mono">
                                               <Layers className="w-3 h-3" />
                                               {group.items.length} contratos agrupados
                                             </Badge>
                                             {group.subtype && (
-                                              <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                                              <Badge variant="outline" className="text-2xs uppercase font-mono">
                                                 {group.subtype}
                                               </Badge>
                                             )}
@@ -1967,13 +1967,13 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                                                     title="Selecionar este contrato"
                                                   />
                                                   <div className="min-w-0 space-y-0.5">
-                                                    <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                    <div className="font-mono text-2xs text-muted-foreground truncate">
                                                       Contrato ID: {inv.id}
                                                     </div>
                                                     <div className="font-semibold tabular-nums text-foreground">
                                                       Saldo: {formatCurrency(inv.balance)}
                                                       {inv.amountProfit != null && inv.amountProfit !== 0 && (
-                                                        <span className={`ml-2 text-[11px] ${inv.amountProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                                                        <span className={`ml-2 text-2xs ${inv.amountProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                                                           ({inv.amountProfit >= 0 ? "+" : ""}{formatCurrency(inv.amountProfit)})
                                                         </span>
                                                       )}
@@ -1984,7 +1984,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                                                   size="sm"
                                                   variant={isItemSingleSelected ? "default" : "ghost"}
                                                   onClick={() => handleSelectPluggyInvestment(inv)}
-                                                  className="h-7 text-[11px] shrink-0"
+                                                  className="h-7 text-2xs shrink-0"
                                                 >
                                                   {isItemSingleSelected ? (
                                                     <>
@@ -2051,12 +2051,12 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                                         {isCaixinha ? (
                                           <Badge
                                             variant="secondary"
-                                            className="text-[10px] bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                            className="text-2xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
                                           >
                                             CAIXINHA / COFRINHO
                                           </Badge>
                                         ) : (
-                                          <Badge variant="secondary" className="text-[10px] uppercase">
+                                          <Badge variant="secondary" className="text-2xs uppercase">
                                             {inv.subtype || inv.type}
                                           </Badge>
                                         )}

@@ -129,7 +129,7 @@ export function WealthInvestmentModal({ item, onClose, onSaved }: WealthInvestme
             placeholder="Ex: 52400.00"
             autoFocus
           />
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-2xs text-muted-foreground mt-1">
             A posição patrimonial será atualizada de acordo com o extrato consolidado da corretora.
           </p>
         </div>

@@ -145,7 +145,7 @@ export function MobileHeader({
         <div className="flex flex-col items-center">
           <div className="text-sm font-semibold capitalize tracking-wide">{monthLabel}</div>
           {projection && (
-            <div className="flex items-center gap-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-1.5 text-2xs font-medium text-amber-600 dark:text-amber-400">
               <span className={`w-1.5 h-1.5 rounded-full ${projection.dotClass}`} />
               <span>{projection.label}</span>
             </div>
@@ -175,7 +175,7 @@ export function MobileHeader({
               <strong>{uncategorizedCount}</strong> {uncategorizedCount === 1 ? "transação sem categoria" : "transações sem categoria"}
             </span>
           </div>
-          <span className="text-[11px] font-semibold underline text-amber-800 dark:text-amber-300 shrink-0">
+          <span className="text-2xs font-semibold underline text-amber-800 dark:text-amber-300 shrink-0">
             Triar &rarr;
           </span>
         </button>
@@ -186,7 +186,7 @@ export function MobileHeader({
         {/* Breakdown de Saldo vs Cartões */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1 text-2xs text-muted-foreground">
               <Wallet className="w-3 h-3 text-emerald-500" />
               <span>Contas ({bankAccountsCount})</span>
             </div>
@@ -196,7 +196,7 @@ export function MobileHeader({
           </div>
 
           <div className="flex flex-col gap-0.5 text-right">
-            <div className="flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+            <div className="flex items-center justify-end gap-1 text-2xs text-muted-foreground">
               <CreditCard className="w-3 h-3 text-rose-500" />
               <span>Cartões ({creditCardsCount})</span>
             </div>
@@ -207,7 +207,7 @@ export function MobileHeader({
         </div>
 
         {/* Entradas & Saídas do Mês */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40 text-2xs text-muted-foreground">
           <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span className="font-mono tabular-nums privacy-sensitive font-medium">+{formatCurrency(globalIncome)}</span>

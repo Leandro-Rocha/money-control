@@ -88,7 +88,7 @@ export function StagingPluggyStep({
               <div>
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-semibold text-foreground">{selectedAccount.name}</h4>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                  <span className="inline-flex items-center gap-1 text-2xs font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     Vinculada ao Pluggy
                   </span>

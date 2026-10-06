@@ -66,14 +66,14 @@ export function WealthPluggySyncModal({
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 rounded-lg border border-border bg-card">
-                <div className="text-[11px] font-medium text-muted-foreground">Saldo Anterior</div>
+                <div className="text-2xs font-medium text-muted-foreground">Saldo Anterior</div>
                 <div className="text-base font-bold font-mono tabular-nums text-foreground mt-0.5">
                   {formatCurrency(syncData.previousBalance)}
                 </div>
               </div>
 
               <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Novo Saldo Pluggy</div>
+                <div className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400">Novo Saldo Pluggy</div>
                 <div className="text-base font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
                   {formatCurrency(syncData.totalBalance)}
                 </div>
@@ -87,7 +87,7 @@ export function WealthPluggySyncModal({
                   ? "border-emerald-500/20 bg-emerald-500/5"
                   : "border-rose-500/20 bg-rose-500/5"
               )}>
-                <div className="text-[11px] font-medium text-muted-foreground">Ajuste de Custódia</div>
+                <div className="text-2xs font-medium text-muted-foreground">Ajuste de Custódia</div>
                 <div className={cn(
                   "text-base font-bold font-mono tabular-nums mt-0.5",
                   syncData.diff === 0
@@ -134,15 +134,15 @@ export function WealthPluggySyncModal({
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm text-foreground truncate">{inv.name}</span>
-                          <Badge variant="secondary" className="text-[10px] uppercase font-mono">
+                          <Badge variant="secondary" className="text-2xs uppercase font-mono">
                             {inv.subtype || inv.type}
                           </Badge>
-                          <span className="text-[10px] text-muted-foreground font-mono">
+                          <span className="text-2xs text-muted-foreground font-mono">
                             ID: {inv.id.slice(0, 8)}...
                           </span>
                         </div>
                         {inv.amountProfit != null && inv.amountProfit !== 0 && (
-                          <div className="text-[11px] text-muted-foreground font-mono">
+                          <div className="text-2xs text-muted-foreground font-mono">
                             Rendimento acumulado:{" "}
                             <span className={cn(
                               "font-semibold tabular-nums",
@@ -159,7 +159,7 @@ export function WealthPluggySyncModal({
                           {formatCurrency(inv.balance)}
                         </div>
                         {inv.amount != null && inv.amount !== inv.balance && (
-                          <div className="text-[10px] text-muted-foreground font-mono tabular-nums">
+                          <div className="text-2xs text-muted-foreground font-mono tabular-nums">
                             Bruto: {formatCurrency(inv.amount)}
                           </div>
                         )}

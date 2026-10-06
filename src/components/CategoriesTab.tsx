@@ -23,7 +23,7 @@ function KindSelect({ cat, onChange }: { cat: Category; onChange: (kind: NonNull
     <select
       value={cat.kind ?? "regular"}
       onChange={(e) => onChange(e.target.value as NonNullable<Category["kind"]>)}
-      className="h-7 px-1 rounded-md border border-input bg-background text-[11px]"
+      className="h-7 px-1 rounded-md border border-input bg-background text-2xs"
       title="Natureza (usada na previsão de caixa)"
     >
       {KIND_OPTIONS.map((o) => (
@@ -278,7 +278,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                         <div className="flex items-center gap-2 group flex-wrap">
                           <h4 className="font-semibold text-foreground text-sm">{parent.name}</h4>
                           {children.length > 0 && (
-                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                            <span className="text-2xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                               {children.length} {children.length === 1 ? "subcategoria" : "subcategorias"}
                             </span>
                           )}
@@ -420,7 +420,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                               <select
                                 value={editType}
                                 onChange={(e) => setEditType(e.target.value as "income" | "expense" | "both")}
-                                className="h-6 px-1 rounded border border-input bg-background text-[11px]"
+                                className="h-6 px-1 rounded border border-input bg-background text-2xs"
                               >
                                 <option value="expense">Saída</option>
                                 <option value="income">Entrada</option>
@@ -436,7 +436,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                           ) : (
                             <div className="flex items-center gap-2 group">
                               <span className="text-xs font-medium text-foreground">{sub.name}</span>
-                              <span className="text-[10px] text-muted-foreground font-normal">
+                              <span className="text-2xs text-muted-foreground font-normal">
                                 ({sub.type === "expense" ? "Saída" : sub.type === "income" ? "Entrada" : "Ambos"})
                               </span>
                               <Pencil

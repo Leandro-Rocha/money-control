@@ -78,21 +78,21 @@ function TodayContent({ state, payload }: { state: DashboardState; payload: NonN
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="text-xs text-muted-foreground">Saldo hoje (contas)</div>
           <Money value={k.balanceToday} className="text-2xl font-bold" />
-          <div className="text-[11px] text-muted-foreground mt-1">
+          <div className="text-2xs text-muted-foreground mt-1">
             + reservas líquidas <Money value={k.reserves} />
           </div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="text-xs text-muted-foreground">Livre para gastar até {fmtDate(k.safeToSpendUntil)}</div>
           <Money value={free} className={cn("text-2xl font-bold", free > 0 && "text-emerald-600 dark:text-emerald-400")} />
-          <div className="text-[11px] text-muted-foreground mt-1">
+          <div className="text-2xs text-muted-foreground mt-1">
             já descontado colchão de <Money value={settings.cushion} />
           </div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="text-xs text-muted-foreground">Menor saldo previsto</div>
           <Money value={k.lowest.balance} className="text-2xl font-bold" />
-          <div className="text-[11px] text-muted-foreground mt-1">
+          <div className="text-2xs text-muted-foreground mt-1">
             em {fmtDateWeekday(k.lowest.date)} · pessimista <Money value={k.lowestPessimistic.balance} /> em{" "}
             {fmtDate(k.lowestPessimistic.date)}
           </div>
@@ -163,7 +163,7 @@ function TodayContent({ state, payload }: { state: DashboardState; payload: NonN
                   >
                     <div className="min-w-0">
                       <div className="truncate">{e.description}</div>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-2xs text-muted-foreground">
                         {name(e.accountId)} · {KIND_LABEL[e.kind]}
                         {e.status === "overdue" && ` · previsto ${fmtDate(e.dueDate)}`}
                       </div>
@@ -171,7 +171,7 @@ function TodayContent({ state, payload }: { state: DashboardState; payload: NonN
                     <div className="text-right">
                       <Money value={e.amount} sign />
                       {e.balanceAfter != null && (
-                        <div className="text-[11px] text-muted-foreground">
+                        <div className="text-2xs text-muted-foreground">
                           conta <Money value={e.balanceAfter} />
                         </div>
                       )}
@@ -191,7 +191,7 @@ function TodayContent({ state, payload }: { state: DashboardState; payload: NonN
                 <div key={s.accountId} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate">{name(s.accountId)}</div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-2xs text-muted-foreground">
                       {s.anchoredBy === "snapshot" && s.snapshotDate
                         ? `saldo do banco em ${fmtDate(s.snapshotDate)}`
                         : "calculado pelos lançamentos"}
@@ -217,13 +217,13 @@ function TodayContent({ state, payload }: { state: DashboardState; payload: NonN
                 <div key={`${b.cardAccountId}-${b.month}`} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate">{b.cardName}</div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-2xs text-muted-foreground">
                       vence {fmtDateWeekday(b.dueDate)} · {b.isOpen ? "aberta" : "fechada"}
                       {b.status === "overdue" && " · atrasada"}
                       {b.paymentAccountId != null && ` · paga por ${name(b.paymentAccountId)}`}
                     </div>
                     {b.baselineAmount !== 0 && (
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-2xs text-muted-foreground">
                         lançado <Money value={b.realAmount} /> + previsto <Money value={b.projectedAmount} /> + típico{" "}
                         <Money value={b.baselineAmount} />
                       </div>

@@ -180,7 +180,7 @@ export function DataBackupsTab() {
               <Download className="w-4 h-4 text-emerald-600 shrink-0" />
               <div className="text-left">
                 <div className="text-xs font-semibold">Baixar Banco (.db)</div>
-                <div className="text-[10px] text-muted-foreground font-normal">Snapshot nativo SQLite</div>
+                <div className="text-2xs text-muted-foreground font-normal">Snapshot nativo SQLite</div>
               </div>
             </a>
           </Button>
@@ -196,7 +196,7 @@ export function DataBackupsTab() {
               <FileJson className="w-4 h-4 text-blue-600 shrink-0" />
               <div className="text-left">
                 <div className="text-xs font-semibold">Baixar Dump (.json)</div>
-                <div className="text-[10px] text-muted-foreground font-normal">Texto legível e versionado</div>
+                <div className="text-2xs text-muted-foreground font-normal">Texto legível e versionado</div>
               </div>
             </a>
           </Button>
@@ -217,7 +217,7 @@ export function DataBackupsTab() {
                 <Upload className="w-3.5 h-3.5 text-primary" />
                 Restaurar a partir de arquivo local
               </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
+              <div className="text-2xs text-muted-foreground mt-0.5">
                 Selecione um arquivo <code className="font-mono text-foreground">.db</code> ou <code className="font-mono text-foreground">.json</code> do seu dispositivo.
               </div>
             </div>
@@ -237,7 +237,7 @@ export function DataBackupsTab() {
         <div className="space-y-2 pt-1">
           <div className="text-xs font-semibold text-foreground flex items-center justify-between">
             <span>Backups Disponíveis no Servidor</span>
-            <span className="text-[11px] font-normal text-muted-foreground">
+            <span className="text-2xs font-normal text-muted-foreground">
               {backups.length} arquivo{backups.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -272,12 +272,12 @@ export function DataBackupsTab() {
                         <span>{b.fileName}</span>
                         <Badge
                           variant={b.sourceType === "monthly" ? "default" : "secondary"}
-                          className="text-[9px] px-1.5 py-0 h-4 font-normal"
+                          className="text-2xs px-1.5 py-0 h-4 font-normal"
                         >
                           {b.sourceType === "monthly" ? "Mensal" : "Diário"}
                         </Badge>
                       </div>
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                      <div className="text-2xs text-muted-foreground flex items-center gap-2 mt-0.5">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {b.date}
@@ -356,13 +356,13 @@ export function DataBackupsTab() {
           </div>
 
           <div className="p-3 rounded-lg bg-muted/50 border space-y-2">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
               Arquivo a ser restaurado:
             </div>
             <div className="font-mono text-xs text-foreground break-all">
               {selectedFile ? selectedFile.name : selectedServerBackup?.fileName}
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-2xs text-muted-foreground">
               Tamanho:{" "}
               {selectedFile
                 ? formatBytes(selectedFile.size)
@@ -377,7 +377,7 @@ export function DataBackupsTab() {
             <div className="space-y-0.5">
               <span className="font-semibold">Segurança Automática:</span>
               <p className="leading-relaxed">
-                Antes de iniciar a substituição, uma cópia de segurança do seu banco atual será salva automaticamente no servidor com extensão <code className="font-mono text-[11px]">.pre-restore.bak</code>.
+                Antes de iniciar a substituição, uma cópia de segurança do seu banco atual será salva automaticamente no servidor com extensão <code className="font-mono text-2xs">.pre-restore.bak</code>.
               </p>
             </div>
           </div>
@@ -420,7 +420,7 @@ export function DataBackupsTab() {
           </p>
 
           {restoreResult?.backupCreated && (
-            <div className="p-3 rounded-lg bg-muted/50 border text-[11px] text-muted-foreground space-y-1">
+            <div className="p-3 rounded-lg bg-muted/50 border text-2xs text-muted-foreground space-y-1">
               <span className="font-semibold text-foreground">Backup preventivo criado:</span>
               <p className="font-mono break-all">{restoreResult.backupCreated}</p>
             </div>

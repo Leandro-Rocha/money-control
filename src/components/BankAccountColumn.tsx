@@ -222,7 +222,7 @@ export default function BankAccountColumn({
                         : "Identificar transações duplicadas nesta conta"
                     }
                     className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+                      "px-1.5 py-0.5 rounded-md text-2xs font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
                       duplicateStats.hasDuplicates
                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800"
@@ -237,7 +237,7 @@ export default function BankAccountColumn({
                   </button>
                 )}
                 {hasActiveFilter && (
-                  <Badge variant="outline" className="text-[11px] font-normal font-sans py-0 h-5 bg-background/80">
+                  <Badge variant="outline" className="text-2xs font-normal font-sans py-0 h-5 bg-background/80">
                     {filteredTransactions.length} de {data.transactions.length} lançamentos
                   </Badge>
                 )}
@@ -420,13 +420,13 @@ export default function BankAccountColumn({
                             <span className="truncate">{tx.description}</span>
                             {tx.tags && tx.tags.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
+                                className="inline-flex items-center gap-0.5 px-1 py-px rounded text-2xs font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
                                 title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                                 <span className="truncate">#{tx.tags[0].name}</span>
                                 {tx.tags.length > 1 && (
-                                  <span className="text-[9px] text-muted-foreground shrink-0">+{tx.tags.length - 1}</span>
+                                  <span className="text-2xs text-muted-foreground shrink-0">+{tx.tags.length - 1}</span>
                                 )}
                               </span>
                             )}
@@ -442,7 +442,7 @@ export default function BankAccountColumn({
                                     ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
                                     : "Transferência vinculada"
                                 }
-                                className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-[10px]"
+                                className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-2xs"
                               >
                                 <span className="tracking-tight">
                                   {tx.linkedAccountName
@@ -464,7 +464,7 @@ export default function BankAccountColumn({
                                   handleConfirmProjected(tx);
                                 }}
                                 title="Confirmar pagamento deste lançamento previsto"
-                                className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-1.5 py-0.5 rounded transition-colors"
+                                className="ml-1.5 inline-flex items-center gap-0.5 text-2xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-1.5 py-0.5 rounded transition-colors"
                               >
                                 <Check className="w-2.5 h-2.5" />
                                 <span>Confirmar</span>

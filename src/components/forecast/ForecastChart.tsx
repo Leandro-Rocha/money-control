@@ -107,14 +107,14 @@ export function ForecastChart({ series, days, cushion, compare }: Props) {
           <line x1={x(hover)} x2={x(hover)} y1={0} y2={H} className="stroke-foreground/40" strokeWidth={1} vectorEffect="non-scaling-stroke" />
         )}
       </svg>
-      <div className="relative h-4 text-[10px] text-muted-foreground">
+      <div className="relative h-4 text-2xs text-muted-foreground">
         {ticks.map(({ p, i }) => (
           <span key={i} className="absolute -translate-x-1/2" style={{ left: `${(i / Math.max(1, pts.length - 1)) * 100}%` }}>
             {fmtDate(p.date)}
           </span>
         ))}
       </div>
-      <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap gap-3 text-2xs text-muted-foreground">
         <span>
           <span className="inline-block w-3 h-0.5 bg-sky-600 align-middle mr-1" />
           realista

@@ -67,7 +67,7 @@ export function MobileBottomNav({
             }`}
           >
             <Icon className="w-5 h-5" />
-            <span className="text-[10px] leading-none">{label}</span>
+            <span className="text-2xs leading-none">{label}</span>
           </button>
         ))}
 
@@ -93,7 +93,7 @@ export function MobileBottomNav({
             }`}
           >
             <Icon className="w-5 h-5" />
-            <span className="text-[10px] leading-none">{label}</span>
+            <span className="text-2xs leading-none">{label}</span>
           </button>
         ))}
 
@@ -104,7 +104,7 @@ export function MobileBottomNav({
           className="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 text-muted-foreground hover:text-foreground transition-colors"
         >
           <MoreHorizontal className="w-5 h-5" />
-          <span className="text-[10px] leading-none">Mais</span>
+          <span className="text-2xs leading-none">Mais</span>
         </button>
       </nav>
 
