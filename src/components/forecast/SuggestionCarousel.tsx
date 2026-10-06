@@ -25,7 +25,7 @@ export function sortSuggestions(list: Suggestion[]): Suggestion[] {
 }
 
 const KIND: Record<Suggestion["type"], { label: string; className: string }> = {
-  shortfall: { label: "falta de caixa", className: "bg-caution text-white" },
+  shortfall: { label: "falta de caixa", className: "bg-caution-soft text-caution-ink" },
   redeem: { label: "resgatar", className: "bg-caution-soft text-caution-ink" },
   transfer: { label: "transferir", className: "bg-caution-soft text-caution-ink" },
 };

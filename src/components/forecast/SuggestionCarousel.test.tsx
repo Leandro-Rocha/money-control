@@ -47,6 +47,7 @@ describe("SuggestionCarousel", () => {
     expect(screen.getAllByTestId("suggestion")).toHaveLength(1);
     expect(screen.getByText(/Faltam R\$ 300,00/)).toBeTruthy();
     expect(screen.getByText("falta de caixa")).toBeTruthy();
+    expect(screen.getByText("falta de caixa").className).not.toContain("text-white");
     expect(screen.getByText("1 de 3")).toBeTruthy();
     expect(container.querySelector("[data-urgent]")).not.toBeNull();
   });

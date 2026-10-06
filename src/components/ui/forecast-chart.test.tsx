@@ -63,6 +63,8 @@ describe("ForecastChart", () => {
     expect(container.querySelector('[data-part="crosshair"]')).not.toBeNull();
     hoverAt(container, 400);
     expect(container.querySelector('[data-part="tooltip"]')!.getAttribute("data-tone")).toBe("caution");
+    // contraste AA: âmbar escuro no texto, não branco sobre âmbar
+    expect(container.querySelector('[data-part="tooltip"]')!.className).not.toContain("text-white");
     fireEvent.pointerLeave(container.querySelector("svg")!);
     expect(container.querySelector('[data-part="tooltip"]')).toBeNull();
   });

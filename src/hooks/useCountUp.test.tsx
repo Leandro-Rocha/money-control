@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { StrictMode } from "react";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { resetCountUp, useCountUp } from "./useCountUp";
 
@@ -44,5 +45,15 @@ describe("useCountUp", () => {
     act(() => vi.advanceTimersByTime(2000));
     rerender({ v: 1200 });
     expect(result.current).toBe(1200);
+  });
+
+  it("conta também sob StrictMode (efeito montado duas vezes)", () => {
+    const { result } = renderHook(() => useCountUp(1000), { wrapper: StrictMode });
+    expect(result.current).toBe(0);
+    act(() => vi.advanceTimersByTime(500));
+    expect(result.current).toBeGreaterThan(0);
+    expect(result.current).toBeLessThan(1000);
+    act(() => vi.advanceTimersByTime(1500));
+    expect(result.current).toBe(1000);
   });
 });

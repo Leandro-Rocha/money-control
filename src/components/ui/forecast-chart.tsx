@@ -23,7 +23,7 @@ const H = 200;
 
 const TOOLTIP_TONE = {
   negative: "bg-negative text-white",
-  caution: "bg-caution text-white",
+  caution: "bg-caution-soft text-caution-ink",
   normal: "bg-ink text-tile",
 } as const;
 

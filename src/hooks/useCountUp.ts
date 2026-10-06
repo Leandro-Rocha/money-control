@@ -29,13 +29,17 @@ export function useCountUp(target: number, duration = 1400): number {
     played = true;
     setProgress(0);
     const t0 = performance.now();
+    let finished = false;
     let raf = requestAnimationFrame(function tick(now) {
       const p = Math.min(1, (now - t0) / duration);
       setProgress(p);
       if (p < 1) raf = requestAnimationFrame(tick);
+      else finished = true;
     });
     return () => {
       cancelAnimationFrame(raf);
+      // Interrompido antes do fim (ex.: StrictMode desmonta e remonta): deixa contar de novo.
+      if (!finished) played = false;
       setProgress(1);
     };
   }, [duration]);
