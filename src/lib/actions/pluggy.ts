@@ -22,6 +22,7 @@ import {
 import {
   applyTransactionRules,
   isDbDuplicate,
+  isAutoInvestSweepDescription,
   isInvoicePaymentDescription,
   matchExtractedCategory,
   normalizeDescription,
@@ -648,6 +649,8 @@ export async function fetchPluggyTransactionsForMonth(
 
     // Supressão compulsória de pagamentos de fatura
     const isInvoicePayment = isCreditCard && isInvoicePaymentDescription(originalDescription);
+    // Aplicação/resgate automático não mexe no saldo sacável
+    const isAutoInvestSweep = !isCreditCard && isAutoInvestSweepDescription(originalDescription);
 
     // Extração de parcelas
     let installmentCurrent: number | null = null;
@@ -690,7 +693,7 @@ export async function fetchPluggyTransactionsForMonth(
     seenInBatch.add(batchKey);
 
     const isDuplicate = existsInDb || duplicateInBatch;
-    const ignored = isDuplicate || isInvoicePayment;
+    const ignored = isDuplicate || isInvoicePayment || isAutoInvestSweep;
 
     stagingRows.push({
       id: `pluggy-${pt.id}`,

@@ -155,6 +155,14 @@ export function isInvoicePaymentDescription(description: string): boolean {
   return false;
 }
 
+/**
+ * Aplicação/resgate automático da conta corrente (ex.: Itaú "APL APLIC AUT MAIS", "RES APLIC AUT MAIS").
+ * O dinheiro continua sacável, então o vai-e-volta não é movimento real. Rendimentos ("REND PAGO") não entram.
+ */
+export function isAutoInvestSweepDescription(description: string): boolean {
+  return /\b(APL|RES) APLIC AUT\b/i.test(description ?? "");
+}
+
 export type StagingFilterMode = "all" | "unregistered" | "registered";
 
 /**

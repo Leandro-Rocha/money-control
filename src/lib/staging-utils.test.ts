@@ -215,3 +215,19 @@ describe("filterStagingRows (staging filter)", () => {
     expect(filterStagingRows([], "registered")).toEqual([]);
   });
 });
+
+import { isAutoInvestSweepDescription } from "./staging-utils";
+
+describe("isAutoInvestSweepDescription", () => {
+  it("reconhece aplicação e resgate automáticos", () => {
+    for (const d of ["Resgate RES APLIC AUT MAIS", "Aplicação APL APLIC AUT MAIS", "Saída APL APLIC AUT MAIS AP", "Entrada RES APLIC AUT MAIS AP"]) {
+      expect(isAutoInvestSweepDescription(d)).toBe(true);
+    }
+  });
+
+  it("mantém rendimentos e lançamentos comuns", () => {
+    for (const d of ["Rendimentos REND PAGO APLIC AUT MAIS", "Entrada REND PAGO APLIC AUT APR", "PIX MERCADO", ""]) {
+      expect(isAutoInvestSweepDescription(d)).toBe(false);
+    }
+  });
+});
