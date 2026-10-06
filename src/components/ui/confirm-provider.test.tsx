@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
+import * as React from "react";
 import "@testing-library/jest-dom/vitest";
 import { ConfirmProvider, useConfirm, type ConfirmRequest } from "./confirm-provider";
 
@@ -63,5 +64,59 @@ describe("useConfirm", () => {
     fireEvent.click(screen.getByText("perguntar"));
     await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
     expect(spy).toHaveBeenCalledWith("Seguir?");
+  });
+
+  it("pedido encadeado logo após confirmar continua aberto e resolve", async () => {
+    const log: string[] = [];
+    function Chain() {
+      const ask = useConfirm();
+      return (
+        <button
+          onClick={async () => {
+            if (!(await ask({ title: "Primeira?", confirmLabel: "Sim1" }))) return;
+            log.push("p1");
+            log.push("p2:" + (await ask({ title: "Segunda?", confirmLabel: "Sim2" })));
+          }}
+        >
+          encadear
+        </button>
+      );
+    }
+    render(
+      <ConfirmProvider>
+        <Chain />
+      </ConfirmProvider>,
+    );
+    fireEvent.click(screen.getByText("encadear"));
+    fireEvent.click(await screen.findByRole("button", { name: "Sim1" }));
+    await act(async () => {});
+    fireEvent.click(await screen.findByRole("button", { name: "Sim2" }));
+    await waitFor(() => expect(log).toEqual(["p1", "p2:true"]));
+  });
+
+  it("pedido novo com outro aberto resolve o anterior como false", async () => {
+    const log: string[] = [];
+    function Double() {
+      const ask = useConfirm();
+      return (
+        <button
+          onClick={() => {
+            ask("A").then((v) => log.push("A:" + v));
+            ask("B").then((v) => log.push("B:" + v));
+          }}
+        >
+          dois
+        </button>
+      );
+    }
+    render(
+      <ConfirmProvider>
+        <Double />
+      </ConfirmProvider>,
+    );
+    fireEvent.click(screen.getByText("dois"));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("B");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(log).toEqual(["A:false", "B:true"]));
   });
 });

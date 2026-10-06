@@ -20,12 +20,31 @@ export function Hint({
   side?: "top" | "right" | "bottom" | "left";
 }) {
   const [open, setOpen] = React.useState(false);
+  const touch = React.useRef(false);
+  const skipClose = React.useRef(false);
   return (
-    <TooltipPrimitive.Root open={open} onOpenChange={setOpen} delayDuration={300}>
+    <TooltipPrimitive.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (!o && skipClose.current) {
+          skipClose.current = false;
+          return;
+        }
+        setOpen(o);
+      }}
+      delayDuration={300}
+    >
       <TooltipPrimitive.Trigger
         asChild
         onPointerDown={(e) => {
-          if (e.pointerType === "touch") setOpen((o) => !o);
+          skipClose.current = false;
+          touch.current = e.pointerType === "touch";
+          if (touch.current) setOpen((o) => !o);
+        }}
+        onClick={() => {
+          // Radix fecha no click; o click que segue o toque não deve desfazer o toque.
+          // Sem preventDefault, para não bloquear link ou submit do filho.
+          skipClose.current = touch.current;
         }}
       >
         {children}

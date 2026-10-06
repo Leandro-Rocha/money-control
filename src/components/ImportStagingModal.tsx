@@ -116,16 +116,6 @@ export function ImportStagingModal({
     getTransactionRules().then((data) => setRules(data.filter((r: any) => r.active === 1)));
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleModalClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleModalClose]);
-
   // Reset parsed rows when the account changes
   const prevAccountIdRef = useRef(accountId);
   useEffect(() => {
@@ -461,7 +451,6 @@ export function ImportStagingModal({
           <RefreshCw className="w-5 h-5 text-primary" />
         )
       }
-      escapeCloses={false}
       footer={
         step === 1 ? (
           <>

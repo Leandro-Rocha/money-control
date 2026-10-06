@@ -24,29 +24,39 @@ export function useConfirm(): Ask {
 }
 
 interface Pending {
+  id: number;
   req: Exclude<ConfirmRequest, string>;
   resolve: (v: boolean) => void;
 }
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [pending, setPending] = React.useState<Pending | null>(null);
-  const settled = React.useRef(false);
+  // Fonte da verdade fora do ciclo de render: callbacks atrasados do diálogo
+  // (onOpenChange depois de onConfirm) não podem fechar um pedido mais novo.
+  const current = React.useRef<Pending | null>(null);
+  const nextId = React.useRef(1);
+
+  const settle = React.useCallback((id: number, v: boolean) => {
+    const p = current.current;
+    if (!p || p.id !== id) return;
+    current.current = null;
+    p.resolve(v);
+    setPending(null);
+  }, []);
 
   const ask = React.useCallback<Ask>(
     (req) =>
       new Promise<boolean>((resolve) => {
-        settled.current = false;
-        setPending({ req: typeof req === "string" ? { title: req } : req, resolve });
+        // Um pedido por vez: o anterior, se houver, conta como cancelado.
+        if (current.current) settle(current.current.id, false);
+        const p = { id: nextId.current++, req: typeof req === "string" ? { title: req } : req, resolve };
+        current.current = p;
+        setPending(p);
       }),
-    [],
+    [settle],
   );
 
-  const settle = (v: boolean) => {
-    if (!pending || settled.current) return;
-    settled.current = true;
-    pending.resolve(v);
-    setPending(null);
-  };
+  const id = pending?.id ?? 0;
 
   return (
     <ConfirmContext.Provider value={ask}>
@@ -54,14 +64,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       <ConfirmDialog
         open={pending != null}
         onOpenChange={(open) => {
-          if (!open) settle(false);
+          if (!open) settle(id, false);
         }}
         title={pending?.req.title ?? ""}
         description={pending?.req.description}
         confirmLabel={pending?.req.confirmLabel}
         cancelLabel={pending?.req.cancelLabel}
         variant={pending?.req.variant ?? "destructive"}
-        onConfirm={() => settle(true)}
+        onConfirm={() => settle(id, true)}
       />
     </ConfirmContext.Provider>
   );
