@@ -9,7 +9,7 @@ import { getForecastAction, type ForecastPayload } from "@/lib/actions/forecast"
 import { formatMonthLabel, parseNumberInput } from "@/lib/format";
 import type { ExtraPurchase, ForecastKpis, MonthSummary, Scenario } from "@/lib/forecast/types";
 import { cn } from "@/lib/utils";
-import { ForecastChart } from "./ForecastChart";
+import { ForecastChart } from "@/components/ui/forecast-chart";
 import { LoadingCard, Money, Section, accountNamer, fmtDate, fmtDateWeekday } from "./shared";
 
 interface PurchaseDraft {
