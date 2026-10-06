@@ -46,6 +46,8 @@ export interface FRecurring {
   reimbursePct?: number;
   /** Dias até o reembolso cair; sem valor usa settings.reimbursementLagDays. */
   reimburseLagDays?: number | null;
+  /** Categorias cujas entradas contam como reembolso desta estimativa (a dela e as de "Reembolso" irmãs). */
+  reimburseCreditCategoryIds?: number[];
   frequency: "monthly" | "yearly" | "every_n_months";
   intervalMonths: number;
   /** Mês fixo (1-12) do modelo antigo de recorrência anual. */

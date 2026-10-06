@@ -69,7 +69,9 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
   const accRows = await db.select().from(accounts).where(eq(accounts.isActive, 1));
   const activeIds = new Set(accRows.map((a) => a.id));
 
-  const catRows = await db.select({ id: categories.id, kind: categories.kind, parentId: categories.parentId }).from(categories);
+  const catRows = await db
+    .select({ id: categories.id, name: categories.name, kind: categories.kind, parentId: categories.parentId })
+    .from(categories);
   const kindById = new Map(catRows.map((c) => [c.id, c.kind as CategoryKind]));
   const parentById = new Map(catRows.map((c) => [c.id, c.parentId ?? null]));
 
@@ -156,7 +158,7 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
     transactions: fTx,
     recurring: recRows
       .filter((r) => activeIds.has(r.accountId))
-      .map(toFRecurring),
+      .map((r) => ({ ...toFRecurring(r), reimburseCreditCategoryIds: reimburseCreditCategories(r.categoryId, catRows) })),
     installments,
     snapshots: snapRows.map((s) => ({ accountId: s.accountId, date: s.date, balance: s.balance })),
     dismissals: dismissRows.map((d) => ({ accountId: d.accountId, month: d.month, sourceType: d.sourceType, sourceId: d.sourceId })),
@@ -167,6 +169,15 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
     },
     scenario: opts.scenario,
   };
+}
+
+/** A própria categoria e as "Reembolso" ao lado dela (mesma mãe) ou abaixo dela. */
+function reimburseCreditCategories(categoryId: number | null, cats: { id: number; name: string; parentId: number | null }[]): number[] {
+  if (categoryId == null) return [];
+  const parent = cats.find((c) => c.id === categoryId)?.parentId ?? null;
+  const isReimb = (name: string) => /reembols/i.test(name.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  const near = cats.filter((c) => c.id !== categoryId && isReimb(c.name) && ((parent != null && c.parentId === parent) || c.parentId === categoryId));
+  return [categoryId, ...near.map((c) => c.id)];
 }
 
 export function toFRecurring(r: typeof recurringEntries.$inferSelect): FRecurring {

@@ -565,6 +565,46 @@ describe("buildForecast — estimativa reembolsável", () => {
     expect(r.events.some((e) => e.kind === "estimate" && e.source.month === "2026-10")).toBe(false);
   });
 
+  it("várias estimativas na mesma categoria dividem o gasto pelo valor de cada uma", () => {
+    const r = buildForecast(
+      base({
+        today: "2026-10-20",
+        accounts: [bank(1)],
+        recurring: [
+          est({ id: 91, amount: -2500, reimbursePct: 100, description: "Déborah" }),
+          est({ id: 92, amount: -1200, reimbursePct: 100, description: "Giovana" }),
+          est({ id: 93, amount: -1600, reimbursePct: 100, description: "Cilene" }),
+        ],
+        transactions: [tx({ accountId: 1, month: "2026-10", day: 6, amount: -5300, categoryId: 50 })],
+      }),
+    );
+    const oct = r.events.filter((e) => e.kind === "reimbursement" && e.source.month === "2026-10");
+    expect(oct.reduce((s, e) => s + e.amount, 0)).toBeCloseTo(5300);
+    expect(Object.fromEntries(oct.map((e) => [e.description, e.amount]))).toEqual({
+      "Reembolso: Déborah": 2500,
+      "Reembolso: Giovana": 1200,
+      "Reembolso: Cilene": 1600,
+    });
+  });
+
+  it("entradas na categoria de reembolso quitam o previsto, que cai na conta do último reembolso", () => {
+    const r = buildForecast(
+      base({
+        today: "2026-10-20",
+        accounts: [bank(1), bank(2)],
+        recurring: [est({ reimburseCreditCategoryIds: [50, 51] })],
+        transactions: [
+          tx({ accountId: 2, month: "2026-10", day: 1, amount: 500, categoryId: 51 }),
+          tx({ accountId: 2, month: "2026-10", day: 18, amount: 300, categoryId: 51 }),
+        ],
+      }),
+    );
+    expect(r.events.filter((e) => e.kind === "reimbursement").map((e) => [e.date, e.accountId, e.amount])).toEqual([
+      ["2026-10-30", 2, 500], // 800 previstos, 300 já recebidos em 18/10; o crédito de 01/10 é de antes do dia 10
+      ["2026-11-30", 2, 800],
+    ]);
+  });
+
   it("fica fora quando o cenário exclui reembolsos", () => {
     const r = buildForecast(base({ accounts: [bank(1)], recurring: [est()], scenario: { includeBaseline: false, includeReimbursements: false } }));
     expect(reimb(r)).toEqual([]);
