@@ -142,6 +142,43 @@
   --radius-tile: 12px;
   --text-2xs: 11px;
   --text-2xs--line-height: 16px;
+
+  --container-read: 40rem;
+  --container-column: 23.75rem;
+
+  --animate-tile-in: tile-in var(--dur-slow) var(--ease-out) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-live-pulse: live-pulse 2s var(--ease-out) infinite;
+  --animate-grow-x: grow-x var(--dur-slow) var(--ease-out) both;
+
+  @keyframes tile-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes live-pulse {
+    0% {
+      box-shadow: 0 0 0 0 var(--accent-glow);
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 6px transparent;
+    }
+  }
+  @keyframes grow-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -185,5 +222,50 @@
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Entrada em cascata: <div className="stagger">…blocos…</div> */
+@utility stagger {
+  & > * {
+    animation: var(--animate-tile-in);
+  }
+  & > *:nth-child(2) { animation-delay: 45ms; }
+  & > *:nth-child(3) { animation-delay: 90ms; }
+  & > *:nth-child(4) { animation-delay: 135ms; }
+  & > *:nth-child(5) { animation-delay: 180ms; }
+  & > *:nth-child(6) { animation-delay: 225ms; }
+  & > *:nth-child(7) { animation-delay: 270ms; }
+  & > *:nth-child(8) { animation-delay: 315ms; }
+  & > *:nth-child(n + 9) { animation-delay: 360ms; }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur);
+  animation-timing-function: var(--ease-out);
+}
+
+/* Movimento desligado pelo usuário (cookie) ou pelo sistema */
+.motion-off *,
+.motion-off *::before,
+.motion-off *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }
