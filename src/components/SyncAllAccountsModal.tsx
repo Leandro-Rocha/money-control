@@ -17,6 +17,8 @@ interface SyncAllAccountsModalProps {
   month: string;
   onClose: () => void;
   onSuccess: () => void;
+  /** Chamado uma vez quando a sincronização termina; ok = alguma conta sincronizou. */
+  onSynced?: (ok: boolean) => void;
 }
 
 type SyncResult = {
@@ -28,7 +30,7 @@ type SyncResult = {
   isInvestment?: boolean;
 };
 
-export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccountsModalProps) {
+export function SyncAllAccountsModal({ month, onClose, onSuccess, onSynced }: SyncAllAccountsModalProps) {
   const [isSyncing, setIsSyncing] = useState(true);
   const [results, setResults] = useState<SyncResult[]>([]);
   const [summary, setSummary] = useState<{
@@ -62,8 +64,13 @@ export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccou
     let mounted = true;
 
     async function runSync() {
+      let notified = false;
       try {
         const res = await syncAllPluggyAccountsAction(month);
+        if (mounted) {
+          notified = true;
+          onSynced?.(res.successCount > 0);
+        }
         const candidates = await findBillPaymentCandidatesAction(month);
         if (mounted) {
           setResults(res.results);
@@ -79,6 +86,7 @@ export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccou
       } catch (err) {
         if (mounted) {
           setIsSyncing(false);
+          if (!notified) onSynced?.(false);
         }
       }
     }
@@ -88,6 +96,8 @@ export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccou
     return () => {
       mounted = false;
     };
+    // onSynced é só aviso: não reinicia a sincronização se o pai recriar o callback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
   return (

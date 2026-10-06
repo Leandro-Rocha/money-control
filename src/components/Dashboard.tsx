@@ -98,8 +98,15 @@ function DashboardContent({
       {state.syncAllOpen && (
         <SyncAllAccountsModal
           month={state.currentMonth}
-          onClose={() => state.setSyncAllOpen(false)}
+          onClose={() => {
+            state.setIsSyncing(false);
+            state.setSyncAllOpen(false);
+          }}
           onSuccess={() => state.loadMonth(state.currentMonth)}
+          onSynced={(ok) => {
+            state.setIsSyncing(false);
+            if (ok) state.setLastSyncAt(new Date());
+          }}
         />
       )}
 

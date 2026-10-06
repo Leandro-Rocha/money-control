@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useTransition, useEffect, useCallback, useMemo, useRef, startTransition as startScreenTransition } from "react";
+import { useReviewPendingCount } from "@/hooks/useReviewPendingCount";
 import { MonthData, RecurringEntryUI, GlobalSearchResultItem } from "@/lib/types";
 import { getMonthData } from "@/lib/actions/transactions";
 import { getRecurringEntries } from "@/lib/actions/recurring";
@@ -28,6 +29,7 @@ export function useDashboard(
   // Incrementa a cada alteração de dados: telas que carregam sozinhas (Revisar) recarregam.
   const [dataVersion, setDataVersion] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const reviewCount = useReviewPendingCount(dataVersion);
 
   const [importOpen, setImportOpen] = useState(false);
   const [importInitialAccountId, setImportInitialAccountId] = useState<number | undefined>(undefined);
@@ -36,6 +38,14 @@ export function useDashboard(
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [syncAllOpen, setSyncAllOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  const startSyncAll = useCallback(() => {
+    setIsSyncing(true);
+    setSyncAllOpen(true);
+  }, []);
+  /** Troca de tela como transição: ativa o crossfade do ScreenTransition (sem acender o isPending). */
+  const changeViewMode = useCallback((m: ViewMode) => startScreenTransition(() => setViewMode(m)), []);
 
   const handleOpenImport = (accountId?: number, autoFetch = false) => {
     setImportInitialAccountId(accountId);
@@ -389,6 +399,13 @@ export function useDashboard(
     setData,
     viewMode,
     setViewMode,
+    changeViewMode,
+    reviewCount,
+    isSyncing,
+    setIsSyncing,
+    lastSyncAt,
+    setLastSyncAt,
+    startSyncAll,
     wealthData,
     setWealthData,
     isPending,
