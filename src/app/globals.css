@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @source not "../../.worktrees";
 @source not "../../.superpowers";
@@ -7,133 +7,174 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-@theme {
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+/* tokens:light */
+:root {
+  --bg: #eef1f4;
+  --tile: #ffffff;
+  --ink: #111827;
+  --mut: #6b7280;
+  --faint: #9ca3af;
+  --line: #f0f2f4;
+  --edge: #e3e6ea;
+  --hover: #f7f8fa;
+  --negative: hsl(358 80% 45%);
+  --negative-soft: hsl(358 85% 96%);
+  --caution: #c76a00;
+  --caution-soft: #fff4e5;
+  --caution-ink: #a35700;
+  --tile-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.035);
+  --tile-shadow-up: 0 14px 30px -16px rgb(17 24 39 / 0.3), 0 0 0 1px rgb(0 0 0 / 0.04);
+  --scrim: rgb(17 24 39 / 0.28);
+  --accent-glow: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
+/* tokens:dark */
+:root[data-theme="dark"] {
+  --bg: #0b0f14;
+  --tile: #131922;
+  --ink: #e6e8eb;
+  --mut: #9aa3ae;
+  --faint: #6b7380;
+  --line: #1c232d;
+  --edge: #28313c;
+  --hover: #18202a;
+  --negative: hsl(358 75% 62%);
+  --negative-soft: hsl(358 40% 16%);
+  --caution: #f0a03c;
+  --caution-soft: #2b1f0e;
+  --caution-ink: #f5b660;
+  --tile-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --tile-shadow-up: 0 14px 30px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --scrim: rgb(0 0 0 / 0.5);
+  --accent-glow: color-mix(in srgb, var(--accent) 45%, transparent);
+  --accent-soft: color-mix(in oklab, var(--accent) 18%, var(--tile));
+  --accent-ink: color-mix(in oklab, var(--accent) 65%, white);
+}
 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
+/* motion */
+:root {
+  --dur-fast: 150ms;
+  --dur: 300ms;
+  --dur-slow: 500ms;
+}
+
+/* accent:presets — valores espelham ACCENT_PRESETS em src/lib/appearance.ts */
+:root,
+[data-accent="teal"] {
+  --accent: #0d9488;
+  --accent-soft: #e6f7f5;
+  --accent-ink: #0f766e;
+}
+[data-accent="verde"] {
+  --accent: #0e9f6e;
+  --accent-soft: #e7f6ef;
+  --accent-ink: #0b7a55;
+}
+[data-accent="cobalto"] {
+  --accent: #2563eb;
+  --accent-soft: #eaf1ff;
+  --accent-ink: #1d4ed8;
+}
+[data-accent="grafite"] {
+  --accent: #111827;
+  --accent-soft: #eef0f3;
+  --accent-ink: #111827;
+}
+[data-accent="violeta"] {
+  --accent: #7c3aed;
+  --accent-soft: #f3edff;
+  --accent-ink: #6d28d9;
+}
+[data-accent="terracota"] {
+  --accent: #c2552d;
+  --accent-soft: #fdf0ea;
+  --accent-ink: #a3431f;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-tile: var(--tile);
+  --color-ink: var(--ink);
+  --color-mut: var(--mut);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-edge: var(--edge);
+  --color-hover: var(--hover);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-caution: var(--caution);
+  --color-caution-soft: var(--caution-soft);
+  --color-caution-ink: var(--caution-ink);
+
+  /* nomes shadcn apontando para os tokens */
+  --color-background: var(--tile);
+  --color-foreground: var(--ink);
+  --color-card: var(--tile);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--tile);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--tile);
+  --color-secondary: var(--hover);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--hover);
+  --color-muted-foreground: var(--mut);
+  --color-destructive: var(--negative);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--edge);
+  --color-input: var(--edge);
+  --color-ring: var(--accent);
+
+  --shadow-tile: var(--tile-shadow);
+  --shadow-tile-up: var(--tile-shadow-up);
+}
+
+@theme {
+  --radius-lg: 1rem;
+  --radius-md: calc(1rem - 2px);
+  --radius-sm: calc(1rem - 4px);
+  --radius-tile: 12px;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
 @layer base {
   *,
-  ::after,
   ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+  ::after {
+    border-color: var(--edge);
   }
-}
-
-@layer utilities {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
   body {
-    font-family:
-      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
-      sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    overflow-y: scroll;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --radius: 1rem;
-  }
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-  }
+/* Modo Privacidade: Ocultar TODOS os valores com blur */
+.privacy-active .tabular-nums,
+.privacy-active .privacy-sensitive,
+.privacy-active [data-privacy="true"] {
+  filter: blur(8px) !important;
+  user-select: none !important;
 }
-@layer base {
-  * {
-    @apply border-border;
-  }
-    body {
-      @apply bg-background text-foreground overflow-y-scroll;
-    }
-  }
 
-  /* Modo Privacidade: Ocultar TODOS os valores com blur */
-  .privacy-active .tabular-nums,
-  .privacy-active .privacy-sensitive,
-  .privacy-active [data-privacy="true"] {
-    filter: blur(8px) !important;
-    user-select: none !important;
-  }
-
-  /* Exceções: Nunca borrar o modal de PIN ou elementos explicitamente livres de blur */
-  .privacy-active .no-privacy-blur,
-  .privacy-active .no-privacy-blur * {
-    filter: none !important;
-    user-select: auto !important;
-  }
+/* Exceções: Nunca borrar o modal de PIN ou elementos explicitamente livres de blur */
+.privacy-active .no-privacy-blur,
+.privacy-active .no-privacy-blur * {
+  filter: none !important;
+  user-select: auto !important;
+}
 
 @utility no-scrollbar {
   scrollbar-width: none;

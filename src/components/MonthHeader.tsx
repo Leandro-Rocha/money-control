@@ -306,7 +306,7 @@ export default function MonthHeader({
               variant="ghost"
               size="icon"
               onClick={handlePrevMonth}
-              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-8 shrink-0"
+              className="text-muted-foreground hover:bg-hover hover:text-ink h-8 w-8 shrink-0"
               title="Mês anterior"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -321,7 +321,7 @@ export default function MonthHeader({
               variant="ghost"
               size="icon"
               onClick={handleNextMonth}
-              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-8 shrink-0"
+              className="text-muted-foreground hover:bg-hover hover:text-ink h-8 w-8 shrink-0"
               title="Próximo mês"
             >
               <ChevronRight className="w-4 h-4" />
@@ -377,7 +377,7 @@ export default function MonthHeader({
                       setActionsOpen(false);
                       onOpenTransfers();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-hover hover:text-ink transition-colors text-left"
                   >
                     <ArrowRightLeft className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span>Transferências</span>
@@ -390,7 +390,7 @@ export default function MonthHeader({
                         setActionsOpen(false);
                         onOpenSyncAll();
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-hover hover:text-ink transition-colors text-left"
                     >
                       <RefreshCw className="w-4 h-4 text-muted-foreground shrink-0" />
                       <span>Sincronizar Todas as Contas</span>
@@ -404,7 +404,7 @@ export default function MonthHeader({
                         setActionsOpen(false);
                         onOpenDuplicates();
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-hover hover:text-ink transition-colors text-left"
                     >
                       <Copy className="w-4 h-4 text-amber-500 shrink-0" />
                       <span>Identificar Duplicadas</span>
@@ -419,7 +419,7 @@ export default function MonthHeader({
                       setActionsOpen(false);
                       onOpenInsights();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-hover hover:text-ink transition-colors text-left"
                   >
                     <PieChart className="w-4 h-4 text-indigo-500 shrink-0" />
                     <span>Visão de Gastos</span>
@@ -432,7 +432,7 @@ export default function MonthHeader({
                         setActionsOpen(false);
                         onOpenExport();
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-hover hover:text-ink transition-colors text-left"
                     >
                       <Sparkles className="w-4 h-4 text-violet-500 shrink-0" />
                       <span>Exportar para IA</span>
@@ -447,7 +447,7 @@ export default function MonthHeader({
                       setActionsOpen(false);
                       onOpenImport();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-sm hover:bg-hover hover:text-ink transition-colors text-left"
                   >
                     <UploadCloud className="w-4 h-4 text-sky-500 shrink-0" />
                     <div className="flex flex-col">

@@ -356,7 +356,7 @@ export function TransactionDetailModal({
                       key={tag.id}
                       type="button"
                       onClick={() => handleAddTag(tag)}
-                      className="w-full text-left px-2 py-1.5 rounded hover:bg-accent hover:text-accent-foreground flex items-center justify-between transition-colors"
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-hover hover:text-ink flex items-center justify-between transition-colors"
                     >
                       <span>#{tag.name}</span>
                       <span className="text-[10px] text-muted-foreground">Adicionar</span>
@@ -367,7 +367,7 @@ export function TransactionDetailModal({
                       type="button"
                       onClick={handleCreateAndAddTag}
                       disabled={isCreatingTag}
-                      className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-primary font-medium flex items-center gap-1.5 transition-colors"
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-hover text-primary font-medium flex items-center gap-1.5 transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Criar "#{tagInput.trim()}"</span>

@@ -840,7 +840,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
               key={acc.id} 
             className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 border rounded-lg transition-all gap-3 ${
               editingId === acc.id 
-                ? "border-primary/40 bg-accent/20 ring-1 ring-primary/20 shadow-xs" 
+                ? "border-primary/40 bg-hover/20 ring-1 ring-primary/20 shadow-xs" 
                 : "hover:border-slate-300 dark:hover:border-slate-700 bg-card"
             }`}
           >
