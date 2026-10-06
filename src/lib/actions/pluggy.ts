@@ -22,6 +22,7 @@ import {
 import {
   applyTransactionRules,
   isDbDuplicate,
+  findManualCounterpart,
   isAutoInvestSweepDescription,
   isInvoicePaymentDescription,
   matchExtractedCategory,
@@ -561,6 +562,12 @@ export async function fetchPluggyTransactionsForMonth(
     }
   }
 
+  // Meses vizinhos também: o lançamento manual pode ter ficado do outro lado da virada do mês
+  for (const ym of Array.from(monthsToCheck)) {
+    monthsToCheck.add(shiftMonth(ym, -1));
+    monthsToCheck.add(shiftMonth(ym, 1));
+  }
+
   const existingDbTxs = await db
     .select({
       id: transactions.id,
@@ -570,6 +577,7 @@ export async function fetchPluggyTransactionsForMonth(
       description: transactions.description,
       originalDescription: transactions.originalDescription,
       pluggyTransactionId: transactions.pluggyTransactionId,
+      sourceType: transactions.sourceType,
     })
     .from(transactions)
     .where(
@@ -582,6 +590,7 @@ export async function fetchPluggyTransactionsForMonth(
   // 6. Estruturar linhas para o staging e checar duplicidade
   const stagingRows: PluggyStagingRow[] = [];
   const seenInBatch = new Set<string>();
+  const matchedManualIds = new Set<number>();
 
   for (const pt of pluggyTxs) {
     const rawDate = pt.date ? pt.date.slice(0, 10) : from;
@@ -674,7 +683,7 @@ export async function fetchPluggyTransactionsForMonth(
       pt.id && existingDbTxs.some((t) => t.pluggyTransactionId === pt.id)
     );
 
-    const existsInDb =
+    let existsInDb =
       existsById ||
       isDbDuplicate(
         {
@@ -686,6 +695,14 @@ export async function fetchPluggyTransactionsForMonth(
         },
         existingDbTxs
       );
+    // Recorrência ou fatura já lançada à mão com outra descrição (ex.: "Eletropaulo" × "DA ELETROPAULO")
+    if (!existsInDb) {
+      const manual = findManualCounterpart({ resolvedMonth, day, amount }, existingDbTxs, matchedManualIds);
+      if (manual) {
+        matchedManualIds.add(manual.id);
+        existsInDb = true;
+      }
+    }
 
     const normDesc = normalizeDescription(description);
     const batchKey = `${resolvedMonth}_${day}_${amount}_${normDesc}`;
@@ -1360,4 +1377,10 @@ export async function syncAllPluggyAccountsAction(month: string) {
     autoLinkedTransfersCount,
     results,
   };
+}
+
+function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }

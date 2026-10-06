@@ -231,3 +231,35 @@ describe("isAutoInvestSweepDescription", () => {
     }
   });
 });
+
+import { findManualCounterpart } from "./staging-utils";
+
+describe("findManualCounterpart", () => {
+  const db = [
+    { id: 1, month: "2026-09", day: 10, amount: -377.68, sourceType: "recurring", pluggyTransactionId: null },
+    { id: 2, month: "2026-09", day: 25, amount: -322.98, sourceType: "credit_card_bill", pluggyTransactionId: null },
+    { id: 3, month: "2026-09", day: 18, amount: -180, sourceType: null, pluggyTransactionId: null },
+    { id: 4, month: "2026-09", day: 30, amount: -500, sourceType: "recurring", pluggyTransactionId: null },
+    { id: 5, month: "2026-09", day: 5, amount: -99, sourceType: "recurring", pluggyTransactionId: "abc" },
+  ];
+
+  it("casa recorrência por valor e data próxima, sem olhar descrição", () => {
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 11, amount: -377.68 }, db, new Set())?.id).toBe(1);
+  });
+
+  it("fatura aceita pagamento até 15 dias antes do vencimento", () => {
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 15, amount: -322.98 }, db, new Set())?.id).toBe(2);
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 5, amount: -322.98 }, db, new Set())).toBeNull();
+  });
+
+  it("atravessa a virada do mês", () => {
+    expect(findManualCounterpart({ resolvedMonth: "2026-10", day: 2, amount: -500 }, db, new Set())?.id).toBe(4);
+  });
+
+  it("ignora avulsos, já importados, longe demais e já casados", () => {
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 18, amount: -180 }, db, new Set())).toBeNull();
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 5, amount: -99 }, db, new Set())).toBeNull();
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 20, amount: -377.68 }, db, new Set())).toBeNull();
+    expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 10, amount: -377.68 }, db, new Set([1]))).toBeNull();
+  });
+});

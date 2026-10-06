@@ -155,6 +155,39 @@ export function isInvoicePaymentDescription(description: string): boolean {
   return false;
 }
 
+/** Folga em dias por origem: fatura costuma ser paga bem antes do vencimento lançado. */
+export const MANUAL_MATCH_DAYS: Record<string, number> = { recurring: 5, credit_card_bill: 15 };
+
+function dayNumber(month: string, day: number): number {
+  const [y, m] = month.split("-").map(Number);
+  return Date.UTC(y, m - 1, day) / 86_400_000;
+}
+
+/**
+ * Lançamento já registrado à mão a partir de recorrência ou fatura (sem ID do Pluggy) que corresponde
+ * ao lançamento importado: mesmo valor e data dentro de MANUAL_MATCH_DAYS, descrição livre.
+ * Cada lançamento manual só cobre um importado; `usedIds` guarda os já casados.
+ */
+export function findManualCounterpart<
+  T extends { id: number; month: string; day: number; amount: number; sourceType?: string | null; pluggyTransactionId?: string | null },
+>(row: { resolvedMonth: string; day: number; amount: number }, dbTransactions: T[], usedIds: Set<number>): T | null {
+  const target = dayNumber(row.resolvedMonth, row.day);
+  let best: T | null = null;
+  let bestGap = Infinity;
+  for (const t of dbTransactions) {
+    if (t.pluggyTransactionId || usedIds.has(t.id)) continue;
+    const window = t.sourceType ? MANUAL_MATCH_DAYS[t.sourceType] : undefined;
+    if (window == null) continue;
+    if (Math.abs(t.amount - row.amount) >= 0.009) continue;
+    const gap = Math.abs(dayNumber(t.month, t.day) - target);
+    if (gap <= window && gap < bestGap) {
+      best = t;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
 /**
  * Aplicação/resgate automático da conta corrente (ex.: Itaú "APL APLIC AUT MAIS", "RES APLIC AUT MAIS").
  * O dinheiro continua sacável, então o vai-e-volta não é movimento real. Rendimentos ("REND PAGO") não entram.

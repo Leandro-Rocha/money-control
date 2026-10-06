@@ -280,6 +280,36 @@ describe("fetchPluggyTransactionsForMonth Server Action", () => {
       expect(freshTx?.pluggyTransactionId).toBe("pt-uuid-67890");
     });
 
+    it("reconhece recorrência e fatura lançadas à mão com outra descrição", async () => {
+      await testDb.insert(accounts).values({
+        id: 21,
+        name: "Itaú Manual",
+        type: "bank_account",
+        color: "orange",
+        pluggyAccountId: "pluggy-acc-itau-manual",
+      });
+      await testDb.insert(transactions).values([
+        { id: 300, accountId: 21, month: "2026-09", day: 10, amount: -377.68, description: "Eletropaulo", sourceType: "recurring" },
+        { id: 301, accountId: 21, month: "2026-09", day: 25, amount: -322.98, description: "Fatura Cartão Amazon", sourceType: "credit_card_bill" },
+      ]);
+
+      vi.spyOn(pluggyIntegration, "fetchPluggyTransactions").mockResolvedValue([
+        { id: "enel", description: "Débito automático DA ELETROPAULO 7794", amount: -377.68, date: "2026-09-11T10:00:00.000Z", status: "POSTED" },
+        { id: "enel-2", description: "Débito automático DA ELETROPAULO 7794", amount: -377.68, date: "2026-09-12T10:00:00.000Z", status: "POSTED" },
+        { id: "amazon", description: "Pagamento de boleto BANCO BRADESCARD S A", amount: -322.98, date: "2026-09-15T10:00:00.000Z", status: "POSTED" },
+      ]);
+
+      const res = await fetchPluggyTransactionsForMonth(21, "2026-09");
+      expect(res.success).toBe(true);
+      if (!res.success) return;
+
+      const byId = (id: string) => res.transactions.find((t) => t.id === `pluggy-${id}`);
+      expect(byId("enel")).toMatchObject({ isAlreadyImported: true, ignored: true });
+      expect(byId("amazon")).toMatchObject({ isAlreadyImported: true, ignored: true });
+      // Um lançamento manual só cobre um importado
+      expect(byId("enel-2")).toMatchObject({ isAlreadyImported: false, ignored: false });
+    });
+
     it("handles API failure gracefully returning descriptive error", async () => {
       await testDb.insert(accounts).values({
         id: 3,
