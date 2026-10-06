@@ -40,6 +40,18 @@ export function useDashboard(
   const [syncAllOpen, setSyncAllOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  // Sugestões do Hoje dispensadas nesta sessão (não há backend para elas).
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(() => new Set());
+  const dismissSuggestion = useCallback((key: string) => setDismissedSuggestions((prev) => new Set(prev).add(key)), []);
+  const restoreSuggestion = useCallback(
+    (key: string) =>
+      setDismissedSuggestions((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      }),
+    [],
+  );
   const startSyncAll = useCallback(() => {
     // Modal já aberto (sincronizando ou mostrando o resultado): não dispara outra.
     if (syncAllOpen) return;
@@ -409,6 +421,9 @@ export function useDashboard(
     setIsSyncing,
     lastSyncAt,
     setLastSyncAt,
+    dismissedSuggestions,
+    dismissSuggestion,
+    restoreSuggestion,
     startSyncAll,
     wealthData,
     setWealthData,

@@ -37,4 +37,12 @@ describe("useDashboard", () => {
     act(() => result.current.startSyncAll());
     expect(result.current.isSyncing).toBe(false);
   });
+
+  it("sugestões dispensadas ficam guardadas e podem voltar", () => {
+    const { result } = renderHook(() => useDashboard(month, "cashflow"));
+    act(() => result.current.dismissSuggestion("a"));
+    expect(result.current.dismissedSuggestions.has("a")).toBe(true);
+    act(() => result.current.restoreSuggestion("a"));
+    expect(result.current.dismissedSuggestions.has("a")).toBe(false);
+  });
 });
