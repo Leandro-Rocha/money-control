@@ -587,7 +587,7 @@ describe("buildForecast — estimativa reembolsável", () => {
     });
   });
 
-  it("entradas na categoria de reembolso quitam o previsto, que cai na conta do último reembolso", () => {
+  it("entradas na categoria de reembolso, em qualquer conta, quitam o previsto, que cai na conta da estimativa", () => {
     const r = buildForecast(
       base({
         today: "2026-10-20",
@@ -600,8 +600,8 @@ describe("buildForecast — estimativa reembolsável", () => {
       }),
     );
     expect(r.events.filter((e) => e.kind === "reimbursement").map((e) => [e.date, e.accountId, e.amount])).toEqual([
-      ["2026-10-30", 2, 500], // 800 previstos, 300 já recebidos em 18/10; o crédito de 01/10 é de antes do dia 10
-      ["2026-11-30", 2, 800],
+      ["2026-10-30", 1, 500], // 800 previstos, 300 já recebidos em 18/10; o crédito de 01/10 é de antes do dia 10
+      ["2026-11-30", 1, 800],
     ]);
   });
 

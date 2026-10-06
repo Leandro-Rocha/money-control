@@ -172,7 +172,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
   /** Despesas da categoria já marcadas como reembolsáveis: o reembolso delas sai da seção 7, não da estimativa. */
   const markedByCatMonth = new Map<string, number>();
   /** Reembolsos recebidos de cada estimativa reembolsável (entradas na categoria dela ou na de reembolso). */
-  const reimbCreditsByCat = new Map<number, { date: string; amount: number; accountId: number }[]>();
+  const reimbCreditsByCat = new Map<number, { date: string; amount: number }[]>();
   const reimbCreditTxIds = new Set<number>();
   for (const t of input.transactions) {
     // Abate a estimativa mais específica: a da própria categoria; sem ela, a da categoria-mãe.
@@ -187,7 +187,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
         c != null && reimbursingCategoryIds.has(c) ? c : t.categoryId != null ? creditCatToEstimateCat.get(t.categoryId) : undefined;
       if (pool != null) {
         const list = reimbCreditsByCat.get(pool) ?? [];
-        list.push({ date: txDate(t), amount: t.amount, accountId: t.accountId });
+        list.push({ date: txDate(t), amount: t.amount });
         reimbCreditsByCat.set(pool, list);
         reimbCreditTxIds.add(t.id);
         continue;
@@ -696,7 +696,8 @@ export function buildForecast(input: ForecastInput): ForecastResult {
   // o gasto real e a soma estimada (só o real, se o mês foi dispensado), dividido entre elas pelo valor
   // de cada uma e descontando despesas já marcadas como reembolsáveis. Meses anteriores ficam de fora:
   // lá não dá para saber o que já foi reembolsado. Reembolsos recebidos a partir do dia da estimativa
-  // quitam os previstos em ordem cronológica; o previsto cai na conta onde o último reembolso caiu.
+  // quitam os previstos em ordem cronológica, em qualquer conta (o reembolso pode cair numa conta de
+  // passagem e ser transferido no mesmo dia); o previsto cai na conta da estimativa.
   if (includeReimbursements) {
     const items: { r: FRecurring; month: string; expected: string; amount: number }[] = [];
     const byCat = new Map<number, FRecurring[]>();
@@ -728,7 +729,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
       }
     }
     items.sort((a, b) => a.expected.localeCompare(b.expected));
-    const creditLeft = new Map<number, { date: string; amount: number; accountId: number }[]>();
+    const creditLeft = new Map<number, { date: string; amount: number }[]>();
     for (const [c, list] of reimbCreditsByCat) creditLeft.set(c, [...list].sort((a, b) => a.date.localeCompare(b.date)).map((x) => ({ ...x })));
     for (const it of items) {
       const cat = it.r.categoryId!;
@@ -743,10 +744,8 @@ export function buildForecast(input: ForecastInput): ForecastResult {
         pending = round2(pending - take);
       }
       if (pending <= EPS) continue;
-      const lastCredit = [...(reimbCreditsByCat.get(cat) ?? [])].sort((a, b) => a.date.localeCompare(b.date)).pop();
       const acc = accountById.get(it.r.accountId);
-      const fallback = acc?.type === "credit_card" ? acc.defaultPaymentAccountId : it.r.accountId;
-      const target = lastCredit && bankSet.has(lastCredit.accountId) ? lastCredit.accountId : fallback;
+      const target = acc?.type === "credit_card" ? acc.defaultPaymentAccountId : it.r.accountId;
       if (!target || !bankSet.has(target)) continue;
       events.push({
         key: `reimb-est:${it.r.id}:${it.month}`,
