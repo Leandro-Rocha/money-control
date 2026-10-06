@@ -1,5 +1,6 @@
 "use server";
 
+import { isAutoInvestSweepDescription } from "../staging-utils";
 import { db } from "@/db";
 import { accounts, categories, transactions, recurringEntries, dismissedProjections } from "@/db/schema";
 import { eq, and, asc, gte, lte, lt } from "drizzle-orm";
@@ -200,7 +201,10 @@ export async function getCarryForwardBalance(
       )
     );
   
-  let rawBalance = pastTx.reduce((sum, t) => sum + t.amount, 0);
+  // Aplicação/resgate automático fica fora, como no extrato do mês
+  let rawBalance = pastTx
+    .filter((t) => !isAutoInvestSweepDescription(t.originalDescription ?? t.description))
+    .reduce((sum, t) => sum + t.amount, 0);
 
   // If targetMonth is in the future, we also need to add projected transactions 
   // for all future months strictly before targetMonth
