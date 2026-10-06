@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, afterEach } from "vitest";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
+import { render, cleanup } from "@testing-library/react";
 import { EmptyState } from "./EmptyState";
 import { ModalShell } from "./ModalShell";
 import { Building } from "lucide-react";
@@ -44,8 +48,11 @@ describe("EmptyState", () => {
 });
 
 describe("ModalShell icon rendering", () => {
+  // ModalShell usa portal do Radix: renderiza no document.body, não em SSR.
+  afterEach(cleanup);
+
   it("renders correctly when icon is a forwardRef component like LucideIcon", () => {
-    const html = ReactDOMServer.renderToStaticMarkup(
+    render(
       React.createElement(
         ModalShell,
         {
@@ -58,12 +65,12 @@ describe("ModalShell icon rendering", () => {
       )
     );
 
-    expect(html).toContain("Modal de Teste");
-    expect(html).toContain("lucide-building");
+    expect(document.body.innerHTML).toContain("Modal de Teste");
+    expect(document.body.innerHTML).toContain("lucide-building");
   });
 
   it("renders correctly when icon is an instantiated React element", () => {
-    const html = ReactDOMServer.renderToStaticMarkup(
+    render(
       React.createElement(
         ModalShell,
         {
@@ -76,7 +83,7 @@ describe("ModalShell icon rendering", () => {
       )
     );
 
-    expect(html).toContain("Modal com Elemento");
-    expect(html).toContain("custom-modal-icon");
+    expect(document.body.innerHTML).toContain("Modal com Elemento");
+    expect(document.body.innerHTML).toContain("custom-modal-icon");
   });
 });

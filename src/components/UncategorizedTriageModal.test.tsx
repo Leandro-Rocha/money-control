@@ -1,6 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, afterEach, vi } from "vitest";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
+import { render, cleanup } from "@testing-library/react";
 import { UncategorizedTriageModal, getRuleMatch } from "./UncategorizedTriageModal";
 
 vi.mock("@/lib/actions/triage", () => ({
@@ -13,8 +17,11 @@ vi.mock("@/lib/actions/transaction-rules", () => ({
 }));
 
 describe("UncategorizedTriageModal component", () => {
+  // ModalShell usa portal do Radix: renderiza no document.body, não em SSR.
+  afterEach(cleanup);
+
   it("renders correctly with title, controls and empty state", () => {
-    const html = ReactDOMServer.renderToStaticMarkup(
+    render(
       React.createElement(UncategorizedTriageModal, {
         open: true,
         currentMonth: "2026-09",
@@ -26,11 +33,11 @@ describe("UncategorizedTriageModal component", () => {
       })
     );
 
-    expect(html).toContain("Triagem de Transações Sem Categoria");
-    expect(html).toContain("Aplicar regras ativas (0)");
-    expect(html).toContain("Copiar para WhatsApp");
-    expect(html).toContain("Salvar Alterações (0)");
-    expect(html).toContain("Cancelar");
+    expect(document.body.innerHTML).toContain("Triagem de Transações Sem Categoria");
+    expect(document.body.innerHTML).toContain("Aplicar regras ativas (0)");
+    expect(document.body.innerHTML).toContain("Copiar para WhatsApp");
+    expect(document.body.innerHTML).toContain("Salvar Alterações (0)");
+    expect(document.body.innerHTML).toContain("Cancelar");
   });
 
   it("does not render markup when open is false", () => {
