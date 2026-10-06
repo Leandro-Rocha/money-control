@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import { Geist } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
-
 import { cookies } from "next/headers";
+import { ACCENT_COOKIE, MOTION_COOKIE, parseAccent, parseMotion } from "@/lib/appearance";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
   title: "Money Control - Gestão Financeira",
@@ -20,17 +21,23 @@ export default async function RootLayout({
 }) {
   const cookieStore = await cookies();
   const isPrivate = cookieStore.get("money_control_privacy_active")?.value === "true";
+  const accent = parseAccent(cookieStore.get(ACCENT_COOKIE)?.value);
+  const motion = parseMotion(cookieStore.get(MOTION_COOKIE)?.value);
 
   return (
     <html
       lang="pt-BR"
-      className={cn("font-sans", geist.variable, isPrivate && "privacy-active")}
+      data-accent={accent}
+      className={cn(
+        geistSans.variable,
+        geistMono.variable,
+        "font-sans",
+        isPrivate && "privacy-active",
+        motion === "off" && "motion-off",
+      )}
       suppressHydrationWarning
     >
-      <body
-        className="min-h-screen bg-slate-100 text-slate-900 antialiased"
-        suppressHydrationWarning
-      >
+      <body className="min-h-screen bg-bg text-ink antialiased" suppressHydrationWarning>
         <Script id="privacy-init">
           {`try{if(document.cookie.indexOf('money_control_privacy_active=true')!==-1||sessionStorage.getItem('money_control_privacy_active')==='true'){document.documentElement.classList.add('privacy-active');}}catch(e){}`}
         </Script>

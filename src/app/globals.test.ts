@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { ACCENT_PRESETS } from "@/lib/appearance";
 
 const css = readFileSync(path.resolve(__dirname, "globals.css"), "utf8");
 
@@ -26,5 +27,17 @@ describe("tokens de tema", () => {
     const light = block("tokens:light");
     expect(light.get("--negative")).toBe("hsl(358 80% 45%)");
     expect(light.get("--caution")).toBe("#c76a00");
+  });
+});
+
+describe("presets de acento no CSS", () => {
+  it.each(ACCENT_PRESETS.map((p) => [p.id, p] as const))("%s bate com appearance.ts", (id, p) => {
+    const re = new RegExp(`\\[data-accent="${id}"\\]\\s*\\{([^}]*)\\}`);
+    const m = css.match(re);
+    expect(m, `bloco [data-accent="${id}"] ausente`).toBeTruthy();
+    const body = m![1];
+    expect(body).toContain(`--accent: ${p.accent};`);
+    expect(body).toContain(`--accent-soft: ${p.soft};`);
+    expect(body).toContain(`--accent-ink: ${p.ink};`);
   });
 });
