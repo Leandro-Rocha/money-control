@@ -324,20 +324,57 @@ describe("buildForecast — linha de base e faixas", () => {
 });
 
 describe("buildForecast — linha de base líquida", () => {
-  it("com menos de 3 meses de histórico não projeta linha de base", () => {
+  it("com 2 meses de histórico usa o mês mais leve e o pessimista não vai além dele", () => {
     const r = buildForecast(
       base({
-        accounts: [bank(1)],
+        accounts: [bank(1), bank(2)],
         transactions: [
           tx({ accountId: 1, month: "2026-07", day: 1, amount: 4832 }),
           tx({ accountId: 1, month: "2026-08", day: 5, amount: -3300 }),
           tx({ accountId: 1, month: "2026-09", day: 29, amount: 10 }),
+          tx({ accountId: 2, month: "2026-07", day: 1, amount: 20000 }),
+          tx({ accountId: 2, month: "2026-08", day: 5, amount: -6800 }),
+          tx({ accountId: 2, month: "2026-09", day: 5, amount: -9900 }),
         ],
         scenario: {},
       }),
     );
-    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, worst: 0, monthly: [-3300, 10] });
+    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 10, worst: 0, monthly: [-3300, 10] });
+    expect(r.baselines.find((b) => b.accountId === 2)).toMatchObject({ typical: -6800, worst: -6800 });
+    expect(r.events.some((e) => e.kind === "baseline" && e.accountId === 1 && e.amount < 0)).toBe(false);
+  });
+
+  it("com 1 mês de histórico não há linha de base", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [
+          tx({ accountId: 1, month: "2026-08", day: 1, amount: 1000 }),
+          tx({ accountId: 1, month: "2026-09", day: 5, amount: -500 }),
+        ],
+        scenario: {},
+      }),
+    );
+    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, worst: 0 });
     expect(r.events.some((e) => e.kind === "baseline")).toBe(false);
+  });
+
+  it("o restante do mês nunca troca de sinal nem passa do típico", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [
+          tx({ accountId: 1, month: "2026-06", day: 30, amount: 0 }),
+          tx({ accountId: 1, month: "2026-07", day: 10, amount: 100 }),
+          tx({ accountId: 1, month: "2026-08", day: 10, amount: 100 }),
+          tx({ accountId: 1, month: "2026-09", day: 10, amount: 100 }),
+          tx({ accountId: 1, month: "2026-10", day: 2, amount: -2000 }),
+        ],
+        scenario: {},
+      }),
+    );
+    const oct = r.events.filter((e) => e.band === "baseline" && e.source.month === "2026-10");
+    expect(oct.reduce((s, e) => s + e.amount, 0)).toBeCloseTo(100);
   });
 
   it("estornos e pares despesa/entrada no mesmo mês se anulam", () => {

@@ -274,17 +274,18 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     const first = firstMonthByAccount.get(accountId);
     const covered = first ? baselineMonths.filter((m) => m > first) : [];
     const monthly = covered.map((m) => round2(unplannedNet(accountId, m)));
-    // Com menos de 3 meses a mediana vira média e um mês atípico (conta recém-aberta, gasto pontual)
-    // dita a previsão; sem histórico suficiente a conta fica sem linha de base.
-    if (covered.length < BASELINE_MONTHS) return { accountId, typical: 0, worst: 0, monthly, months: covered };
-    const typical = round2(median(monthly));
-    const worst = round2(Math.min(0, typical, ...monthly));
+    // Com menos de 3 meses a mediana vira média e um mês atípico (gasto pontual) dita a previsão:
+    // com 2 meses vale o mais leve e o pessimista não vai além dele; com 1 mês não há linha de base.
+    let typical = 0;
+    if (monthly.length >= BASELINE_MONTHS) typical = round2(median(monthly));
+    else if (monthly.length === 2) typical = Math.abs(monthly[0]) <= Math.abs(monthly[1]) ? monthly[0] : monthly[1];
+    const worst = round2(monthly.length >= BASELINE_MONTHS ? Math.min(0, typical, ...monthly) : Math.min(0, typical));
     return { accountId, typical, worst, monthly, months: covered };
   };
 
   /** Quanto ainda falta do valor mensal, dado o que já aconteceu (nunca inverte o sinal). */
   const remainderOf = (monthly: number, realized: number) =>
-    monthly < 0 ? Math.min(0, monthly - realized) : Math.max(0, monthly - realized);
+    monthly < 0 ? Math.min(0, Math.max(monthly, monthly - realized)) : Math.max(0, Math.min(monthly, monthly - realized));
 
   const cardBills: CardBill[] = [];
   const cardItems: ForecastEvent[] = [];

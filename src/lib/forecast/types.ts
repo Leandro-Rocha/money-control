@@ -240,9 +240,9 @@ export interface ForecastKpis {
 
 export interface Baseline {
   accountId: number;
-  /** Mediana do líquido mensal não planejado (realista; pode ser positivo). 0 com menos de 3 meses de histórico. */
+  /** Mediana do líquido mensal não planejado (realista; pode ser positivo). Com 2 meses, o mais leve; com 1, 0. */
   typical: number;
-  /** Pior líquido mensal recente, limitado a ≤ 0 (pessimista). 0 com menos de 3 meses de histórico. */
+  /** Pior líquido mensal recente, limitado a ≤ 0 (pessimista). Com menos de 3 meses, não vai além do típico. */
   worst: number;
   /** Líquido não planejado de cada mês da janela. */
   monthly: number[];
