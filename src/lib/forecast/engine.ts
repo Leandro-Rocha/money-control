@@ -274,7 +274,9 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     const first = firstMonthByAccount.get(accountId);
     const covered = first ? baselineMonths.filter((m) => m > first) : [];
     const monthly = covered.map((m) => round2(unplannedNet(accountId, m)));
-    const typical = round2(median(monthly));
+    // Com menos de 3 meses a mediana vira média e um mês atípico (conta recém-aberta, gasto pontual)
+    // passa por típico; nesse caso fica só no cenário pessimista.
+    const typical = covered.length >= BASELINE_MONTHS ? round2(median(monthly)) : 0;
     const worst = round2(Math.min(0, typical, ...monthly));
     return { accountId, typical, worst, monthly, months: covered };
   };

@@ -324,6 +324,23 @@ describe("buildForecast — linha de base e faixas", () => {
 });
 
 describe("buildForecast — linha de base líquida", () => {
+  it("com menos de 3 meses de histórico não projeta gasto típico, só o pessimista", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [
+          tx({ accountId: 1, month: "2026-07", day: 1, amount: 4832 }),
+          tx({ accountId: 1, month: "2026-08", day: 5, amount: -3300 }),
+          tx({ accountId: 1, month: "2026-09", day: 29, amount: 10 }),
+        ],
+        scenario: {},
+      }),
+    );
+    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, worst: -3300, monthly: [-3300, 10] });
+    expect(r.events.some((e) => e.band === "baseline")).toBe(false);
+    expect(r.events.some((e) => e.band === "baselinePessimistic")).toBe(true);
+  });
+
   it("estornos e pares despesa/entrada no mesmo mês se anulam", () => {
     const r = buildForecast(
       base({
