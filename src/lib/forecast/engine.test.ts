@@ -354,9 +354,9 @@ describe("buildForecast — linha de base líquida", () => {
         scenario: {},
       }),
     );
-    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 10, worst: 0, monthly: [-3300, 10] });
+    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, worst: 0, monthly: [-3300, 10] });
     expect(r.baselines.find((b) => b.accountId === 2)).toMatchObject({ typical: -6800, worst: -6800 });
-    expect(r.events.some((e) => e.kind === "baseline" && e.accountId === 1 && e.amount < 0)).toBe(false);
+    expect(r.events.some((e) => e.kind === "baseline" && e.accountId === 1)).toBe(false);
   });
 
   it("com 1 mês de histórico não há linha de base", () => {
@@ -374,7 +374,7 @@ describe("buildForecast — linha de base líquida", () => {
     expect(r.events.some((e) => e.kind === "baseline")).toBe(false);
   });
 
-  it("o restante do mês nunca troca de sinal nem passa do típico", () => {
+  it("entrada não planejada não vira entrada típica", () => {
     const r = buildForecast(
       base({
         accounts: [bank(1)],
@@ -388,8 +388,8 @@ describe("buildForecast — linha de base líquida", () => {
         scenario: {},
       }),
     );
-    const oct = r.events.filter((e) => e.band === "baseline" && e.source.month === "2026-10");
-    expect(oct.reduce((s, e) => s + e.amount, 0)).toBeCloseTo(100);
+    expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: 0, monthly: [100, 100, 100] });
+    expect(r.events.some((e) => e.kind === "baseline")).toBe(false);
   });
 
   it("estornos e pares despesa/entrada no mesmo mês se anulam", () => {

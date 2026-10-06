@@ -304,9 +304,11 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     const monthly = covered.map((m) => round2(unplannedNet(accountId, m)));
     // Com menos de 3 meses a mediana vira média e um mês atípico (gasto pontual) dita a previsão:
     // com 2 meses vale o mais leve e o pessimista não vai além dele; com 1 mês não há linha de base.
+    // Entrada não planejada (resgate, venda avulsa) não se repete: a base só prevê gasto.
     let typical = 0;
     if (monthly.length >= BASELINE_MONTHS) typical = round2(median(monthly));
     else if (monthly.length === 2) typical = Math.abs(monthly[0]) <= Math.abs(monthly[1]) ? monthly[0] : monthly[1];
+    typical = Math.min(0, typical);
     const worst = round2(monthly.length >= BASELINE_MONTHS ? Math.min(0, typical, ...monthly) : Math.min(0, typical));
     return { accountId, typical, worst, monthly, months: covered };
   };
@@ -651,7 +653,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
             dueDate: d,
             accountId: id,
             amount: per,
-            description: per < 0 ? "Gasto típico não planejado" : "Entrada típica não planejada",
+            description: "Gasto típico não planejado",
             kind: "baseline",
             status: "pending",
             band,
