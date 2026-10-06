@@ -5,8 +5,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import React from "react";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import BankAccountColumn from "./BankAccountColumn";
-import CreditCardColumn from "./CreditCardColumn";
+import AccountColumn from "./AccountColumn";
 import { AccountData, Category } from "@/lib/types";
 
 // Mock server actions
@@ -142,11 +141,11 @@ describe("Transaction Tab Navigation during editing", () => {
     vi.clearAllMocks();
   });
 
-  describe("BankAccountColumn Tab navigation", () => {
+  describe("AccountColumn banco: Tab navigation", () => {
     it("navigates Day -> Description -> Category -> Amount -> exit on Tab", async () => {
       const onRefresh = vi.fn();
       render(
-        <BankAccountColumn
+        <AccountColumn variant="bank"
           data={mockBankAccountData}
           month="2026-09"
           categories={mockCategories}
@@ -203,7 +202,7 @@ describe("Transaction Tab Navigation during editing", () => {
 
     it("navigates in reverse order on Shift+Tab", async () => {
       render(
-        <BankAccountColumn
+        <AccountColumn variant="bank"
           data={mockBankAccountData}
           month="2026-09"
           categories={mockCategories}
@@ -248,7 +247,7 @@ describe("Transaction Tab Navigation during editing", () => {
 
     it("cancels editing on Escape without saving", async () => {
       render(
-        <BankAccountColumn
+        <AccountColumn variant="bank"
           data={mockBankAccountData}
           month="2026-09"
           categories={mockCategories}
@@ -271,10 +270,10 @@ describe("Transaction Tab Navigation during editing", () => {
     });
   });
 
-  describe("CreditCardColumn Tab navigation", () => {
+  describe("AccountColumn cartão: Tab navigation", () => {
     it("navigates Description -> Installment -> Category -> Amount on Tab", async () => {
       render(
-        <CreditCardColumn
+        <AccountColumn variant="card"
           data={mockCreditCardData}
           month="2026-09"
           categories={mockCategories}
@@ -319,7 +318,7 @@ describe("Transaction Tab Navigation during editing", () => {
 
     it("skips installment and goes to Category when installment is not editable", async () => {
       render(
-        <CreditCardColumn
+        <AccountColumn variant="card"
           data={mockCreditCardDataShadow}
           month="2026-09"
           categories={mockCategories}

@@ -4,8 +4,7 @@ import { useMemo } from "react";
 import { AppHeader } from "../AppHeader";
 import { CashflowToolbar } from "./CashflowToolbar";
 import { ScreenTransition } from "@/components/ui/view-transition";
-import BankAccountColumn from "../BankAccountColumn";
-import CreditCardColumn from "../CreditCardColumn";
+import AccountColumn from "../AccountColumn";
 import { ArrowRightLeft, Loader2, Search, Filter, X, Wallet, CreditCard, Landmark, Rows3, Rows4 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -278,7 +277,7 @@ export function DesktopView(state: DashboardState) {
 
                 <div className="flex flex-col gap-5">
                   {bankAccounts.map((accData) => (
-                    <BankAccountColumn
+                    <AccountColumn variant="bank"
                       key={accData.account.id}
                       data={accData}
                       month={currentMonth}
@@ -325,7 +324,7 @@ export function DesktopView(state: DashboardState) {
 
                 <div className="flex flex-col gap-5">
                   {creditCards.map((accData) => (
-                    <CreditCardColumn
+                    <AccountColumn variant="card"
                       key={accData.account.id}
                       data={accData}
                       month={currentMonth}
