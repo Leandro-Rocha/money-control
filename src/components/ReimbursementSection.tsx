@@ -109,7 +109,7 @@ export function ReimbursementSection({
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
-            className="w-16 h-7 px-2 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-16 h-7 px-2 text-sm bg-background border border-input rounded-md focus:outline-hidden focus:ring-2 focus:ring-ring"
           />
           <span className="text-muted-foreground">dias</span>
           {expectedDate && (

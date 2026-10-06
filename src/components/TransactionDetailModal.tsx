@@ -390,7 +390,7 @@ export function TransactionDetailModal({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Anotações livres sobre esta transação..."
-            className="w-full text-sm bg-background border border-input rounded-md p-2.5 focus:outline-none focus:ring-2 focus:ring-ring focus:border-input resize-y"
+            className="w-full text-sm bg-background border border-input rounded-md p-2.5 focus:outline-hidden focus:ring-2 focus:ring-ring focus:border-input resize-y"
           />
         </div>
 

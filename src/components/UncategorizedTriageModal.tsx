@@ -425,7 +425,7 @@ export function UncategorizedTriageModal({
                 onChange={(e) =>
                   setAccountFilter(e.target.value === "all" ? "all" : Number(e.target.value))
                 }
-                className="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
               >
                 <option value="all">Todas as contas ({rows.length})</option>
                 {availableAccounts.map((acc) => (
@@ -606,7 +606,7 @@ export function UncategorizedTriageModal({
                           type="text"
                           value={row.description}
                           onChange={(e) => updateRowDescription(row.id, e.target.value)}
-                          className="w-full font-medium text-foreground bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 -mx-1 transition-colors outline-none text-xs"
+                          className="w-full font-medium text-foreground bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 -mx-1 transition-colors outline-hidden text-xs"
                           placeholder="Descrição do lançamento..."
                         />
                         <div className="text-[10px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
@@ -686,7 +686,7 @@ export function UncategorizedTriageModal({
                               type="text"
                               value={row.rulePattern}
                               onChange={(e) => updateRowRulePattern(row.id, e.target.value)}
-                              className="h-5 text-[10px] px-1.5 py-0 w-40 border border-indigo-200 dark:border-indigo-800 rounded text-indigo-700 dark:text-indigo-300 bg-background outline-none font-mono"
+                              className="h-5 text-[10px] px-1.5 py-0 w-40 border border-indigo-200 dark:border-indigo-800 rounded text-indigo-700 dark:text-indigo-300 bg-background outline-hidden font-mono"
                               title="Padrão de texto procurado na descrição original para aplicar a regra automaticamente"
                             />
                             {existingRule ? (

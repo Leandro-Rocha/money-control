@@ -76,7 +76,7 @@ export function MobileBottomNav({
           <button
             type="button"
             onClick={onOpenQuickAdd}
-            className="w-13 h-13 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="w-13 h-13 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform hover:bg-primary/90 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
             aria-label="Lançar nova transação rápida"
           >
             <Plus className="w-7 h-7 stroke-[2.5]" />

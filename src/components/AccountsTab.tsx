@@ -538,7 +538,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
               <select 
                 value={newType} 
                 onChange={(e: any) => setNewType(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
               >
                 <option value="bank_account">Conta Corrente (Fluxo)</option>
                 <option value="credit_card">Cartão de Crédito (Fluxo)</option>
@@ -567,7 +567,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                 <select 
                   value={newPaymentAccountId} 
                   onChange={e => setNewPaymentAccountId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
                 >
                   <option value="">Selecione...</option>
                   {accounts.filter(a => a.type === 'bank_account').map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -840,7 +840,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
               key={acc.id} 
             className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 border rounded-lg transition-all gap-3 ${
               editingId === acc.id 
-                ? "border-primary/40 bg-accent/20 ring-1 ring-primary/20 shadow-sm" 
+                ? "border-primary/40 bg-accent/20 ring-1 ring-primary/20 shadow-xs" 
                 : "hover:border-slate-300 dark:hover:border-slate-700 bg-card"
             }`}
           >
@@ -2106,7 +2106,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
 
                           {/* Barra Flutuante de Seleção Manual */}
                           {selectedContractIds.length > 0 && (
-                            <div className="sticky bottom-0 z-10 p-3 rounded-lg bg-primary/10 border-2 border-primary/40 backdrop-blur shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+                            <div className="sticky bottom-0 z-10 p-3 rounded-lg bg-primary/10 border-2 border-primary/40 backdrop-blur-sm shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs shrink-0">
                                   {selectedContractIds.length}

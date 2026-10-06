@@ -310,7 +310,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           onFocus={onFocus}
           disabled={disabled}
           className={cn(
-            "w-full sm:w-[190px] h-9 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 select-none",
+            "w-full sm:w-[190px] h-9 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700 hover:bg-slate-100 transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary/20 select-none",
             className
           )}
         >
@@ -351,7 +351,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           onFocus={onFocus}
           disabled={disabled}
           className={cn(
-            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-xs sm:text-sm shadow-xs transition-colors hover:bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-primary/20 select-none disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-xs sm:text-sm shadow-xs transition-colors hover:bg-slate-50/80 focus:outline-hidden focus:ring-2 focus:ring-primary/20 select-none disabled:cursor-not-allowed disabled:opacity-50",
             className
           )}
         >
@@ -387,7 +387,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           onKeyDown={handleTriggerKeyDown}
           onFocus={onFocus}
           className={cn(
-            "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-[10px] uppercase font-semibold transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+            "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-[10px] uppercase font-semibold transition-all select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50",
             disabled
               ? "cursor-default opacity-85"
               : "cursor-pointer hover:ring-1 hover:ring-slate-300 hover:shadow-xs",
@@ -454,7 +454,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                     }
                   }}
                   placeholder="Buscar categoria..."
-                  className="w-full h-7 pl-7 pr-6 bg-slate-50 border border-slate-200 rounded text-xs placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full h-7 pl-7 pr-6 bg-slate-50 border border-slate-200 rounded text-xs placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                   autoFocus
                 />
                 {searchQuery && (

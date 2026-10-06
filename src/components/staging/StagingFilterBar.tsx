@@ -68,7 +68,7 @@ export function StagingFilterBar({
             <span>Não registrados</span>
             <span
               className={cn(
-                "px-1.5 py-0.2 text-[10px] rounded-full font-semibold",
+                "px-1.5 py-px text-[10px] rounded-full font-semibold",
                 unregisteredCount > 0
                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                   : "bg-muted text-muted-foreground"
@@ -91,7 +91,7 @@ export function StagingFilterBar({
             <span>Já registrados</span>
             <span
               className={cn(
-                "px-1.5 py-0.2 text-[10px] rounded-full font-semibold",
+                "px-1.5 py-px text-[10px] rounded-full font-semibold",
                 duplicateCount > 0
                   ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                   : "bg-muted text-muted-foreground"

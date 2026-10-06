@@ -485,7 +485,7 @@ export function InsightsModal({ monthLabel, summaries, onClose }: InsightsModalP
                                   <span className="font-medium text-slate-400 mr-2 text-[10px] uppercase w-5 inline-block">{tx.day}</span>
                                   <span className="truncate">{tx.description}</span>
                                   {tx.subcategoryName && (
-                                    <span className="text-[10px] ml-1.5 px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-600 font-medium">
+                                    <span className="text-[10px] ml-1.5 px-1.5 py-px rounded bg-slate-200/80 text-slate-600 font-medium">
                                       {tx.subcategoryName}
                                     </span>
                                   )}

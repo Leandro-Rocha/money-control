@@ -504,7 +504,7 @@ export default function MonthHeader({
               variant="default"
               size="sm"
               onClick={onOpenTransfers}
-              className="gap-1.5 shadow-sm font-medium h-8 text-xs shrink-0"
+              className="gap-1.5 shadow-xs font-medium h-8 text-xs shrink-0"
               title="Registrar aporte ou pagamento de parcela entre contas"
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />

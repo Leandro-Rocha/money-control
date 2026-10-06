@@ -62,7 +62,7 @@ export function SettingsDrawer({
     <>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => onOpenChange(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={() => onOpenChange(false)} />
           <div className="bg-background w-full sm:max-w-2xl md:max-w-4xl rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col h-[85vh] min-h-[550px] max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 pb-2 border-b">
               <div>

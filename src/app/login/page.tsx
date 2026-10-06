@@ -35,7 +35,7 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 space-y-6">
       <div className="text-center space-y-2">
-        <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mx-auto shadow-sm">
+        <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mx-auto shadow-xs">
           <Lock className="w-6 h-6" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -91,7 +91,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-100 to-slate-200">
+    <main className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-slate-100 to-slate-200">
       <Suspense fallback={<div className="text-slate-400 text-sm">Carregando...</div>}>
         <LoginForm />
       </Suspense>

@@ -184,7 +184,7 @@ export default function BankAccountColumn({
     }
   };
   return (
-    <Card className={`flex flex-col shadow-sm flex-1 min-w-[360px] border-slate-200 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
+    <Card className={`flex flex-col shadow-xs flex-1 min-w-[360px] border-slate-200 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
       {/* Header */}
       <CardHeader className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors" onClick={toggleExpanded}>
         <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ export default function BankAccountColumn({
                       onSyncPluggy?.(data.account.id);
                     }}
                     title="Atualizar lançamentos via Pluggy"
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                   </button>
@@ -222,7 +222,7 @@ export default function BankAccountColumn({
                         : "Identificar transações duplicadas nesta conta"
                     }
                     className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
                       duplicateStats.hasDuplicates
                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800"
@@ -420,7 +420,7 @@ export default function BankAccountColumn({
                             <span className="truncate">{tx.description}</span>
                             {tx.tags && tx.tags.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
+                                className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
                                 title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
@@ -689,7 +689,7 @@ export default function BankAccountColumn({
             <h4 className="text-lg font-semibold text-slate-800">Transferência</h4>
             <p className="text-sm text-slate-500">Selecione a conta destino para criar a transação correspondente.</p>
             <select
-              className="w-full h-10 border border-slate-300 rounded-md px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full h-10 border border-slate-300 rounded-md px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
               value={transferTargetId || ""}
               onChange={(e) => setTransferTargetId(Number(e.target.value))}
             >

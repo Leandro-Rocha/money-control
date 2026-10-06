@@ -211,7 +211,7 @@ export function MobileAccountTabs({
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: acc.color || "#6366f1" }}
                     />
                     <div>
@@ -225,7 +225,7 @@ export function MobileAccountTabs({
                               onSyncPluggy?.(acc.id);
                             }}
                             title="Atualizar via Pluggy"
-                            className="p-1 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground active:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            className="p-1 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground active:bg-muted transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
@@ -245,7 +245,7 @@ export function MobileAccountTabs({
                                   : "Identificar transações duplicadas nesta conta"
                               }
                               className={cn(
-                                "p-1 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                "p-1 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
                                 dupStats.hasDuplicates
                                   ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
                                   : "text-muted-foreground hover:text-foreground active:bg-muted"
@@ -381,7 +381,7 @@ export function MobileAccountTabs({
                           >
                             {/* Esquerda: Dia e Detalhes */}
                             <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 text-xs font-bold font-mono text-muted-foreground">
+                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 text-xs font-bold font-mono text-muted-foreground">
                                 {String(tx.day).padStart(2, "0")}
                               </div>
 
@@ -392,13 +392,13 @@ export function MobileAccountTabs({
                                   </span>
 
                                   {tx.installmentTotal && tx.installmentTotal > 1 && (
-                                    <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                                    <span className="text-[10px] font-mono font-medium px-1.5 py-px rounded bg-muted text-muted-foreground">
                                       {tx.installmentCurrent}/{tx.installmentTotal}
                                     </span>
                                   )}
 
                                   {isProjected && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-px rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
                                       Projeção
                                     </span>
                                   )}
@@ -428,7 +428,7 @@ export function MobileAccountTabs({
                             </div>
 
                             {/* Direita: Valor e Ações */}
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <div className="text-right">
                                 <span
                                   className={`text-xs font-bold font-mono tabular-nums privacy-sensitive block ${

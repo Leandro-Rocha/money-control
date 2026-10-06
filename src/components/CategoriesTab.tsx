@@ -190,7 +190,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
               <select
                 value={newParentType}
                 onChange={(e: any) => setNewParentType(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors"
               >
                 <option value="expense">Despesa</option>
                 <option value="income">Receita</option>

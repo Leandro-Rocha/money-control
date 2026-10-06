@@ -165,7 +165,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
     >
       <div className="flex flex-col gap-5">
         {/* Controls Section: Presets & Date Pickers */}
-        <div className="bg-card p-4 rounded-lg border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div className="bg-card p-4 rounded-lg border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex flex-col gap-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Período de Análise
@@ -308,7 +308,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
             <textarea
               readOnly
               value={markdownText}
-              className="w-full h-[360px] p-4 font-mono text-xs leading-relaxed bg-transparent text-slate-200 resize-none outline-none overflow-y-auto selection:bg-indigo-500 selection:text-white"
+              className="w-full h-[360px] p-4 font-mono text-xs leading-relaxed bg-transparent text-slate-200 resize-none outline-hidden overflow-y-auto selection:bg-indigo-500 selection:text-white"
               placeholder="O prompt em Markdown aparecerá aqui..."
             />
           </div>

@@ -210,7 +210,7 @@ export default function CreditCardColumn({
   const sortedTransactions = sortCreditCardTransactions(filteredTransactions);
 
   return (
-    <Card className={`flex flex-col shadow-sm flex-1 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
+    <Card className={`flex flex-col shadow-xs flex-1 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}>
       <CardHeader className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors" onClick={toggleExpanded}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -229,7 +229,7 @@ export default function CreditCardColumn({
                       onSyncPluggy?.(data.account.id);
                     }}
                     title="Atualizar fatura via Pluggy"
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                   </button>
@@ -247,7 +247,7 @@ export default function CreditCardColumn({
                         : "Identificar transações duplicadas nesta conta"
                     }
                     className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                      "px-1.5 py-0.5 rounded-md text-[11px] font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
                       duplicateStats.hasDuplicates
                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800"
@@ -313,7 +313,7 @@ export default function CreditCardColumn({
                       handlePayBill();
                     }}
                     disabled={isPayingBill}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                     title="Registrar pagamento da fatura na conta bancária vinculada"
                   >
                     <Check className="w-3 h-3" />
@@ -431,7 +431,7 @@ export default function CreditCardColumn({
                               <span className="truncate">{tx.description}</span>
                               {tx.tags && tx.tags.length > 0 && (
                                 <span
-                                  className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
+                                  className="inline-flex items-center gap-0.5 px-1 py-px rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
                                   title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />

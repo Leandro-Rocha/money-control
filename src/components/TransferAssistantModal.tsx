@@ -128,7 +128,7 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
       ) : (
         <div className="space-y-4">
           {candidates.map((pair, idx) => (
-            <div key={idx} className="flex items-center gap-4 p-4 border rounded-xl bg-card shadow-sm hover:shadow-md transition-shadow">
+            <div key={idx} className="flex items-center gap-4 p-4 border rounded-xl bg-card shadow-xs hover:shadow-md transition-shadow">
               <input
                 type="checkbox"
                 checked={selectedIndices.has(idx)}

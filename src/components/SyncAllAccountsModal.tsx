@@ -172,7 +172,7 @@ export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccou
                       <span className="text-sm font-medium text-foreground truncate flex-1 pr-2">
                         {r.accountName}
                       </span>
-                      <div className="flex items-center flex-shrink-0">
+                      <div className="flex items-center shrink-0">
                         {r.success ? (
                           <div className="flex items-center text-emerald-600 gap-1.5">
                             <span className="text-xs font-medium">

@@ -230,14 +230,14 @@ export function MobileQuickAddSheet({
                     key={acc.id}
                     type="button"
                     onClick={() => setSelectedAccountId(acc.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border flex-shrink-0 min-h-[44px] transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border shrink-0 min-h-[44px] transition-colors ${
                       isSelected
                         ? "bg-primary text-primary-foreground border-primary shadow-xs"
                         : "bg-card text-muted-foreground border-border hover:text-foreground"
                     }`}
                   >
                     <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: acc.color || "#6366f1" }}
                     />
                     <span>{acc.name}</span>
