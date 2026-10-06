@@ -41,3 +41,11 @@ describe("presets de acento no CSS", () => {
     expect(body).toContain(`--accent-ink: ${p.ink};`);
   });
 });
+
+describe("view transitions", () => {
+  it("animam todas as trocas com a duração do tema e somem com motion-off e reduced-motion", () => {
+    expect(css).toContain("::view-transition-group(*)");
+    expect(css).toMatch(/html\.motion-off::view-transition-group\(\*\)[\s\S]*?animation:\s*none\s*!important/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^@]*::view-transition-group\(\*\)/);
+  });
+});

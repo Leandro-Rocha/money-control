@@ -240,10 +240,24 @@
   & > *:nth-child(n + 9) { animation-delay: 360ms; }
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
+/* Troca de tela (View Transitions): mesma duração e curva do tema */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
   animation-duration: var(--dur);
   animation-timing-function: var(--ease-out);
+}
+html.motion-off::view-transition-group(*),
+html.motion-off::view-transition-old(*),
+html.motion-off::view-transition-new(*) {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 
 /* Movimento desligado pelo usuário (cookie) ou pelo sistema */
