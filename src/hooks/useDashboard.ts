@@ -41,9 +41,11 @@ export function useDashboard(
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const startSyncAll = useCallback(() => {
+    // Modal já aberto (sincronizando ou mostrando o resultado): não dispara outra.
+    if (syncAllOpen) return;
     setIsSyncing(true);
     setSyncAllOpen(true);
-  }, []);
+  }, [syncAllOpen]);
   /** Troca de tela como transição: ativa o crossfade do ScreenTransition (sem acender o isPending). */
   const changeViewMode = useCallback((m: ViewMode) => startScreenTransition(() => setViewMode(m)), []);
 
@@ -232,6 +234,8 @@ export function useDashboard(
       startTransition(async () => {
         const refreshed = await getMonthData(monthStr);
         setData(refreshed);
+        // Import, sincronização e triagem recarregam por aqui: o selo do Revisar acompanha.
+        setDataVersion((v) => v + 1);
         if (viewMode === "wealth") {
           const wData = await getWealthData(monthStr);
           setWealthData(wData);
