@@ -1,0 +1,189 @@
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+.em{--acc:#0d9488;--acc-soft:#e6f7f5;--acc-ink:#0f766e;--red:hsl(358 80% 45%);--warn:#c76a00;--warn-soft:#fff4e5;--warn-ink:#a35700;--bg:#eef1f4;--ink:#111827;--mut:#6b7280;--faint:#9ca3af;--line:#f0f2f4;
+    font-family:'Geist',sans-serif;color:var(--ink);font-size:12.5px}
+.em .cards{display:flex;flex-direction:column;gap:26px;margin-top:14px;max-width:1120px;margin-left:auto;margin-right:auto}
+.em>h2,.em>.subtitle{max-width:1120px;margin-left:auto;margin-right:auto}
+.em .card-image{padding:0;background:none;height:auto;display:block}
+.em .fr{background:var(--bg);border-radius:12px 12px 0 0;padding:14px;overflow:hidden}
+.n{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums;white-space:pre}
+.n.p::after{content:')';visibility:hidden}
+.red{color:var(--red)}
+.eyb{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.t{background:#fff;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 0 0 1px rgba(0,0,0,.035);padding:10px 12px;min-width:0}
+.tx{display:grid;grid-template-columns:10px 1fr auto;gap:8px;padding:6px 2px;align-items:center}
+.tx .m{font-size:10.5px;color:var(--faint)}
+.st{width:7px;height:7px;border-radius:9px;background:var(--acc)}
+.st.pv{background:none;box-shadow:inset 0 0 0 1.5px var(--faint)}
+.fut{color:var(--faint)}
+.grp{font-family:'Geist Mono';font-size:10px;letter-spacing:.1em;color:var(--faint);padding:8px 2px 2px;display:flex;justify-content:space-between}
+.av{width:20px;height:20px;border-radius:6px;display:inline-grid;place-items:center;font-size:9.5px;font-weight:600;color:#fff;flex:none}
+.cardav{width:26px;height:18px;border-radius:4px;display:inline-grid;place-items:center;font-size:8.5px;font-weight:600;color:#fff;flex:none;position:relative}
+.cardav::after{content:'';position:absolute;left:4px;top:5px;width:6px;height:4px;border-radius:1px;background:rgba(255,255,255,.6)}
+.chipst{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:5px}
+.chipst.ab{background:var(--acc-soft);color:var(--acc-ink)}
+.chipst.fe{background:var(--warn-soft);color:var(--warn-ink)}
+.chipst.pg{background:#f3f4f6;color:var(--mut)}
+.lim{height:4px;border-radius:4px;background:#f1f3f5;overflow:hidden;margin-top:6px}
+.lim i{display:block;height:100%;background:var(--ink);border-radius:4px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.hdr .nm{display:flex;gap:7px;align-items:center;font-weight:600}
+.hdr .sub{font-size:10.5px;color:var(--faint);margin-top:2px}
+
+/* A */
+.a-strip{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.pillx{display:flex;gap:6px;align-items:center;background:#fff;border-radius:99px;padding:3px 9px 3px 4px;box-shadow:0 0 0 1px rgba(0,0,0,.06);font-size:11.5px;cursor:pointer}
+.pillx.off{opacity:.45}
+.pillx .av,.pillx .cardav{transform:scale(.85)}
+.sep{width:1px;height:18px;background:#cfd5db;margin:0 4px}
+.a-row{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px}
+.a-row::-webkit-scrollbar{height:6px}.a-row::-webkit-scrollbar-thumb{background:#cfd5db;border-radius:6px}
+.a-row .t{flex:0 0 250px;scroll-snap-align:start}
+.grouplbl{flex:0 0 26px;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.5)}
+.a-row .t.cc{background:linear-gradient(180deg,#fafbfc,#fff 40px)}
+
+/* B */
+.b-wrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:10px}
+.side .sh{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:8px 8px 4px;display:flex;justify-content:space-between}
+.side .it{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer}
+.side .it:hover{background:#f7f8fa}
+.side .it.on{background:var(--acc-soft)}
+.side .it .m{font-size:10.5px;color:var(--faint)}
+.side .tot{display:flex;justify-content:space-between;padding:8px;border-top:1px solid var(--line);margin-top:4px;font-weight:500}
+.b-main{display:grid;grid-template-columns:repeat(2,minmax(0,380px));gap:10px;align-items:start}
+
+/* C */
+.c-filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.fc{font-size:11.5px;padding:4px 10px;border-radius:99px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.06);color:var(--mut);cursor:pointer;display:flex;gap:6px;align-items:center}
+.fc.on{background:var(--ink);color:#fff;box-shadow:none}
+.c-wrap{display:grid;grid-template-columns:minmax(0,640px) 260px;justify-content:center;gap:10px;align-items:start}
+.c-tx{display:grid;grid-template-columns:10px minmax(0,1fr) 110px 92px;gap:10px;padding:7px 2px;align-items:center;border-bottom:1px solid var(--line)}
+.c-tx>.n{text-align:right}
+.c-tx .acc{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut)}
+.c-grp{display:flex;justify-content:space-between;font-family:'Geist Mono';font-size:10px;letter-spacing:.1em;color:var(--faint);padding:10px 2px 3px}
+.bills .bl{padding:8px 0;border-bottom:1px solid var(--line)}
+.bills .bl:last-child{border:0}
+</style>
+
+<div class="em">
+<h2>Extrato com muitas contas, e contas × cartões</h2>
+<p class="subtitle">Seis fontes: 4 contas correntes + 2 cartões. Nas três opções, <b>cartão tem cara própria</b>: ícone em formato de cartão, selo de fatura (aberta / fechada / paga), barra de limite usado e <b>sem saldo corrente por dia</b> (cartão não tem saldo; tem total da fatura). Conta corrente mostra saldo ao fim de cada dia.</p>
+
+<div class="cards">
+
+<!-- ================= A ================= -->
+<div class="card" data-choice="faixa" onclick="toggleSelect(this)">
+<div class="card-image"><div class="fr">
+  <div class="a-strip">
+    <span class="eyb" style="margin-right:4px">Mostrar</span>
+    <span class="pillx"><span class="av" style="background:#ec7000">it</span>Itaú</span>
+    <span class="pillx"><span class="av" style="background:#820ad1">nu</span>Nubank</span>
+    <span class="pillx"><span class="av" style="background:#00a1e4">mp</span>Mercado Pago</span>
+    <span class="pillx off"><span class="av" style="background:#ec0000">sa</span>Santander</span>
+    <span class="sep"></span>
+    <span class="pillx"><span class="cardav" style="background:#820ad1"></span>Nubank</span>
+    <span class="pillx"><span class="cardav" style="background:#1d2b5a"></span>Itaú Visa</span>
+    <span class="eyb" style="margin-left:auto">arraste →</span>
+  </div>
+  <div class="a-row">
+    <div class="grouplbl">Contas</div>
+    <div class="t"><div class="hdr"><div><div class="nm"><span class="av" style="background:#ec7000">it</span>Itaú</div><div class="sub">conta corrente</div></div><b class="n p">2.902,10</b></div>
+      <div class="grp"><span>HOJE · 06/10</span><span class="n p">2.902,10</span></div>
+      <div class="tx"><i class="st"></i><div>Pix Mãe</div><span class="n p">400,00</span></div>
+      <div class="grp"><span>QUI · 08/10</span><span class="n red">(9,10)</span></div>
+      <div class="tx fut"><i class="st pv"></i><div>Condomínio</div><span class="n">(2.911,20)</span></div></div>
+    <div class="t"><div class="hdr"><div><div class="nm"><span class="av" style="background:#820ad1">nu</span>Nubank</div><div class="sub">conta corrente</div></div><b class="n p">939,10</b></div>
+      <div class="grp"><span>HOJE · 06/10</span><span class="n p">939,10</span></div>
+      <div class="tx"><i class="st"></i><div>Padaria Real</div><span class="n">(23,90)</span></div>
+      <div class="grp"><span>SÁB · 03/10</span><span class="n p">963,00</span></div>
+      <div class="tx"><i class="st"></i><div>Farmácia</div><span class="n">(86,70)</span></div></div>
+    <div class="t"><div class="hdr"><div><div class="nm"><span class="av" style="background:#00a1e4">mp</span>Mercado Pago</div><div class="sub">conta · sem movimento há 40 dias</div></div><b class="n p">0,00</b></div>
+      <div class="tx" style="color:var(--faint);padding:14px 2px">Nada neste mês</div></div>
+    <div class="grouplbl">Cartões</div>
+    <div class="t cc"><div class="hdr"><div><div class="nm"><span class="cardav" style="background:#820ad1"></span>Nubank</div><div class="sub">fatura out · vence 10/10 <span class="chipst fe">fechada</span></div><div class="lim"><i style="width:32%"></i></div></div><b class="n">(1.604,00)</b></div>
+      <div class="grp"><span>SÁB · 26/09</span><span></span></div>
+      <div class="tx"><i class="st"></i><div>iFood</div><span class="n">(64,90)</span></div>
+      <div class="tx"><i class="st"></i><div>Amazon <span class="m">3/10</span></div><span class="n">(129,00)</span></div></div>
+    <div class="t cc"><div class="hdr"><div><div class="nm"><span class="cardav" style="background:#1d2b5a"></span>Itaú Visa</div><div class="sub">fatura nov · fecha 28/10 <span class="chipst ab">aberta</span></div><div class="lim"><i style="width:14%"></i></div></div><b class="n">(842,35)</b></div>
+      <div class="grp"><span>SEG · 05/10</span><span></span></div>
+      <div class="tx"><i class="st"></i><div>Posto Shell</div><span class="n">(250,00)</span></div></div>
+  </div>
+</div></div>
+<div class="card-body"><h3>A · Colunas em faixa rolável</h3><p>O layout de hoje, escalado. Colunas de largura fixa com rolagem lateral e "encaixe", divididas em <b>Contas | Cartões</b> por um rótulo vertical. Barra de pílulas no topo liga/desliga cada conta (o app já guarda visibilidade dos cards). Bom para comparar contas lado a lado; ruim para ver tudo de uma vez.</p></div>
+</div>
+
+<!-- ================= B ================= -->
+<div class="card" data-choice="lateral" onclick="toggleSelect(this)">
+<div class="card-image"><div class="fr">
+  <div class="b-wrap">
+    <div class="t side">
+      <div class="sh"><span>Contas</span><span class="n p">3.841,20</span></div>
+      <div class="it on"><span class="av" style="background:#ec7000">it</span><div>Itaú<div class="m">corrente</div></div><span class="n p">2.902,10</span></div>
+      <div class="it on"><span class="av" style="background:#820ad1">nu</span><div>Nubank<div class="m">corrente</div></div><span class="n p">939,10</span></div>
+      <div class="it"><span class="av" style="background:#00a1e4">mp</span><div>Mercado Pago<div class="m">sem movimento</div></div><span class="n p" style="color:var(--faint)">0,00</span></div>
+      <div class="it"><span class="av" style="background:#ec0000">sa</span><div>Santander<div class="m">corrente</div></div><span class="n p">0,00</span></div>
+      <div class="sh" style="margin-top:6px"><span>Cartões</span><span class="n">(2.446,35)</span></div>
+      <div class="it"><span class="cardav" style="background:#820ad1"></span><div>Nubank<div class="m"><span class="chipst fe">fechada</span> vence 10/10</div></div><span class="n">(1.604,00)</span></div>
+      <div class="it"><span class="cardav" style="background:#1d2b5a"></span><div>Itaú Visa<div class="m"><span class="chipst ab">aberta</span> fecha 28/10</div></div><span class="n">(842,35)</span></div>
+      <div class="tot"><span>Todas</span><span class="eyb" style="align-self:center">Ctrl+clique soma</span></div>
+    </div>
+    <div class="b-main">
+      <div class="t"><div class="hdr"><div><div class="nm"><span class="av" style="background:#ec7000">it</span>Itaú</div><div class="sub">conta corrente</div></div><b class="n p">2.902,10</b></div>
+        <div class="grp"><span>HOJE · 06/10</span><span class="n p">2.902,10</span></div>
+        <div class="tx"><i class="st"></i><div>Pix Mãe<div class="m">Transferência</div></div><span class="n p">400,00</span></div>
+        <div class="tx"><i class="st" style="background:var(--warn)"></i><div>Internet Vivo<div class="m">atrasada</div></div><span class="n">(129,90)</span></div>
+        <div class="grp"><span>SEG · 05/10</span><span class="n p">2.502,10</span></div>
+        <div class="tx"><i class="st"></i><div>Supermercado<div class="m">Mercado</div></div><span class="n">(312,48)</span></div>
+        <div class="grp"><span>QUI · 08/10</span><span class="n red">(9,10)</span></div>
+        <div class="tx fut"><i class="st pv"></i><div>Condomínio<div class="m">prevista</div></div><span class="n">(2.911,20)</span></div></div>
+      <div class="t"><div class="hdr"><div><div class="nm"><span class="av" style="background:#820ad1">nu</span>Nubank</div><div class="sub">conta corrente</div></div><b class="n p">939,10</b></div>
+        <div class="grp"><span>HOJE · 06/10</span><span class="n p">939,10</span></div>
+        <div class="tx"><i class="st"></i><div>Padaria Real<div class="m">Alimentação</div></div><span class="n">(23,90)</span></div>
+        <div class="grp"><span>SÁB · 03/10</span><span class="n p">963,00</span></div>
+        <div class="tx"><i class="st"></i><div>Rendimento<div class="m">Investimentos</div></div><span class="n p">3,12</span></div>
+        <div class="tx"><i class="st"></i><div>Farmácia<div class="m">Saúde</div></div><span class="n">(86,70)</span></div></div>
+    </div>
+  </div>
+</div></div>
+<div class="card-body"><h3>B · Lista lateral + 1 a 3 colunas</h3><p>Painel fixo à esquerda com <b>todas</b> as contas e cartões agrupados, saldo e status de fatura sempre visíveis. Você escolhe quais abrir (1 a 3, o resto some). Escala para 10+ contas sem rolar para o lado; no celular a lista vira a tela inicial do Extrato.</p></div>
+</div>
+
+<!-- ================= C ================= -->
+<div class="card" data-choice="timeline" onclick="toggleSelect(this)">
+<div class="card-image"><div class="fr">
+  <div class="c-filters">
+    <span class="fc on">Tudo</span><span class="fc">Só contas</span><span class="fc">Só cartões</span>
+    <span class="sep" style="width:1px;height:18px;background:#cfd5db"></span>
+    <span class="fc"><span class="av" style="background:#ec7000;transform:scale(.8)">it</span>Itaú</span>
+    <span class="fc"><span class="av" style="background:#820ad1;transform:scale(.8)">nu</span>Nubank</span>
+    <span class="fc">+4</span>
+  </div>
+  <div class="c-wrap">
+    <div class="t">
+      <div class="c-grp"><span>HOJE · 06/10</span><span>contas <span class="n p">3.841,20</span></span></div>
+      <div class="c-tx"><i class="st"></i><div>Pix Mãe<div class="tx" style="padding:0;display:block"><span class="m">Transferência</span></div></div><span class="acc"><span class="av" style="background:#ec7000;transform:scale(.8)">it</span>Itaú</span><span class="n p">400,00</span></div>
+      <div class="c-tx"><i class="st"></i><div>Padaria Real</div><span class="acc"><span class="av" style="background:#820ad1;transform:scale(.8)">nu</span>Nubank</span><span class="n">(23,90)</span></div>
+      <div class="c-tx"><i class="st"></i><div>Uber <span class="chipst pg" style="margin-left:4px">fatura nov</span></div><span class="acc"><span class="cardav" style="background:#1d2b5a;transform:scale(.8)"></span>Itaú Visa</span><span class="n">(27,60)</span></div>
+      <div class="c-tx"><i class="st" style="background:var(--warn)"></i><div>Internet Vivo <span class="chipst fe" style="margin-left:4px">atrasada</span></div><span class="acc"><span class="av" style="background:#ec7000;transform:scale(.8)">it</span>Itaú</span><span class="n">(129,90)</span></div>
+      <div class="c-grp"><span>SEG · 05/10</span><span>contas <span class="n p">3.465,10</span></span></div>
+      <div class="c-tx"><i class="st"></i><div>Supermercado Zona Sul</div><span class="acc"><span class="av" style="background:#ec7000;transform:scale(.8)">it</span>Itaú</span><span class="n">(312,48)</span></div>
+      <div class="c-tx"><i class="st"></i><div>Posto Shell <span class="chipst pg" style="margin-left:4px">fatura nov</span></div><span class="acc"><span class="cardav" style="background:#1d2b5a;transform:scale(.8)"></span>Itaú Visa</span><span class="n">(250,00)</span></div>
+      <div class="c-grp"><span>QUI · 08/10</span><span>contas <span class="n p">930,00</span></span></div>
+      <div class="c-tx fut"><i class="st pv"></i><div>Condomínio</div><span class="acc"><span class="av" style="background:#ec7000;transform:scale(.8)">it</span>Itaú</span><span class="n">(2.911,20)</span></div>
+    </div>
+    <div class="t bills">
+      <div class="eyb" style="margin-bottom:4px">Faturas</div>
+      <div class="bl"><div style="display:flex;justify-content:space-between"><span style="display:flex;gap:6px;align-items:center"><span class="cardav" style="background:#820ad1"></span>Nubank</span><b class="n">(1.604,00)</b></div><div class="tx" style="padding:3px 0 0;display:flex;gap:6px"><span class="chipst fe">fechada</span><span class="m">vence 10/10 · sai do Nubank</span></div><div class="lim"><i style="width:32%"></i></div></div>
+      <div class="bl"><div style="display:flex;justify-content:space-between"><span style="display:flex;gap:6px;align-items:center"><span class="cardav" style="background:#1d2b5a"></span>Itaú Visa</span><b class="n">(842,35)</b></div><div class="tx" style="padding:3px 0 0;display:flex;gap:6px"><span class="chipst ab">aberta</span><span class="m">fecha 28/10 · vence 05/11</span></div><div class="lim"><i style="width:14%"></i></div></div>
+      <div class="eyb" style="margin:12px 0 4px">Saldos</div>
+      <div class="tx" style="grid-template-columns:auto 1fr auto"><span class="av" style="background:#ec7000">it</span><span>Itaú</span><span class="n p">2.902,10</span></div>
+      <div class="tx" style="grid-template-columns:auto 1fr auto"><span class="av" style="background:#820ad1">nu</span><span>Nubank</span><span class="n p">939,10</span></div>
+      <div class="tx" style="grid-template-columns:auto 1fr auto;color:var(--faint)"><span class="av" style="background:#00a1e4">mp</span><span>+2 sem movimento</span><span></span></div>
+    </div>
+  </div>
+</div></div>
+<div class="card-body"><h3>C · Linha do tempo única</h3><p>Um extrato só, cronológico, com a conta/cartão em cada linha e filtros por chips. Compras no cartão aparecem no dia da compra com selo "fatura nov". O saldo por dia é das contas somadas. Painel à direita resume faturas e saldos. Escala infinito; perde a visão "por conta" lado a lado.</p></div>
+</div>
+
+</div>
+</div>
