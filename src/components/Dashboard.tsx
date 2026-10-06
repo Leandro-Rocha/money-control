@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { MonthData } from "@/lib/types";
 import type { ForecastPayload } from "@/lib/actions/forecast";
-import { useDashboard, ViewMode } from "@/hooks/useDashboard";
+import { useDashboard, ViewMode, type DashboardState } from "@/hooks/useDashboard";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { WealthData } from "@/lib/actions/wealth";
 import { DesktopView } from "./desktop/DesktopView";
@@ -15,9 +15,10 @@ import { ExportPeriodModal } from "./ExportPeriodModal";
 import { SyncAllAccountsModal } from "./SyncAllAccountsModal";
 import { UncategorizedTriageModal } from "./UncategorizedTriageModal";
 import { AccountDuplicatesModal } from "./AccountDuplicatesModal";
-import { GlobalSearchModal } from "./GlobalSearchModal";
+import { AppCommandPalette } from "./AppCommandPalette";
 import { SettingsDrawer } from "./SettingsDrawer";
-import { PrivacyProvider } from "@/context/PrivacyContext";
+import { PrivacyProvider, usePrivacy } from "@/context/PrivacyContext";
+import { logoutAction } from "@/lib/actions/auth";
 import { PinModal } from "./PinModal";
 
 interface DashboardProps {
@@ -142,13 +143,7 @@ function DashboardContent({
         />
       )}
 
-      {state.searchOpen && (
-        <GlobalSearchModal
-          open={state.searchOpen}
-          onClose={() => state.setSearchOpen(false)}
-          onSelectTransaction={state.handleSelectSearchedTransaction}
-        />
-      )}
+      {state.searchOpen && <DashboardPalette state={state} />}
 
       <SettingsDrawer
         open={state.settingsOpen}
@@ -167,6 +162,40 @@ function DashboardContent({
         onRefresh={state.handleSettingsRefresh}
       />
     </>
+  );
+}
+
+function DashboardPalette({ state }: { state: DashboardState }) {
+  const { togglePrivacy } = usePrivacy();
+  const canSync = state.data.accountsData.some(
+    (ad) => ad.account.pluggyAccountId != null || ad.account.pluggyItemId != null,
+  );
+  const close = () => state.setSearchOpen(false);
+  return (
+    <AppCommandPalette
+      open
+      onOpenChange={(o) => {
+        if (!o) close();
+      }}
+      onGo={state.changeViewMode}
+      reviewCount={state.reviewCount}
+      onSelectTransaction={state.handleSelectSearchedTransaction}
+      actions={{
+        syncAll: canSync ? state.startSyncAll : undefined,
+        importAccount: () => state.handleOpenImport(),
+        transfers: () => state.setTransfersOpen(true),
+        duplicates: () => state.handleOpenDuplicates(),
+        insights: () => state.setInsightsOpen(true),
+        exportAi: () => state.setExportOpen(true),
+        recurring: () => state.openSettingsTab("recurring"),
+        settings: () => {
+          state.setSettingsInitialAccountType(null);
+          state.setSettingsOpen(true);
+        },
+        togglePrivacy,
+        logout: () => void logoutAction(),
+      }}
+    />
   );
 }
 
