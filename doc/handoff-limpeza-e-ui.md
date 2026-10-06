@@ -84,6 +84,8 @@ nas alterações locais em andamento (`pluggy-v2-and-consent-tracking`) sem alin
 - **Verificar:** no celular, Mais → Recorrências abre a aba de recorrências.
 
 ### A4 · ~90 usos de classes Tailwind que não geram CSS — **alto** 👁
+> **Resolvido (2026-10-06)** — migração para Tailwind 4, Task 1 de `docs/superpowers/plans/2026-10-06-visual-1-fundacao.md`. `scripts/check-css-classes.mjs` confere as classes.
+
 O projeto usa Tailwind **3.4.19**, mas vários componentes usam nomes da v4. Nenhuma delas produz
 CSS (confirmado compilando o Tailwind e cruzando com as classes usadas).
 
@@ -119,6 +121,8 @@ CSS (confirmado compilando o Tailwind e cruzando com as classes usadas).
   cartões passam a ter sombra sutil e o FAB fica redondo e do tamanho certo.
 
 ### A5 · Fonte Geist é baixada e nunca aplicada — **médio** 👁
+> **Resolvido (2026-10-06)** — Geist e Geist Mono aplicadas pelo `@theme`, Task 3 de `docs/superpowers/plans/2026-10-06-visual-1-fundacao.md`.
+
 - **Onde:** `src/app/layout.tsx` (carrega `Geist` com `variable: "--font-sans"` e põe `font-sans` no
   `<html>`); `tailwind.config.js` não define `fontFamily`; `src/app/globals.css` fixa
   `body { font-family: -apple-system, … }`.
@@ -158,6 +162,8 @@ CSS (confirmado compilando o Tailwind e cruzando com as classes usadas).
   importar um arquivo inexistente.
 
 ### A11 · `ModalShell` não cumpre o que o padrão promete — **médio**
+> **Resolvido (2026-10-06)** — `ModalShell` sobre Radix Dialog (foco preso, `role="dialog"`, `aria-modal`, título ligado, animação), Task 7 de `docs/superpowers/plans/2026-10-06-visual-1-fundacao.md`. Clique no fundo continua sem fechar, de propósito: evita perder formulário preenchido.
+
 - **Onde:** `src/components/ModalShell.tsx:70-72`.
 - **Faltam:** fechar ao clicar no fundo, `role="dialog"` + `aria-modal` + `aria-labelledby`,
   focus trap, devolver o foco ao fechar, travar o scroll do body. O corpo usa `bg-slate-50/50`
@@ -313,6 +319,8 @@ dos componentes shadcn; adicionar `src/components/ui/**` ao `ignore` do Knip par
 ## Fase 4 — Redundâncias de lógica
 
 ### R1 · Moeda formatada em 8+ lugares
+> **Parcial (2026-10-06)** — componente `Money` pronto (`src/components/ui/money.tsx`, Task 5 de `docs/superpowers/plans/2026-10-06-visual-1-fundacao.md`); as telas migram nos planos seguintes.
+
 Canônico: `formatCurrency` em `src/lib/format.ts`. Duplicatas: `formatBRL`
 (`export/llm-formatter.ts`), `formatCurrencyBRL` (`triage-utils.ts`), e `toLocaleString("pt-BR", …)`
 solto em `StagingRow`, `UncategorizedTriageModal`, `TransactionDetailModal`,
@@ -448,6 +456,8 @@ Dependências novas: `sonner`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react
 `@radix-ui/react-tabs`, `@radix-ui/react-context-menu`.
 
 ### U6 · Zerar `alert()` / `confirm()`
+> **Resolvido (2026-10-06)** — `toast` e `useConfirm` (`src/components/ui/`), zero chamadas nativas, Task 8 de `docs/superpowers/plans/2026-10-06-visual-1-fundacao.md`. A regra de lint `no-alert` ainda não foi ligada.
+
 `ConfirmDialog` já existe e é usado em 6 arquivos. Faltam: `CategoriesTab` (3), `BankAccountColumn` (2),
 `DataBackupsTab` (1), `AccountDuplicatesModal` (3), `TransferAssistantModal` (1),
 `ImportStagingModal` (2), `CreditCardColumn` (4), `SyncAllAccountsModal` (1),

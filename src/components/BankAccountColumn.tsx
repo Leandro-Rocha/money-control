@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import { TableDensity } from "@/hooks/useDashboard";
 import { useAccountColumnState } from "@/hooks/useAccountColumnState";
 import { getDuplicateStats } from "@/lib/duplicates";
+import { toast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface BankAccountColumnProps {
   data: AccountData;
@@ -58,6 +60,7 @@ export default function BankAccountColumn({
   highlightedTxId,
   density = "compact",
 }: BankAccountColumnProps) {
+  const ask = useConfirm();
   const duplicateStats = useMemo(
     () => getDuplicateStats(data.transactions),
     [data.transactions]
@@ -167,7 +170,18 @@ export default function BankAccountColumn({
   };
 
   const handleDelete = async (id: number, isTransfer: boolean) => {
-    if (!confirm(isTransfer ? "Tem certeza? Esta é uma transferência e a transação correspondente na outra conta também será apagada." : "Excluir lançamento?")) return;
+    if (
+      !(await ask(
+        isTransfer
+          ? {
+              title: "Excluir transferência?",
+              description: "A transação correspondente na outra conta também será apagada.",
+              confirmLabel: "Excluir",
+            }
+          : { title: "Excluir lançamento?", confirmLabel: "Excluir" },
+      ))
+    )
+      return;
     await deleteTransaction(id);
     onRefresh();
   };
@@ -180,7 +194,7 @@ export default function BankAccountColumn({
       setTransferTargetId(null);
       onRefresh();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
   return (

@@ -28,6 +28,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
 
 interface AccountDuplicatesModalProps {
   open: boolean;
@@ -125,7 +126,7 @@ export function AccountDuplicatesModal({
       setDeletedTxIds((prev) => new Set([...prev, txId]));
       onRefresh();
     } catch (err: any) {
-      alert(`Erro ao excluir lançamento: ${err?.message || err}`);
+      toast.error(`Erro ao excluir lançamento: ${err?.message || err}`);
     } finally {
       setIsDeletingId(null);
       setConfirmSingleTx(null);
@@ -142,7 +143,7 @@ export function AccountDuplicatesModal({
       onRefresh();
       setConfirmBatchOpen(false);
     } catch (err: any) {
-      alert(`Erro ao excluir duplicadas: ${err?.message || err}`);
+      toast.error(`Erro ao excluir duplicadas: ${err?.message || err}`);
     } finally {
       setBatchPending(false);
     }
@@ -158,7 +159,7 @@ export function AccountDuplicatesModal({
       setDeletedTxIds((prev) => new Set([...prev, ...toDelete]));
       onRefresh();
     } catch (err: any) {
-      alert(`Erro ao excluir cópias do grupo: ${err?.message || err}`);
+      toast.error(`Erro ao excluir cópias do grupo: ${err?.message || err}`);
     } finally {
       setBatchPending(false);
     }

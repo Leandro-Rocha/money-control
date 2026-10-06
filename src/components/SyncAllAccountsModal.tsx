@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/projections";
 import { BillPaymentCandidate } from "@/lib/due-dates";
 import { formatCurrency } from "@/lib/format";
+import { toast } from "@/components/ui/toast";
 
 interface SyncAllAccountsModalProps {
   month: string;
@@ -51,7 +52,7 @@ export function SyncAllAccountsModal({ month, onClose, onSuccess }: SyncAllAccou
         prev.filter((c) => c.transactionId !== candidate.transactionId)
       );
     } catch (err: any) {
-      alert(`Erro ao confirmar quitação da fatura: ${err.message}`);
+      toast.error(`Erro ao confirmar quitação da fatura: ${err.message}`);
     } finally {
       setConfirmingId(null);
     }

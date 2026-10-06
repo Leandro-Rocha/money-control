@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Tags, Pencil, Check, X, Eye, EyeOff, CornerDownRight, FolderPlus } from "lucide-react";
 import { createCategory, deleteCategory, updateCategory } from "@/lib/actions/categories";
+import { toast } from "@/components/ui/toast";
 
 const KIND_OPTIONS: { value: NonNullable<Category["kind"]>; label: string }[] = [
   { value: "regular", label: "Gasto/receita" },
@@ -81,7 +82,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
       parentId: null,
     });
     if (!res.success && res.error) {
-      alert(res.error);
+      toast.error(res.error);
       return;
     }
     setNewParentName("");
@@ -99,7 +100,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
       parentId,
     });
     if (!res.success && res.error) {
-      alert(res.error);
+      toast.error(res.error);
       return;
     }
     setNewSubName("");
@@ -143,7 +144,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
       type: editType,
     });
     if (!res.success && res.error) {
-      alert(res.error);
+      toast.error(res.error);
       return;
     }
     setEditingId(null);

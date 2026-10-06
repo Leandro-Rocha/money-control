@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { TableDensity } from "@/hooks/useDashboard";
 import { useAccountColumnState } from "@/hooks/useAccountColumnState";
 import { getDuplicateStats } from "@/lib/duplicates";
+import { toast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface CreditCardColumnProps {
   data: AccountData;
@@ -63,6 +65,7 @@ export default function CreditCardColumn({
   highlightedTxId,
   density = "compact",
 }: CreditCardColumnProps) {
+  const ask = useConfirm();
   const duplicateStats = useMemo(
     () => getDuplicateStats(data.transactions),
     [data.transactions]
@@ -113,10 +116,17 @@ export default function CreditCardColumn({
   const [isPayingBill, setIsPayingBill] = useState(false);
   const handlePayBill = async () => {
     if (!data.account.defaultPaymentAccountId) {
-      alert("Nenhuma conta bancária de pagamento vinculada a este cartão.");
+      toast.error("Nenhuma conta bancária de pagamento vinculada a este cartão.");
       return;
     }
-    if (!confirm(`Confirmar o pagamento da fatura de ${formatCurrency(data.totalExpense)} do cartão ${data.account.name}?`)) {
+    if (
+      !(await ask({
+        title: `Pagar a fatura do ${data.account.name}?`,
+        description: `Valor: ${formatCurrency(data.totalExpense)}.`,
+        confirmLabel: "Pagar fatura",
+        variant: "default",
+      }))
+    ) {
       return;
     }
     setIsPayingBill(true);
@@ -130,7 +140,7 @@ export default function CreditCardColumn({
       });
       onRefresh();
     } catch (err: any) {
-      alert(`Erro ao registrar pagamento da fatura: ${err.message}`);
+      toast.error(`Erro ao registrar pagamento da fatura: ${err.message}`);
     } finally {
       setIsPayingBill(false);
     }
@@ -202,7 +212,7 @@ export default function CreditCardColumn({
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Excluir lançamento?")) {
+    if (await ask({ title: "Excluir lançamento?", confirmLabel: "Excluir" })) {
       await deleteTransaction(id);
       onRefresh();
     }

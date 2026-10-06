@@ -8,6 +8,7 @@ import { Account } from "@/lib/types";
 import { ArrowRightLeft, Check, Loader2 } from "lucide-react";
 import { ModalShell } from "./ModalShell";
 import { EmptyState } from "./EmptyState";
+import { toast } from "@/components/ui/toast";
 
 interface TransferAssistantModalProps {
   open: boolean;
@@ -76,7 +77,7 @@ export default function TransferAssistantModal({ open, onOpenChange, month, onRe
       onOpenChange(false);
     } catch (e) {
       console.error(e);
-      alert("Erro ao vincular transferências.");
+      toast.error("Erro ao vincular transferências.");
     } finally {
       setSaving(false);
     }

@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ModalShell } from "@/components/ModalShell";
+import { toast } from "@/components/ui/toast";
 
 interface ServerBackup {
   fileName: string;
@@ -79,7 +80,7 @@ export function DataBackupsTab() {
 
     const lower = file.name.toLowerCase();
     if (!lower.endsWith(".db") && !lower.endsWith(".json")) {
-      alert("Por favor, selecione um arquivo válido com extensão .db ou .json.");
+      toast.error("Por favor, selecione um arquivo válido com extensão .db ou .json.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }

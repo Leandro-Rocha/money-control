@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { cookies } from "next/headers";
 import { ACCENT_COOKIE, MOTION_COOKIE, parseAccent, parseMotion } from "@/lib/appearance";
+import { AppProviders } from "@/components/AppProviders";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
@@ -41,7 +42,7 @@ export default async function RootLayout({
         <Script id="privacy-init">
           {`try{if(document.cookie.indexOf('money_control_privacy_active=true')!==-1||sessionStorage.getItem('money_control_privacy_active')==='true'){document.documentElement.classList.add('privacy-active');}}catch(e){}`}
         </Script>
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

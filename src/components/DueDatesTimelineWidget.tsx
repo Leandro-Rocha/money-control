@@ -17,6 +17,8 @@ import { getDueDatesAgenda, DueItem } from "@/lib/due-dates";
 import { formatCurrency } from "@/lib/format";
 import { payCreditCardBillAction } from "@/lib/actions/projections";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface DueDatesTimelineWidgetProps {
   month: string;
@@ -31,6 +33,7 @@ export function DueDatesTimelineWidget({
   onRefresh,
   className,
 }: DueDatesTimelineWidgetProps) {
+  const ask = useConfirm();
   const [isOpen, setIsOpen] = useState(true);
   const [showPaid, setShowPaid] = useState(false);
   const [payingCardId, setPayingCardId] = useState<number | null>(null);
@@ -88,9 +91,12 @@ export function DueDatesTimelineWidget({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Confirmar quitação da ${item.title} no valor de ${formatCurrency(item.amount)}?`
-    );
+    const confirmed = await ask({
+      title: `Confirmar quitação da ${item.title}?`,
+      description: `Valor: ${formatCurrency(item.amount)}.`,
+      confirmLabel: "Confirmar",
+      variant: "default",
+    });
     if (!confirmed) return;
 
     setPayingCardId(item.sourceId);
@@ -103,7 +109,7 @@ export function DueDatesTimelineWidget({
       });
       onRefresh?.();
     } catch (err: any) {
-      alert(`Erro ao registrar quitação da fatura: ${err?.message || err}`);
+      toast.error(`Erro ao registrar quitação da fatura: ${err?.message || err}`);
     } finally {
       setPayingCardId(null);
     }

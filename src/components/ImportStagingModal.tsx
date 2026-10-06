@@ -23,6 +23,8 @@ import { StagingFilterBar } from "./staging/StagingFilterBar";
 import { StagingTable } from "./staging/StagingTable";
 import { StagingPluggyStep } from "./staging/StagingPluggyStep";
 import { StagingBillPaymentStep } from "./staging/StagingBillPaymentStep";
+import { toast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 export type { ParsedRow };
 
@@ -47,6 +49,7 @@ export function ImportStagingModal({
   initialAccountId,
   autoFetch = false,
 }: ImportStagingModalProps) {
+  const ask = useConfirm();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const sourceMode = "pluggy" as const;
   const [accountId, setAccountId] = useState<number>(() => {
@@ -78,20 +81,26 @@ export function ImportStagingModal({
         prev.filter((c) => c.transactionId !== candidate.transactionId)
       );
     } catch (err: any) {
-      alert(`Erro ao confirmar quitação da fatura: ${err?.message || err}`);
+      toast.error(`Erro ao confirmar quitação da fatura: ${err?.message || err}`);
     } finally {
       setConfirmingCandidateId(null);
     }
   };
 
-  const handleModalClose = () => {
+  const handleModalClose = async () => {
     if (step === 3) {
       onSuccess();
       onClose();
       return;
     }
     if (step === 2) {
-      if (window.confirm("Tem certeza que deseja fechar? Os dados da importação serão perdidos.")) {
+      if (
+        await ask({
+          title: "Fechar a importação?",
+          description: "Os dados da importação serão perdidos.",
+          confirmLabel: "Fechar",
+        })
+      ) {
         onClose();
       }
       return;

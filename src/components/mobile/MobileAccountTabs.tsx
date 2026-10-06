@@ -22,6 +22,8 @@ import { confirmProjectedRow, dismissProjection, payCreditCardBillAction } from 
 import { isCreditCardBillPaid, calculateDueStatus } from "@/lib/due-dates";
 import { cn } from "@/lib/utils";
 import { getDuplicateStats } from "@/lib/duplicates";
+import { toast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface MobileAccountTabsProps {
   bankAccounts: AccountData[];
@@ -48,6 +50,7 @@ export function MobileAccountTabs({
   onOpenDuplicates,
   highlightedTxId,
 }: MobileAccountTabsProps) {
+  const ask = useConfirm();
   const [activeTab, setActiveTab] = useState<"bank" | "credit">("bank");
   const [expandedAccounts, setExpandedAccounts] = useState<Record<number, boolean>>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -55,10 +58,17 @@ export function MobileAccountTabs({
 
   const handlePayBillMobile = async (acc: Account, totalExpense: number) => {
     if (!acc.defaultPaymentAccountId) {
-      alert("Nenhuma conta bancária vinculada a este cartão.");
+      toast.error("Nenhuma conta bancária vinculada a este cartão.");
       return;
     }
-    if (!confirm(`Confirmar o pagamento da fatura de ${formatCurrency(totalExpense)} do cartão ${acc.name}?`)) {
+    if (
+      !(await ask({
+        title: `Pagar a fatura do ${acc.name}?`,
+        description: `Valor: ${formatCurrency(totalExpense)}.`,
+        confirmLabel: "Pagar fatura",
+        variant: "default",
+      }))
+    ) {
       return;
     }
     setPayingCardId(acc.id);
@@ -72,7 +82,7 @@ export function MobileAccountTabs({
       });
       onRefresh();
     } catch (err: any) {
-      alert(`Erro ao pagar fatura: ${err.message}`);
+      toast.error(`Erro ao pagar fatura: ${err.message}`);
     } finally {
       setPayingCardId(null);
     }
@@ -105,7 +115,7 @@ export function MobileAccountTabs({
   };
 
   const handleDelete = async (txId: number) => {
-    if (confirm("Deseja realmente excluir este lançamento?")) {
+    if (await ask({ title: "Excluir lançamento?", confirmLabel: "Excluir" })) {
       setDeletingId(txId);
       try {
         await deleteTransaction(txId);
