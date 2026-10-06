@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { Money as UiMoney } from "@/components/ui/money";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ForecastAccount } from "@/lib/actions/forecast";
@@ -8,18 +9,10 @@ import type { EventKind } from "@/lib/forecast/types";
 
 export { fmtDate, fmtDateWeekday, suggestionText } from "@/lib/forecast/text";
 
+// Telas de previsão ainda usam este Money; ele mantém o comportamento antigo
+// (negativo sempre vermelho) até cada tela escolher tone por valor.
 export function Money({ value, className, sign = false }: { value: number; className?: string; sign?: boolean }) {
-  return (
-    <span
-      className={cn(
-        "font-mono tabular-nums privacy-sensitive",
-        value < 0 ? "text-rose-600 dark:text-rose-400" : undefined,
-        className,
-      )}
-    >
-      {formatCurrency(value, sign)}
-    </span>
-  );
+  return <UiMoney value={value} sign={sign} tone="balance" className={className} />;
 }
 
 export function accountNamer(accounts: ForecastAccount[]) {
