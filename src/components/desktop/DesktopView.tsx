@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import MonthHeader from "../MonthHeader";
+import { AppHeader } from "../AppHeader";
+import { CashflowToolbar } from "./CashflowToolbar";
+import { ScreenTransition } from "@/components/ui/view-transition";
 import BankAccountColumn from "../BankAccountColumn";
 import CreditCardColumn from "../CreditCardColumn";
-import { Loader2, Search, Filter, X, Wallet, CreditCard, Landmark, Rows3, Rows4 } from "lucide-react";
+import { ArrowRightLeft, Loader2, Search, Filter, X, Wallet, CreditCard, Landmark, Rows3, Rows4 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,7 +17,6 @@ import { TodayView } from "../forecast/TodayView";
 import { PlanView } from "../forecast/PlanView";
 import { ReviewView } from "../forecast/ReviewView";
 import { DueDatesTimelineWidget } from "../DueDatesTimelineWidget";
-import { logoutAction } from "@/lib/actions/auth";
 import { DashboardState } from "@/hooks/useDashboard";
 import { cn } from "@/lib/utils";
 
@@ -24,18 +25,15 @@ export function DesktopView(state: DashboardState) {
     currentMonth,
     data,
     viewMode,
-    setViewMode,
+    changeViewMode,
+    reviewCount,
+    isSyncing,
+    lastSyncAt,
+    startSyncAll,
     wealthData,
     isPending,
-    openSettingsTab,
-    setImportOpen,
     handleOpenImport,
-    setInsightsOpen,
     setTransfersOpen,
-    setExportOpen,
-    syncAllOpen,
-    setSyncAllOpen,
-    triageOpen,
     setTriageOpen,
     handleOpenDuplicates,
     uncategorizedCount,
@@ -72,43 +70,39 @@ export function DesktopView(state: DashboardState) {
   } = state;
 
   return (
-    <div className="min-h-screen bg-muted/20 p-4 md:p-6 flex flex-col gap-5 max-w-[1700px] mx-auto">
-      {/* Month Navigation Top Header */}
-      <MonthHeader
-        currentMonth={currentMonth}
-        monthLabel={data.monthLabel}
-        projectionState={data.projectionState}
-        globalIncome={globalIncome}
-        globalExpense={globalExpense}
-        globalBalance={globalBalance}
-        wealthTotalInvested={wealthData?.totalInvested}
-        wealthTotalReceivables={wealthData?.totalReceivables}
-        wealthTotalDebts={wealthData?.totalDebts}
-        wealthNetWorth={wealthData?.netWorth}
-        onOpenCreateAccount={handleOpenCreateAccount}
+    <div className="mx-auto flex min-h-screen max-w-[1700px] flex-col gap-5 bg-bg p-4 md:p-6">
+      <AppHeader
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        onMonthChange={loadMonth}
-        onOpenRecurring={() => openSettingsTab("recurring")}
-        onOpenImport={() => handleOpenImport()}
-        onOpenInsights={() => setInsightsOpen(true)}
-        onOpenTransfers={() => setTransfersOpen(true)}
-        onOpenExport={() => setExportOpen(true)}
-        hasPluggyAccounts={data.accountsData.some(ad => ad.account.pluggyAccountId != null || ad.account.pluggyItemId != null)}
-        onOpenSyncAll={() => setSyncAllOpen(true)}
-        uncategorizedCount={uncategorizedCount}
-        onOpenTriage={() => setTriageOpen(true)}
-        onOpenDuplicates={() => handleOpenDuplicates()}
-        onOpenSearch={() => setSearchOpen(true)}
+        onViewModeChange={changeViewMode}
+        reviewCount={reviewCount}
+        onOpenPalette={() => setSearchOpen(true)}
+        canSync={data.accountsData.some((ad) => ad.account.pluggyAccountId != null || ad.account.pluggyItemId != null)}
+        isSyncing={isSyncing}
+        lastSyncAt={lastSyncAt}
+        onSync={startSyncAll}
         onOpenSettings={() => {
           setSettingsInitialAccountType(null);
           setSettingsOpen(true);
         }}
-        onLogout={logoutAction}
       />
 
+      <ScreenTransition screenKey={viewMode}>
+        <div className="flex flex-col gap-5">
       {viewMode === "cashflow" ? (
         <>
+          <CashflowToolbar
+            month={currentMonth}
+            monthLabel={data.monthLabel}
+            onMonthChange={loadMonth}
+            income={globalIncome}
+            expense={globalExpense}
+            balance={globalBalance}
+            projectionState={data.projectionState}
+            uncategorizedCount={uncategorizedCount}
+            onOpenTriage={() => setTriageOpen(true)}
+            onOpenTransfers={() => setTransfersOpen(true)}
+            onOpenImport={() => handleOpenImport()}
+          />
           {/* KPI da Posição Financeira ("Quanto dinheiro eu tenho?") */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-card text-card-foreground p-3.5 rounded-xl border border-border flex items-center justify-between shadow-xs">
@@ -357,7 +351,14 @@ export function DesktopView(state: DashboardState) {
           </div>
         </>
       ) : viewMode === "wealth" ? (
-        wealthData ? (
+        <>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setTransfersOpen(true)} className="gap-1.5">
+              <ArrowRightLeft className="size-3.5" />
+              Aporte / parcela
+            </Button>
+          </div>
+          {wealthData ? (
           <WealthDashboard
             initialData={wealthData}
             onRefresh={loadWealth}
@@ -372,7 +373,8 @@ export function DesktopView(state: DashboardState) {
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
             <p className="text-xs text-muted-foreground font-medium">Carregando dados patrimoniais...</p>
           </div>
-        )
+        )}
+        </>
       ) : viewMode === "today" ? (
         <TodayView state={state} />
       ) : viewMode === "plan" ? (
@@ -380,6 +382,8 @@ export function DesktopView(state: DashboardState) {
       ) : (
         <ReviewView state={state} />
       )}
+        </div>
+      </ScreenTransition>
 
       {/* Global Loading Spinner Indicator */}
       {isPending && (
