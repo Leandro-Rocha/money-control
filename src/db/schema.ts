@@ -98,6 +98,8 @@ export const recurringEntries = sqliteTable("recurring_entries", {
   month: integer("month"), // 1-12 (null = every month, 1-12 = annual in specific month)
   active: integer("active").notNull().default(1), // 1 = active, 0 = inactive
   isEstimate: integer("is_estimate").notNull().default(0), // 1 = estimativa orçamentária redutível, 0 = compromisso fixo
+  reimbursePct: integer("reimburse_pct").notNull().default(0), // estimativa: % do gasto que volta como reembolso (0-100)
+  reimburseLagDays: integer("reimburse_lag_days"), // dias até o reembolso cair (null = configuração da previsão)
   frequency: text("frequency", { enum: ["monthly", "yearly", "every_n_months"] }).notNull().default("monthly"),
   intervalMonths: integer("interval_months").notNull().default(1),
   startMonth: text("start_month"), // "YYYY-MM" (null = sem início)

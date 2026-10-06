@@ -178,6 +178,8 @@ export function toFRecurring(r: typeof recurringEntries.$inferSelect): FRecurrin
     day: r.day,
     amount: r.amount,
     isEstimate: r.isEstimate === 1,
+    reimbursePct: r.reimbursePct,
+    reimburseLagDays: r.reimburseLagDays,
     frequency: r.frequency,
     intervalMonths: r.intervalMonths,
     legacyMonth: r.month,

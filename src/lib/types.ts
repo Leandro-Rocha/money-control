@@ -153,6 +153,8 @@ export interface RecurringEntryUI {
   month?: number | null;
   active: number;
   isEstimate?: boolean | number;
+  reimbursePct?: number;
+  reimburseLagDays?: number | null;
   frequency?: "monthly" | "yearly" | "every_n_months";
   intervalMonths?: number;
   startMonth?: string | null;

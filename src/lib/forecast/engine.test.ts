@@ -525,3 +525,48 @@ describe("buildForecast — cenários e resumo mensal", () => {
     expect(nov.opening).toBe(900);
   });
 });
+
+describe("buildForecast — estimativa reembolsável", () => {
+  const est = (p: Partial<FRecurring> = {}) =>
+    rec({ id: 90, accountId: 1, day: 10, amount: -1000, categoryId: 50, isEstimate: true, reimbursePct: 80, reimburseLagDays: 20, description: "Terapia", ...p });
+  const reimb = (r: ReturnType<typeof buildForecast>) =>
+    r.events.filter((e) => e.kind === "reimbursement").map((e) => [e.date, e.amount, e.status]);
+
+  it("projeta pct% da estimativa após o prazo, mês a mês", () => {
+    const r = buildForecast(base({ accounts: [bank(1)], recurring: [est()] }));
+    expect(reimb(r)).toEqual([
+      ["2026-10-30", 800, "pending"],
+      ["2026-11-30", 800, "pending"],
+    ]);
+  });
+
+  it("usa o gasto real quando passa da estimativa, desconta as despesas já marcadas e quita com entradas da categoria", () => {
+    const r = buildForecast(
+      base({
+        today: "2026-10-20",
+        accounts: [bank(1)],
+        recurring: [est()],
+        transactions: [
+          tx({ accountId: 1, month: "2026-09", day: 8, amount: -500, categoryId: 50 }),
+          tx({ accountId: 1, month: "2026-10", day: 1, amount: 400, categoryId: 50 }),
+          tx({ accountId: 1, month: "2026-10", day: 2, amount: -1000, categoryId: 50 }),
+          tx({ accountId: 1, month: "2026-10", day: 3, amount: -200, categoryId: 50, isReimbursable: true }),
+          tx({ accountId: 1, month: "2026-10", day: 15, amount: 300, categoryId: 50 }),
+        ],
+      }),
+    );
+    expect(reimb(r)).toEqual([
+      // setembro (antes do mês atual) fica de fora; o crédito de 01/10 é anterior ao dia 10 e não conta
+      ["2026-10-30", 500, "pending"], // 80% de (1200 - 200 marcados) = 800, menos 300 recebidos em 15/10
+      ["2026-11-02", 200, "pending"], // a despesa marcada tem reembolso próprio
+      ["2026-11-30", 800, "pending"],
+    ]);
+    // a entrada de reembolso não abate o gasto da estimativa de outubro (1200 > 1000: nada a reservar)
+    expect(r.events.some((e) => e.kind === "estimate" && e.source.month === "2026-10")).toBe(false);
+  });
+
+  it("fica fora quando o cenário exclui reembolsos", () => {
+    const r = buildForecast(base({ accounts: [bank(1)], recurring: [est()], scenario: { includeBaseline: false, includeReimbursements: false } }));
+    expect(reimb(r)).toEqual([]);
+  });
+});

@@ -50,12 +50,18 @@ export async function getRecurringEntries(): Promise<RecurringEntryUI[]> {
       month: r.month,
       active: r.active,
       isEstimate: Boolean(r.isEstimate),
+      reimbursePct: r.reimbursePct,
+      reimburseLagDays: r.reimburseLagDays,
       frequency: r.frequency,
       intervalMonths: r.intervalMonths,
       startMonth: r.startMonth,
       endMonth: r.endMonth,
     };
   });
+}
+
+function clampPct(v: number | undefined): number {
+  return v != null && Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : 0;
 }
 
 export async function createRecurringEntry(data: {
@@ -66,6 +72,8 @@ export async function createRecurringEntry(data: {
   amount: number;
   month?: number | null;
   isEstimate?: boolean | number;
+  reimbursePct?: number;
+  reimburseLagDays?: number | null;
 } & RecurrenceSchedule) {
   await db.insert(recurringEntries).values({
     accountId: data.accountId,
@@ -75,6 +83,8 @@ export async function createRecurringEntry(data: {
     amount: data.amount,
     month: data.month ?? null,
     isEstimate: data.isEstimate ? 1 : 0,
+    reimbursePct: clampPct(data.reimbursePct),
+    reimburseLagDays: data.reimburseLagDays ?? null,
     active: 1,
     ...scheduleValues(data),
   });
@@ -93,6 +103,8 @@ export async function updateRecurringEntry(
     month?: number | null;
     active?: number;
     isEstimate?: boolean | number;
+    reimbursePct?: number;
+    reimburseLagDays?: number | null;
   } & RecurrenceSchedule
 ) {
   await db
@@ -106,6 +118,8 @@ export async function updateRecurringEntry(
       ...(data.month !== undefined ? { month: data.month } : {}),
       ...(data.active !== undefined ? { active: data.active } : {}),
       ...(data.isEstimate !== undefined ? { isEstimate: data.isEstimate ? 1 : 0 } : {}),
+      ...(data.reimbursePct !== undefined ? { reimbursePct: clampPct(data.reimbursePct) } : {}),
+      ...(data.reimburseLagDays !== undefined ? { reimburseLagDays: data.reimburseLagDays } : {}),
       ...scheduleValues(data),
     })
     .where(eq(recurringEntries.id, id));

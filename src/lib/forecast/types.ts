@@ -42,6 +42,10 @@ export interface FRecurring {
   day: number;
   amount: number;
   isEstimate: boolean;
+  /** Estimativa: % do gasto que volta como reembolso (0-100). */
+  reimbursePct?: number;
+  /** Dias até o reembolso cair; sem valor usa settings.reimbursementLagDays. */
+  reimburseLagDays?: number | null;
   frequency: "monthly" | "yearly" | "every_n_months";
   intervalMonths: number;
   /** Mês fixo (1-12) do modelo antigo de recorrência anual. */

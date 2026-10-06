@@ -117,6 +117,44 @@ function ScheduleFields({ value, onChange, compact }: { value: Schedule; onChang
   );
 }
 
+/** % reembolsável e prazo de uma estimativa; vazio = sem reembolso / prazo padrão da previsão. */
+function ReimburseFields({
+  pct,
+  lag,
+  onPct,
+  onLag,
+  compact,
+}: {
+  pct: string;
+  lag: string;
+  onPct: (v: string) => void;
+  onLag: (v: string) => void;
+  compact?: boolean;
+}) {
+  const h = compact ? "h-8" : "h-9";
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <label className="space-y-1 text-xs text-muted-foreground">
+        <span>% reembolsável</span>
+        <Input type="number" min="0" max="100" inputMode="numeric" placeholder="0" value={pct} onChange={(e) => onPct(e.target.value)} className={h} />
+      </label>
+      <label className="space-y-1 text-xs text-muted-foreground">
+        <span>Reembolso cai em (dias)</span>
+        <Input type="number" min="0" max="365" inputMode="numeric" placeholder="padrão" value={lag} onChange={(e) => onLag(e.target.value)} className={h} />
+      </label>
+    </div>
+  );
+}
+
+function reimbursePayload(isEstimate: boolean, pct: string, lag: string) {
+  const p = Math.round(Number(pct));
+  const l = lag.trim() === "" ? NaN : Math.round(Number(lag));
+  return {
+    reimbursePct: isEstimate && Number.isFinite(p) ? Math.min(100, Math.max(0, p)) : 0,
+    reimburseLagDays: isEstimate && Number.isFinite(l) && l >= 0 ? l : null,
+  };
+}
+
 interface RecurringTabProps {
   entries: RecurringEntryUI[];
   accounts: Account[];
@@ -134,6 +172,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [newSchedule, setNewSchedule] = useState<Schedule>(emptySchedule);
   const [formError, setFormError] = useState<string | null>(null);
   const [newIsEstimate, setNewIsEstimate] = useState(false);
+  const [newReimbPct, setNewReimbPct] = useState("");
+  const [newReimbLag, setNewReimbLag] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -144,6 +184,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editSchedule, setEditSchedule] = useState<Schedule>(emptySchedule);
   const [editIsEstimate, setEditIsEstimate] = useState(false);
+  const [editReimbPct, setEditReimbPct] = useState("");
+  const [editReimbLag, setEditReimbLag] = useState("");
 
   const handleAdd = async () => {
     if (!newDesc || !newAmount || !newDay || !newAccountId) return;
@@ -160,10 +202,11 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       day: parseInt(newDay, 10),
       amount: amountVal,
       isEstimate: newIsEstimate,
+      ...reimbursePayload(newIsEstimate, newReimbPct, newReimbLag),
       ...sched.data,
     });
 
-    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewSchedule(emptySchedule); setNewIsEstimate(false);
+    setNewDesc(""); setNewAmount(""); setNewDay(""); setNewAccountId(""); setNewCategoryId(""); setNewSchedule(emptySchedule); setNewIsEstimate(false); setNewReimbPct(""); setNewReimbLag("");
     setIsAdding(false);
     onRefresh();
   };
@@ -190,6 +233,8 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
     setEditSchedule(scheduleOf(e));
     setFormError(null);
     setEditIsEstimate(Boolean(e.isEstimate));
+    setEditReimbPct(e.reimbursePct ? String(e.reimbursePct) : "");
+    setEditReimbLag(e.reimburseLagDays != null ? String(e.reimburseLagDays) : "");
   };
 
   const saveEdit = async () => {
@@ -207,6 +252,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
       accountId: parseInt(editAccountId, 10),
       categoryId: editCategoryId ? parseInt(editCategoryId, 10) : null,
       isEstimate: editIsEstimate,
+      ...reimbursePayload(editIsEstimate, editReimbPct, editReimbLag),
       ...sched.data,
     });
     setEditingId(null);
@@ -257,6 +303,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
             />
             <span>Estimativa de gastos (abater automaticamente conforme gastos reais na categoria)</span>
           </label>
+          {newIsEstimate && <ReimburseFields pct={newReimbPct} lag={newReimbLag} onPct={setNewReimbPct} onLag={setNewReimbLag} />}
           <Button onClick={handleAdd} className="w-full">Salvar Lançamento</Button>
         </div>
       )}
@@ -303,6 +350,7 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
                   />
                   <span>Estimativa de gastos (abater automaticamente conforme gastos reais)</span>
                 </label>
+                {editIsEstimate && <ReimburseFields pct={editReimbPct} lag={editReimbLag} onPct={setEditReimbPct} onLag={setEditReimbLag} compact />}
                 <div className="flex justify-end gap-2 pt-1 border-t mt-2">
                   <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}><X className="w-4 h-4" /></Button>
                   <Button variant="default" size="sm" onClick={saveEdit}><Check className="w-4 h-4 mr-1"/> Salvar</Button>
@@ -325,6 +373,11 @@ export function RecurringTab({ entries, accounts, categories, onRefresh }: Recur
                     {entry.isEstimate && (
                       <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                         Estimativa
+                      </span>
+                    )}
+                    {entry.isEstimate && (entry.reimbursePct ?? 0) > 0 && (
+                      <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                        Reembolso {entry.reimbursePct}%{entry.reimburseLagDays != null ? ` em ${entry.reimburseLagDays}d` : ""}
                       </span>
                     )}
                     <span className="font-semibold text-sm">{entry.description}</span>

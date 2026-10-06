@@ -159,7 +159,14 @@ export function buildForecast(input: ForecastInput): ForecastResult {
 
   // ───────────────────────── 2. Estimativas (abatidas pelo gasto real da categoria) ─────────────────────────
   const estimateCategoryIds = new Set(estimates.map((r) => r.categoryId).filter((c): c is number => c != null));
+  const reimbursingCategoryIds = new Set(
+    estimates.filter((r) => (r.reimbursePct ?? 0) > 0 && r.amount < 0).map((r) => r.categoryId).filter((c): c is number => c != null),
+  );
   const spentByCatMonth = new Map<string, number>();
+  /** Despesas da categoria já marcadas como reembolsáveis: o reembolso delas sai da seção 7, não da estimativa. */
+  const markedByCatMonth = new Map<string, number>();
+  /** Entradas na categoria de uma estimativa reembolsável: são os reembolsos recebidos, não estornos. */
+  const reimbCreditsByCat = new Map<number, { date: string; amount: number }[]>();
   for (const t of input.transactions) {
     // Abate a estimativa mais específica: a da própria categoria; sem ela, a da categoria-mãe.
     const c =
@@ -170,7 +177,15 @@ export function buildForecast(input: ForecastInput): ForecastResult {
           : null;
     if (c == null) continue;
     const k = `${c}|${t.month}`;
+    if (reimbursingCategoryIds.has(c) && t.amount > 0) {
+      if (t.isReimbursementCredit) continue;
+      const list = reimbCreditsByCat.get(c) ?? [];
+      list.push({ date: txDate(t), amount: t.amount });
+      reimbCreditsByCat.set(c, list);
+      continue;
+    }
     spentByCatMonth.set(k, (spentByCatMonth.get(k) ?? 0) - t.amount);
+    if (t.isReimbursable && t.amount < 0) markedByCatMonth.set(k, (markedByCatMonth.get(k) ?? 0) - t.amount);
   }
   const consumed = new Map<string, number>();
   interface EstimateItem { r: FRecurring; month: string; remaining: number; date: string }
@@ -659,6 +674,68 @@ export function buildForecast(input: ForecastInput): ForecastResult {
         band: "uncertainIn",
         categoryId: null,
         source: { type: "reimbursement", id: t.id, month: monthOf(expected) },
+      });
+    }
+  }
+
+  // ───────────────────────── 7b. Reembolsos previstos das estimativas ─────────────────────────
+  // A partir do mês atual, cada mês da estimativa devolve pct% do maior entre o gasto real e o estimado
+  // (o real, se o mês foi dispensado), descontando despesas já marcadas como reembolsáveis. Meses
+  // anteriores ficam de fora: lá não dá para saber o que já foi reembolsado. Entradas na categoria a
+  // partir do dia da estimativa quitam os reembolsos em ordem cronológica.
+  if (includeReimbursements) {
+    const items: { r: FRecurring; month: string; expected: string; amount: number }[] = [];
+    const shareUsed = new Map<string, number>();
+    const markedUsed = new Map<string, number>();
+    for (const r of estimates) {
+      const pct = Math.min(100, Math.max(0, r.reimbursePct ?? 0));
+      if (pct <= 0 || r.amount >= 0 || r.categoryId == null) continue;
+      const lag = r.reimburseLagDays ?? settings.reimbursementLagDays;
+      for (const m of months) {
+        if (m < currentMonth || !occursInMonth(r, m)) continue;
+        const k = `${r.categoryId}|${m}`;
+        const available = Math.max(0, (spentByCatMonth.get(k) ?? 0) - (shareUsed.get(k) ?? 0));
+        const planned = !isDismissed("recurring", r.id, r.accountId, m);
+        const share = planned ? Math.max(Math.abs(r.amount), available) : available;
+        shareUsed.set(k, (shareUsed.get(k) ?? 0) + share);
+        const marked = Math.min(share, Math.max(0, (markedByCatMonth.get(k) ?? 0) - (markedUsed.get(k) ?? 0)));
+        markedUsed.set(k, (markedUsed.get(k) ?? 0) + marked);
+        const amount = round2(((share - marked) * pct) / 100);
+        if (amount <= EPS) continue;
+        const expected = addDays(dateOf(m, r.day), lag);
+        if (expected < lookbackStart || expected > horizonEnd) continue;
+        items.push({ r, month: m, expected, amount });
+      }
+    }
+    items.sort((a, b) => a.expected.localeCompare(b.expected));
+    const creditLeft = new Map<number, { date: string; amount: number }[]>();
+    for (const [c, list] of reimbCreditsByCat) creditLeft.set(c, [...list].sort((a, b) => a.date.localeCompare(b.date)));
+    for (const it of items) {
+      let pending = it.amount;
+      const from = dateOf(it.month, it.r.day);
+      for (const cr of creditLeft.get(it.r.categoryId!) ?? []) {
+        if (pending <= EPS) break;
+        if (cr.date < from || cr.amount <= EPS) continue;
+        const take = Math.min(cr.amount, pending);
+        cr.amount = round2(cr.amount - take);
+        pending = round2(pending - take);
+      }
+      if (pending <= EPS) continue;
+      const acc = accountById.get(it.r.accountId);
+      const target = acc?.type === "credit_card" ? acc.defaultPaymentAccountId : it.r.accountId;
+      if (!target || !bankSet.has(target)) continue;
+      events.push({
+        key: `reimb-est:${it.r.id}:${it.month}`,
+        date: it.expected < today ? today : it.expected,
+        dueDate: it.expected,
+        accountId: target,
+        amount: pending,
+        description: `Reembolso: ${it.r.description}`,
+        kind: "reimbursement",
+        status: it.expected < today ? "overdue" : "pending",
+        band: "uncertainIn",
+        categoryId: it.r.categoryId,
+        source: { type: "reimbursement", id: null, month: it.month },
       });
     }
   }
