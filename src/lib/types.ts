@@ -37,6 +37,7 @@ export interface Transaction {
   sourceId?: number | null;
   pluggyTransactionId?: string | null;
   isReimbursable?: number;
+  reimburseLagDays?: number | null;
   createdAt?: string | null;
 }
 

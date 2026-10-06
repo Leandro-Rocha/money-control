@@ -306,6 +306,21 @@ describe("buildForecast — linha de base e faixas", () => {
     expect(r.events.find((e) => e.kind === "reimbursement")).toMatchObject({ date: "2026-10-11", amount: 300 });
   });
 
+  it("prazo próprio da despesa substitui o padrão", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [
+          ...history(),
+          tx({ accountId: 1, month: "2026-10", day: 1, amount: -300, isReimbursable: true, reimburseLagDays: 20 }),
+        ],
+        settings: { cushion: 0, reimbursementLagDays: 10, overdueLookbackDays: 5 },
+        scenario: {},
+      }),
+    );
+    expect(r.events.find((e) => e.kind === "reimbursement")).toMatchObject({ date: "2026-10-21", amount: 300 });
+  });
+
   it("despesa reembolsável e créditos de reembolso ficam fora da linha de base", () => {
     const r = buildForecast(
       base({

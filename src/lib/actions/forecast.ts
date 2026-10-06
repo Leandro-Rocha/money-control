@@ -213,6 +213,18 @@ export async function setTransactionReimbursableAction(transactionId: number, re
   return { success: true };
 }
 
+/** Prazo do reembolso desta despesa, em dias a partir da data dela (null volta ao padrão da previsão). */
+export async function setTransactionReimburseLagAction(transactionId: number, lagDays: number | null) {
+  const lag = lagDays != null && Number.isFinite(lagDays) && lagDays >= 0 ? Math.round(lagDays) : null;
+  await db.update(transactions).set({ reimburseLagDays: lag }).where(eq(transactions.id, transactionId));
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function getDefaultReimbursementLagAction(): Promise<number> {
+  return (await getForecastSettings()).reimbursementLagDays;
+}
+
 export interface ReimbursementLink {
   id: number;
   expenseTransactionId: number;

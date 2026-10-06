@@ -672,7 +672,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
       const acc = accountById.get(t.accountId);
       const target = acc?.type === "credit_card" ? acc.defaultPaymentAccountId : t.accountId;
       if (!target || !bankSet.has(target)) continue;
-      const expected = addDays(txDate(t), settings.reimbursementLagDays);
+      const expected = addDays(txDate(t), t.reimburseLagDays ?? settings.reimbursementLagDays);
       const date = expected < today ? today : expected;
       if (date > horizonEnd) continue;
       events.push({

@@ -395,7 +395,14 @@ export function TransactionDetailModal({
         </div>
 
         {!tx.isProjected && tx.id > 0 && (
-          <ReimbursementSection txId={tx.id} amount={tx.amount} initialReimbursable={tx.isReimbursable === 1} />
+          <ReimbursementSection
+            txId={tx.id}
+            amount={tx.amount}
+            month={tx.month}
+            day={tx.day}
+            initialReimbursable={tx.isReimbursable === 1}
+            initialLagDays={tx.reimburseLagDays ?? null}
+          />
         )}
 
         {/* Seção de Metadados / Auditoria (somente leitura) */}

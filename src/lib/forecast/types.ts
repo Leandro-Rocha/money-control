@@ -28,6 +28,8 @@ export interface FTransaction {
   sourceId: number | null;
   installmentTotal: number | null;
   isReimbursable: boolean;
+  /** Dias até o reembolso cair; sem valor usa settings.reimbursementLagDays. */
+  reimburseLagDays?: number | null;
   /** Soma dos créditos já vinculados a esta despesa reembolsável (positivo). */
   reimbursedAmount: number;
   /** true se esta transação é um crédito vinculado a uma despesa reembolsável. */

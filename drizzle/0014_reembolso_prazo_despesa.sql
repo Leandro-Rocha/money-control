@@ -1,0 +1,1 @@
+ALTER TABLE `transactions` ADD `reimburse_lag_days` integer;
