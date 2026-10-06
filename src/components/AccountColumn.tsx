@@ -1,34 +1,30 @@
 "use client";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Account, AccountData, Category, Tag } from "@/lib/types";
-import { formatCurrency, parseNumberInput } from "@/lib/format";
+import { Check, Copy, Plus, RefreshCw, Repeat, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
-  ChevronDown,
-  ChevronUp,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  Check,
-  X,
-  Building,
-  CreditCard,
-  Repeat,
-  RefreshCw,
-  Copy,
-} from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { Money } from "@/components/ui/money";
+import { StatusDot } from "@/components/ui/status-dot";
+import { Tag } from "@/components/ui/tag";
+import { Tile } from "@/components/ui/tile";
+import { toast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-provider";
+import { billTag } from "@/components/desktop/AccountSideList";
+import {
+  Account,
+  AccountData,
+  Category,
+  Tag as TxTag,
+  TransactionWithCategory,
+} from "@/lib/types";
+import { formatCurrency, parseNumberInput } from "@/lib/format";
 import {
   createTransaction,
   deleteTransaction,
@@ -36,19 +32,30 @@ import {
 } from "@/lib/actions/transactions";
 import { convertToTransfer } from "@/lib/actions/transfers";
 import { payCreditCardBillAction } from "@/lib/actions/projections";
-import { isCreditCardBillPaid, calculateDueStatus } from "@/lib/due-dates";
+import { getFormattedPurchaseDate } from "@/lib/date-helpers";
+import { sortCreditCardTransactions } from "@/lib/sorting";
+import {
+  dayGroups,
+  groupConsecutive,
+  txStatus,
+  type TxStatus,
+} from "@/lib/cashflow/rows";
+import { localToday } from "@/lib/forecast/dates";
+import { fmtDateWeekday } from "@/lib/forecast/text";
+import { getDuplicateStats } from "@/lib/duplicates";
+import { cn } from "@/lib/utils";
+import { TableDensity } from "@/hooks/useDashboard";
+import { useAccountColumnState } from "@/hooks/useAccountColumnState";
 import { TransactionContextMenu } from "./TransactionContextMenu";
 import { TransactionDetailModal } from "./TransactionDetailModal";
 import { CategoryPicker } from "./CategoryPicker";
 import { CurrencyInput } from "./CurrencyInput";
-import { cn } from "@/lib/utils";
-import { getFormattedPurchaseDate } from "@/lib/date-helpers";
-import { sortCreditCardTransactions } from "@/lib/sorting";
-import { TableDensity } from "@/hooks/useDashboard";
-import { useAccountColumnState } from "@/hooks/useAccountColumnState";
-import { getDuplicateStats } from "@/lib/duplicates";
-import { toast } from "@/components/ui/toast";
-import { useConfirm } from "@/components/ui/confirm-provider";
+
+const STATUS_LABEL: Record<TxStatus, string> = {
+  realized: "realizado",
+  projected: "previsto",
+  overdue: "atrasado",
+};
 
 export interface AccountColumnProps {
   variant: "bank" | "card";
@@ -58,7 +65,7 @@ export interface AccountColumnProps {
   allAccounts: Account[];
   /** Só cartão: para saber se a fatura foi paga. */
   allAccountsData?: AccountData[];
-  availableTags?: Tag[];
+  availableTags?: TxTag[];
   onRefresh: () => void;
   onSyncPluggy?: (accountId: number) => void;
   onOpenDuplicates?: (accountId: number) => void;
@@ -69,6 +76,8 @@ export interface AccountColumnProps {
   onToggleExpanded?: () => void;
   highlightedTxId?: number | null;
   density?: TableDensity;
+  /** YYYY-MM-DD; padrão hoje. Previsto antes disso = atrasado. */
+  today?: string;
 }
 
 const BANK_FIELDS = ["day", "description", "category", "amount"] as const;
@@ -97,6 +106,7 @@ export default function AccountColumn({
   onToggleExpanded,
   highlightedTxId,
   density = "compact",
+  today = localToday(),
 }: AccountColumnProps) {
   const isCard = variant === "card";
   const ask = useConfirm();
@@ -105,8 +115,6 @@ export default function AccountColumn({
     [data.transactions],
   );
   const {
-    effectiveExpanded,
-    toggleExpanded,
     hasActiveFilter,
     hasZeroFilterMatches,
     filteredTransactions,
@@ -137,20 +145,7 @@ export default function AccountColumn({
     isCreditCard: isCard,
   });
 
-  // Cartão: situação da fatura e pagamento
-  const billStatus = useMemo(() => {
-    if (!isCard || !data.account.dueDay || data.totalExpense <= 0) return null;
-    const isPaid = allAccountsData
-      ? isCreditCardBillPaid(data.account, allAccountsData, month).isPaid
-      : false;
-    const { status, daysDifference } = calculateDueStatus(
-      data.account.dueDay,
-      month,
-      isPaid,
-    );
-    return { isPaid, status, daysDifference };
-  }, [isCard, data.account, data.totalExpense, allAccountsData, month]);
-
+  // Cartão: pagamento da fatura
   const [isPayingBill, setIsPayingBill] = useState(false);
   const handlePayBill = async () => {
     if (!data.account.defaultPaymentAccountId) {
@@ -210,18 +205,6 @@ export default function AccountColumn({
   // Banco: transferência
   const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
   const [transferTxId, setTransferTxId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!transferTxId) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setTransferTxId(null);
-        setTransferTargetId(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [transferTxId]);
 
   const handleCancelAdd = () => {
     setIsAdding(false);
@@ -319,1477 +302,687 @@ export default function AccountColumn({
     }
   };
 
-  if (isCard) {
-    const sortedTransactions = sortCreditCardTransactions(filteredTransactions);
+  const name = data.account.name;
+  const bill = isCard ? billTag(data, allAccountsData ?? [], month) : null;
+  const billPaid = bill?.label === "paga";
+  const rowH = density === "compact" ? "min-h-8 py-0.5" : "min-h-10 py-1.5";
+  const cols = isCard
+    ? "grid-cols-[1fr_3.5rem_6.5rem_5.5rem]"
+    : "grid-cols-[1.5rem_1fr_6.5rem_5.5rem]";
+  const inputH = density === "compact" ? "h-7 text-xs" : "h-8 text-sm";
+
+  const rowShell = (tx: TransactionWithCategory, children: React.ReactNode) => (
+    <div
+      key={tx.id}
+      id={`${isCard ? "tx-card-" : "tx-bank-"}${tx.id}`}
+      className={cn(
+        "group grid items-center gap-x-2 px-4 text-xs transition-colors duration-(--dur-fast) hover:bg-hover",
+        cols,
+        rowH,
+        tx.id === highlightedTxId &&
+          "bg-caution-soft ring-2 ring-inset ring-caution/50 hover:bg-caution-soft",
+      )}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setContextMenu({ tx, x: e.clientX, y: e.clientY });
+      }}
+      onDoubleClick={() => !tx.isProjected && setDetailTx(tx)}
+    >
+      {children}
+    </div>
+  );
+
+  const descriptionCell = (
+    tx: TransactionWithCategory,
+    extra: React.ReactNode,
+  ) => {
+    const isProjected = tx.isProjected === true;
+    const isInstallmentShadow =
+      isProjected && tx.projectionSourceType === "installment";
+    const isRecurringProjected =
+      isProjected &&
+      (isCard ? tx.projectionSourceType === "recurring" : !isInstallmentShadow);
+    const status = txStatus(tx, month, today);
+    const isEditing =
+      editingCell?.txId === tx.id && editingCell.field === "description";
     return (
-      <Card
-        className={`flex flex-col shadow-xs flex-1 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}
+      <div
+        className={cn(
+          "flex min-w-0 items-center gap-1.5",
+          !isEditing && !isInstallmentShadow && "cursor-pointer",
+        )}
+        onClick={() =>
+          !isEditing &&
+          !isInstallmentShadow &&
+          handleStartCellEdit(tx, "description")
+        }
       >
-        <CardHeader
-          className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors"
-          onClick={toggleExpanded}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-2 h-8 rounded-full"
-                style={{ backgroundColor: data.account.color }}
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-slate-500" />
-                    {data.account.name}
-                  </CardTitle>
-                  {data.account.pluggyAccountId && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSyncPluggy?.(data.account.id);
-                      }}
-                      title="Atualizar fatura via Pluggy"
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {onOpenDuplicates && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenDuplicates(data.account.id);
-                      }}
-                      title={
-                        duplicateStats.hasDuplicates
-                          ? `Identificar duplicadas (${duplicateStats.groupsCount} grupo(s) identificado(s))`
-                          : "Identificar transações duplicadas nesta conta"
-                      }
-                      className={cn(
-                        "px-1.5 py-0.5 rounded-md text-2xs font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
-                        duplicateStats.hasDuplicates
-                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
-                          : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800",
-                      )}
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>
-                        {duplicateStats.hasDuplicates
-                          ? `${duplicateStats.groupsCount} duplicada${duplicateStats.groupsCount > 1 ? "s" : ""}`
-                          : "Duplicadas"}
-                      </span>
-                    </button>
-                  )}
-                  {hasActiveFilter && (
-                    <Badge
-                      variant="outline"
-                      className="text-2xs font-normal font-sans py-0 h-5 bg-background/80"
-                    >
-                      {filteredTransactions.length} de{" "}
-                      {data.transactions.length} lançamentos
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                  <span>Cartão de Crédito</span>
-                  {data.account.dueDay && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Vence dia{" "}
-                        <strong className="text-foreground font-semibold">
-                          {data.account.dueDay}
-                        </strong>
-                      </span>
-                      {billStatus?.isPaid ? (
-                        <Badge
-                          variant="outline"
-                          className="text-2xs font-semibold py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                        >
-                          Fatura Paga
-                        </Badge>
-                      ) : billStatus?.status === "due_today" ? (
-                        <Badge
-                          variant="outline"
-                          className="text-2xs font-bold py-0 h-4 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 animate-pulse"
-                        >
-                          Vence Hoje
-                        </Badge>
-                      ) : billStatus?.status === "overdue" ? (
-                        <Badge
-                          variant="outline"
-                          className="text-2xs font-bold py-0 h-4 bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40"
-                        >
-                          Vencida há {Math.abs(billStatus.daysDifference)}d
-                        </Badge>
-                      ) : billStatus?.daysDifference ? (
-                        <span className="text-2xs text-muted-foreground font-medium">
-                          (em {billStatus.daysDifference}d)
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-right flex flex-col items-end">
-                <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">
-                  Total da Fatura
-                </div>
-                <div className="font-bold text-lg font-mono tabular-nums privacy-sensitive text-rose-600 dark:text-rose-400">
-                  {formatCurrency(data.totalExpense)}
-                </div>
-                {!billStatus?.isPaid &&
-                  data.totalExpense > 0 &&
-                  data.account.defaultPaymentAccountId && (
-                    <div className="mt-1">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePayBill();
-                        }}
-                        disabled={isPayingBill}
-                        className="inline-flex items-center gap-1 text-2xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                        title="Registrar pagamento da fatura na conta bancária vinculada"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>
-                          {isPayingBill ? "Pagando..." : "Pagar Fatura"}
-                        </span>
-                      </button>
-                    </div>
-                  )}
-              </div>
-
-              <div className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                {effectiveExpanded ? (
-                  <ChevronUp className="w-5 h-5" />
-                ) : (
-                  <ChevronDown className="w-5 h-5" />
-                )}
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        {effectiveExpanded && (
-          <div className="flex-1 flex flex-col">
-            <div className="overflow-x-auto flex-1">
-              <Table className="w-full text-sm text-left border-collapse table-fixed">
-                <TableHeader>
-                  <TableRow
-                    className={cn(
-                      "hover:bg-transparent border-b",
-                      density === "compact" ? "h-8" : "h-9",
-                    )}
-                  >
-                    <TableHead
-                      className={cn(
-                        "pl-7",
-                        density === "compact" && "py-1 text-xs",
-                      )}
-                    >
-                      Descrição
-                    </TableHead>
-                    <TableHead
-                      className={cn(
-                        "w-16 text-center",
-                        density === "compact" && "py-1 text-xs",
-                      )}
-                    >
-                      Parcela
-                    </TableHead>
-                    <TableHead
-                      className={cn(
-                        "w-32",
-                        density === "compact" && "py-1 text-xs",
-                      )}
-                    >
-                      Categoria
-                    </TableHead>
-                    <TableHead
-                      className={cn(
-                        "text-right w-36 pr-7",
-                        density === "compact" && "py-1 text-xs",
-                      )}
-                    >
-                      Valor
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-slate-100">
-                  {sortedTransactions.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="text-center text-slate-500 py-8"
-                      >
-                        Nenhuma transação lançada.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {sortedTransactions.map((tx) => {
-                    const isProjected = tx.isProjected === true;
-                    const isInstallmentShadow =
-                      isProjected && tx.projectionSourceType === "installment";
-                    const isRecurringProjected =
-                      isProjected && tx.projectionSourceType === "recurring";
-                    const isRecurring =
-                      isRecurringProjected ||
-                      tx.sourceType === "recurring" ||
-                      tx.projectionSourceType === "recurring";
-                    const isEditingDesc =
-                      editingCell?.txId === tx.id &&
-                      editingCell.field === "description";
-                    const isEditingInstallment =
-                      editingCell?.txId === tx.id &&
-                      editingCell.field === "installment";
-                    const isEditingCat =
-                      editingCell?.txId === tx.id &&
-                      editingCell.field === "category";
-                    const isEditingAmount =
-                      editingCell?.txId === tx.id &&
-                      editingCell.field === "amount";
-                    const saveCell = handleSaveCell;
-
-                    const current =
-                      tx.installmentCurrent ?? tx.projectedInstallmentCurrent;
-                    const total =
-                      tx.installmentTotal ?? tx.projectedInstallmentTotal;
-                    const installmentLabel = current
-                      ? total
-                        ? `${current}/${total}`
-                        : `${current}`
-                      : null;
-
-                    const displayDate = !isRecurring
-                      ? getFormattedPurchaseDate(
-                          tx.purchaseDate,
-                          tx.month || month,
-                          tx.day,
-                          tx.month,
-                        )
-                      : null;
-
-                    return (
-                      <TableRow
-                        key={tx.id}
-                        id={`tx-card-${tx.id}`}
-                        className={cn(
-                          "transition-colors border-b group",
-                          density === "compact" ? "h-[34px]" : "h-12",
-                          tx.id === highlightedTxId
-                            ? "bg-amber-500/20 dark:bg-amber-500/30 ring-2 ring-amber-500/60 border-amber-400 animate-pulse"
-                            : isInstallmentShadow
-                              ? "bg-slate-50/50 hover:bg-slate-100/60 border-slate-100"
-                              : isRecurringProjected
-                                ? "bg-amber-50/20 hover:bg-amber-50/40 border-dashed border-slate-200"
-                                : "hover:bg-slate-50 border-slate-100",
-                        )}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setContextMenu({ tx, x: e.clientX, y: e.clientY });
-                        }}
-                        onDoubleClick={() => !tx.isProjected && setDetailTx(tx)}
-                      >
-                        {/* Descrição Cell */}
-                        <TableCell
-                          className={cn(
-                            density === "compact" ? "py-0.5 px-2" : "",
-                            !isEditingDesc && !isInstallmentShadow
-                              ? "cursor-pointer"
-                              : "",
-                          )}
-                          onClick={() =>
-                            !isEditingDesc &&
-                            !isInstallmentShadow &&
-                            handleStartCellEdit(tx, "description")
-                          }
-                        >
-                          {isEditingDesc ? (
-                            <Input
-                              type="text"
-                              value={tempValue}
-                              onChange={(e) => setTempValue(e.target.value)}
-                              onBlur={() => {
-                                if (isNavigatingRef.current) return;
-                                saveCell(tx);
-                              }}
-                              onKeyDown={(e) =>
-                                handleCellKeyDown(e, tx, "description")
-                              }
-                              className={cn(
-                                "w-full",
-                                density === "compact"
-                                  ? "h-7 text-xs px-2"
-                                  : "text-sm",
-                              )}
-                              autoFocus
-                            />
-                          ) : (
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1.5 border border-transparent rounded truncate",
-                                density === "compact"
-                                  ? "h-7 px-1.5 text-xs"
-                                  : "h-9 px-3 text-sm",
-                                isInstallmentShadow
-                                  ? "cursor-default text-slate-600"
-                                  : isRecurringProjected
-                                    ? "cursor-pointer text-amber-700 font-medium"
-                                    : "cursor-pointer text-slate-800",
-                              )}
-                              title={
-                                isInstallmentShadow
-                                  ? installmentLabel
-                                    ? `Parcela ${installmentLabel} vinculada à compra original`
-                                    : "Parcela vinculada à compra original"
-                                  : isRecurringProjected
-                                    ? "Projeção recorrente — clique para confirmar com edição"
-                                    : "Clique para editar ou dê duplo clique para ver detalhes"
-                              }
-                            >
-                              <span className="truncate">{tx.description}</span>
-                              {tx.tags && tx.tags.length > 0 && (
-                                <span
-                                  className="inline-flex items-center gap-0.5 px-1 py-px rounded text-2xs font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
-                                  title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                  <span className="truncate">
-                                    #{tx.tags[0].name}
-                                  </span>
-                                  {tx.tags.length > 1 && (
-                                    <span className="text-2xs text-muted-foreground shrink-0">
-                                      +{tx.tags.length - 1}
-                                    </span>
-                                  )}
-                                </span>
-                              )}
-                              {isRecurringProjected && (
-                                <span title="Gasto recorrente projetado">
-                                  <Repeat className="w-3 h-3 text-amber-500 shrink-0" />
-                                </span>
-                              )}
-                              {tx.linkedTransactionId && (
-                                <span
-                                  title={
-                                    tx.linkedAccountName
-                                      ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
-                                      : "Transferência vinculada"
-                                  }
-                                  className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-2xs"
-                                >
-                                  <span className="tracking-tight">
-                                    {tx.linkedAccountName
-                                      ? tx.amount < 0
-                                        ? `→ ${tx.linkedAccountName}`
-                                        : `← ${tx.linkedAccountName}`
-                                      : tx.amount < 0
-                                        ? "→"
-                                        : "←"}
-                                  </span>
-                                </span>
-                              )}
-                              {displayDate && (
-                                <span
-                                  className="ml-1 shrink-0 px-1 py-0.5 bg-slate-100 text-2xs text-slate-400 rounded"
-                                  title={
-                                    tx.purchaseDate
-                                      ? `Data da compra: ${tx.purchaseDate}`
-                                      : `Data: ${displayDate}`
-                                  }
-                                >
-                                  {displayDate}
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </TableCell>
-
-                        {/* Parcela Cell */}
-                        <TableCell
-                          className={cn(
-                            "text-center px-2",
-                            density === "compact" ? "py-0.5 text-xs" : "",
-                            !isEditingInstallment && !isProjected
-                              ? "cursor-pointer"
-                              : "",
-                          )}
-                          onClick={() =>
-                            !isEditingInstallment &&
-                            !isProjected &&
-                            handleStartCellEdit(tx, "installment")
-                          }
-                        >
-                          {isEditingInstallment ? (
-                            <Input
-                              type="text"
-                              placeholder="1/10"
-                              value={tempValue}
-                              onChange={(e) => setTempValue(e.target.value)}
-                              onBlur={() => {
-                                if (isNavigatingRef.current) return;
-                                saveCell(tx);
-                              }}
-                              onKeyDown={(e) =>
-                                handleCellKeyDown(e, tx, "installment")
-                              }
-                              className={cn(
-                                "w-full text-center font-mono",
-                                density === "compact"
-                                  ? "h-6 text-xs"
-                                  : "text-sm",
-                              )}
-                              autoFocus
-                            />
-                          ) : (
-                            <span
-                              className={`inline-block w-full text-center rounded text-2xs font-mono tabular-nums font-medium ${
-                                installmentLabel
-                                  ? isProjected
-                                    ? "bg-blue-50/60 text-blue-500/90 cursor-default"
-                                    : "bg-blue-50 text-blue-600 cursor-pointer"
-                                  : isProjected
-                                    ? "text-slate-300 cursor-default"
-                                    : "text-slate-300 cursor-pointer"
-                              }`}
-                              title={
-                                isInstallmentShadow
-                                  ? `Parcela ${installmentLabel} (vinculada à compra original)`
-                                  : installmentLabel
-                                    ? `Parcela ${installmentLabel} — clique para editar`
-                                    : "Sem parcelas — clique para definir"
-                              }
-                            >
-                              {installmentLabel || "—"}
-                            </span>
-                          )}
-                        </TableCell>
-
-                        {/* Categoria Cell */}
-                        <TableCell
-                          className={cn(
-                            "text-center px-1",
-                            density === "compact" && "py-0.5",
-                          )}
-                        >
-                          <CategoryPicker
-                            ref={isEditingCat ? categoryPickerRef : undefined}
-                            categories={categories}
-                            value={tx.categoryId}
-                            categoryName={tx.categoryName}
-                            categoryColor={tx.categoryColor}
-                            parentCategoryId={tx.parentCategoryId}
-                            parentCategoryName={tx.parentCategoryName}
-                            onSelect={(newCatId) =>
-                              handleSelectCategory(tx, newCatId)
-                            }
-                            onFocus={() => {
-                              if (
-                                !isProjected &&
-                                !isInstallmentShadow &&
-                                !isEditingCat
-                              ) {
-                                handleStartCellEdit(tx, "category");
-                              }
-                            }}
-                            onKeyDown={(e) =>
-                              isEditingCat &&
-                              handleCellKeyDown(e, tx, "category")
-                            }
-                            disabled={isInstallmentShadow}
-                            tabIndex={isEditingCat ? 0 : -1}
-                          />
-                        </TableCell>
-
-                        {/* Valor Cell */}
-                        <TableCell
-                          className={cn(
-                            "text-right font-semibold font-mono tabular-nums",
-                            density === "compact" ? "py-0.5 px-2 text-xs" : "",
-                            !isEditingAmount && !isInstallmentShadow
-                              ? "cursor-pointer"
-                              : "",
-                          )}
-                          onClick={() =>
-                            !isEditingAmount &&
-                            !isInstallmentShadow &&
-                            handleStartCellEdit(tx, "amount")
-                          }
-                        >
-                          {isEditingAmount ? (
-                            <CurrencyInput
-                              value={tempValue}
-                              onChangeValue={setTempValue}
-                              onBlur={() => {
-                                if (isNavigatingRef.current) return;
-                                saveCell(tx);
-                              }}
-                              onKeyDown={(e) =>
-                                handleCellKeyDown(e, tx, "amount")
-                              }
-                              className={cn(
-                                "w-full",
-                                density === "compact"
-                                  ? "h-7 text-xs"
-                                  : "text-sm",
-                              )}
-                              autoFocus
-                            />
-                          ) : (
-                            <span
-                              className={cn(
-                                "relative text-xs w-full flex items-center justify-end font-mono tabular-nums border rounded",
-                                density === "compact" ? "py-0.5 px-1" : "p-1.5",
-                                isInstallmentShadow
-                                  ? "border-transparent text-slate-600 cursor-default"
-                                  : isRecurringProjected
-                                    ? "border-amber-500/50 text-amber-600 font-medium hover:bg-amber-50 cursor-pointer"
-                                    : "border-transparent text-foreground cursor-pointer hover:bg-slate-100/60",
-                              )}
-                              title={
-                                isInstallmentShadow
-                                  ? `Valor da parcela ${installmentLabel || ""} (vinculada à compra original)`
-                                  : isRecurringProjected
-                                    ? "Projeção recorrente — clique para confirmar com edição"
-                                    : "Clique para editar o valor"
-                              }
-                            >
-                              {formatCurrency(tx.amount)}
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {/* Quick Add Row / Collapsible Trigger */}
-                  {!isAdding ? (
-                    <TableRow
-                      className={cn(
-                        "hover:bg-slate-50/75 transition-colors border-t border-dashed border-slate-200",
-                        density === "compact" ? "h-8" : "h-10",
-                      )}
-                    >
-                      <TableCell
-                        colSpan={4}
-                        className={cn(
-                          density === "compact" ? "py-1 px-4" : "py-2 px-4",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setIsAdding(true)}
-                          className="group inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors py-1 px-2 rounded-md hover:bg-slate-100"
-                        >
-                          <span className="flex items-center justify-center w-5 h-5 rounded-md border border-slate-200 bg-white group-hover:border-slate-300 group-hover:bg-slate-50 text-slate-500 group-hover:text-slate-900 transition-colors shadow-2xs">
-                            <Plus className="w-3 h-3" />
-                          </span>
-                          <span>Nova despesa</span>
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <TableRow
-                      className={cn(
-                        "bg-slate-50/90 border-t-2 border-indigo-200 animate-in fade-in duration-150",
-                        density === "compact" ? "h-9" : "h-12",
-                      )}
-                    >
-                      <TableCell
-                        className={cn(
-                          "pl-6 pr-2",
-                          density === "compact" && "py-1",
-                        )}
-                      >
-                        <Input
-                          ref={newDescInputRef}
-                          type="text"
-                          placeholder="Descrição"
-                          value={newDescription}
-                          onChange={(e) => setNewDescription(e.target.value)}
-                          className={cn(
-                            "w-full bg-white",
-                            density === "compact"
-                              ? "h-7 text-xs"
-                              : "h-8 text-sm",
-                          )}
-                          required
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleAddTransaction(e);
-                            if (e.key === "Escape") handleCancelAdd();
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-center px-1",
-                          density === "compact" && "py-1",
-                        )}
-                      >
-                        <Input
-                          type="text"
-                          placeholder="1/10"
-                          title="Parcela (ex: 1/10)"
-                          value={newInstallment}
-                          onChange={(e) => setNewInstallment(e.target.value)}
-                          className={cn(
-                            "w-full text-center font-mono bg-white",
-                            density === "compact"
-                              ? "h-7 text-xs"
-                              : "h-8 text-sm",
-                          )}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleAddTransaction(e);
-                            if (e.key === "Escape") handleCancelAdd();
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-center px-1",
-                          density === "compact" && "py-1",
-                        )}
-                      >
-                        <CategoryPicker
-                          categories={categories}
-                          value={
-                            newCategoryId === "" ? null : Number(newCategoryId)
-                          }
-                          onSelect={(catId) =>
-                            setNewCategoryId(catId !== null ? catId : "")
-                          }
-                          tabIndex={0}
-                        />
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right pr-4 pl-2",
-                          density === "compact" && "py-1",
-                        )}
-                      >
-                        <div className="flex items-center justify-end gap-1">
-                          <CurrencyInput
-                            placeholder="0,00"
-                            value={newAmount}
-                            onChangeValue={setNewAmount}
-                            className={cn(
-                              "w-full bg-white",
-                              density === "compact"
-                                ? "h-7 text-xs"
-                                : "h-8 text-sm",
-                            )}
-                            required
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleAddTransaction(e);
-                              if (e.key === "Escape") handleCancelAdd();
-                            }}
-                          />
-                          <Button
-                            onClick={() => handleAddTransaction()}
-                            disabled={
-                              isSubmitting ||
-                              !newDescription.trim() ||
-                              !newAmount.trim() ||
-                              newAmount === "-"
-                            }
-                            size="icon"
-                            className={cn(
-                              "flex shrink-0",
-                              density === "compact" ? "h-6 w-6" : "h-7 w-7",
-                            )}
-                            title="Salvar despesa (Enter)"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={handleCancelAdd}
-                            size="icon"
-                            className={cn(
-                              "flex shrink-0 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60",
-                              density === "compact" ? "h-6 w-6" : "h-7 w-7",
-                            )}
-                            title="Cancelar (Esc)"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-        {contextMenu && (
-          <TransactionContextMenu
-            tx={contextMenu.tx}
-            x={contextMenu.x}
-            y={contextMenu.y}
-            onViewDetails={(tx) => {
-              setDetailTx(tx);
-              setContextMenu(null);
+        {isEditing ? (
+          <Input
+            type="text"
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+            onBlur={() => {
+              if (isNavigatingRef.current) return;
+              handleSaveCell(tx);
             }}
-            onConfirmProjected={(tx) => {
-              handleConfirmProjected(tx);
-              setContextMenu(null);
-            }}
-            onDismissProjected={(tx) => {
-              handleDismissProjected(tx);
-              setContextMenu(null);
-            }}
-            onTransfer={null}
-            onDelete={(tx) => {
-              handleDelete(tx.id, false);
-              setContextMenu(null);
-            }}
+            onKeyDown={(e) => handleCellKeyDown(e, tx, "description")}
+            className={cn("w-full px-2", inputH)}
+            autoFocus
           />
+        ) : (
+          <>
+            <StatusDot
+              status={status}
+              label={status === "realized" ? undefined : STATUS_LABEL[status]}
+            />
+            <span
+              className={cn("truncate", isProjected ? "text-mut" : "text-ink")}
+              title={
+                isInstallmentShadow
+                  ? "Lançamento automático (edite a original para alterar)"
+                  : isRecurringProjected
+                    ? "Projeção recorrente — clique para confirmar com edição"
+                    : "Clique para editar ou dê duplo clique para ver detalhes"
+              }
+            >
+              {tx.description}
+            </span>
+            {status !== "realized" && (
+              <Tag
+                variant={status === "overdue" ? "overdue" : "projected"}
+                className="shrink-0"
+              >
+                {STATUS_LABEL[status]}
+              </Tag>
+            )}
+            {tx.tags && tx.tags.length > 0 && (
+              <Tag
+                className="max-w-[90px] shrink-0 truncate"
+                title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
+              >
+                #{tx.tags[0].name}
+                {tx.tags.length > 1 && <span>+{tx.tags.length - 1}</span>}
+              </Tag>
+            )}
+            {isRecurringProjected && (
+              <span
+                title="Gasto recorrente projetado"
+                className="shrink-0 text-faint"
+              >
+                <Repeat className="size-3" />
+              </span>
+            )}
+            {tx.linkedTransactionId && (
+              <Tag
+                className="shrink-0"
+                title={
+                  tx.linkedAccountName
+                    ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
+                    : "Transferência vinculada"
+                }
+              >
+                {tx.linkedAccountName
+                  ? tx.amount < 0
+                    ? `→ ${tx.linkedAccountName}`
+                    : `← ${tx.linkedAccountName}`
+                  : tx.amount < 0
+                    ? "→"
+                    : "←"}
+              </Tag>
+            )}
+            {extra}
+          </>
         )}
-
-        {detailTx && (
-          <TransactionDetailModal
-            open={Boolean(detailTx)}
-            tx={detailTx}
-            categories={categories}
-            availableTags={availableTags}
-            onClose={() => setDetailTx(null)}
-            onSave={async (txId, updatedData) => {
-              await updateTransaction(txId, updatedData);
-              onRefresh();
-            }}
-          />
-        )}
-      </Card>
+      </div>
     );
-  }
+  };
+
+  const categoryCell = (tx: TransactionWithCategory) => {
+    const isProjected = tx.isProjected === true;
+    const isInstallmentShadow =
+      isProjected && tx.projectionSourceType === "installment";
+    const isEditing =
+      editingCell?.txId === tx.id && editingCell.field === "category";
+    return (
+      <div className="min-w-0">
+        <CategoryPicker
+          ref={isEditing ? categoryPickerRef : undefined}
+          categories={categories}
+          value={tx.categoryId}
+          categoryName={tx.categoryName}
+          categoryColor={tx.categoryColor}
+          parentCategoryId={tx.parentCategoryId}
+          parentCategoryName={tx.parentCategoryName}
+          onSelect={(newCatId) => handleSelectCategory(tx, newCatId)}
+          onFocus={() => {
+            if (!isProjected && !isInstallmentShadow && !isEditing) {
+              handleStartCellEdit(tx, "category");
+            }
+          }}
+          onKeyDown={(e) => isEditing && handleCellKeyDown(e, tx, "category")}
+          disabled={isCard && isInstallmentShadow}
+          tabIndex={isEditing ? 0 : -1}
+        />
+      </div>
+    );
+  };
+
+  const amountCell = (
+    tx: TransactionWithCategory,
+    installmentLabel: string | null,
+  ) => {
+    const isProjected = tx.isProjected === true;
+    const isInstallmentShadow =
+      isProjected && tx.projectionSourceType === "installment";
+    const isRecurringProjected =
+      isProjected &&
+      (isCard ? tx.projectionSourceType === "recurring" : !isInstallmentShadow);
+    const isEditing =
+      editingCell?.txId === tx.id && editingCell.field === "amount";
+    return (
+      <div
+        className={cn(
+          "text-right",
+          !isEditing && !isInstallmentShadow && "cursor-pointer",
+        )}
+        onClick={() =>
+          !isEditing &&
+          !isInstallmentShadow &&
+          handleStartCellEdit(tx, "amount")
+        }
+      >
+        {isEditing ? (
+          <CurrencyInput
+            value={tempValue}
+            onChangeValue={setTempValue}
+            allowNegative={!isCard}
+            onBlur={() => {
+              if (isNavigatingRef.current) return;
+              handleSaveCell(tx);
+            }}
+            onKeyDown={(e) => handleCellKeyDown(e, tx, "amount")}
+            className={cn("w-full", inputH)}
+            autoFocus
+          />
+        ) : (
+          <span
+            className="inline-block rounded px-1 py-0.5 hover:bg-line/60"
+            title={
+              isInstallmentShadow
+                ? isCard
+                  ? `Valor da parcela ${installmentLabel || ""} (vinculada à compra original)`
+                  : "Lançamento automático"
+                : isRecurringProjected
+                  ? "Projeção recorrente — clique para confirmar com edição"
+                  : "Clique para editar o valor"
+            }
+          >
+            <Money value={tx.amount} projected={isProjected} />
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const bankRow = (tx: TransactionWithCategory) => {
+    const isProjected = tx.isProjected === true;
+    const isEditingDay =
+      editingCell?.txId === tx.id && editingCell.field === "day";
+    return rowShell(
+      tx,
+      <>
+        <div
+          className={cn("text-center", !isEditingDay && "cursor-pointer")}
+          onClick={() => !isEditingDay && handleStartCellEdit(tx, "day")}
+        >
+          {isEditingDay ? (
+            <Input
+              type="text"
+              maxLength={2}
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onBlur={() => {
+                if (isNavigatingRef.current) return;
+                handleSaveCell(tx);
+              }}
+              onKeyDown={(e) => handleCellKeyDown(e, tx, "day")}
+              className={cn("w-full px-0.5 text-center font-mono", inputH)}
+              autoFocus
+            />
+          ) : (
+            <span
+              className="inline-block w-full text-center font-mono text-2xs text-faint tabular-nums"
+              title={
+                isProjected
+                  ? "Clique para confirmar com este dia"
+                  : "Clique para editar o dia"
+              }
+            >
+              {tx.day}
+            </span>
+          )}
+        </div>
+        {descriptionCell(
+          tx,
+          <>
+            {isProjected && tx.projectedInstallmentCurrent && (
+              <Tag className="shrink-0">
+                {tx.projectedInstallmentCurrent}/{tx.projectedInstallmentTotal}
+              </Tag>
+            )}
+            {isProjected &&
+              tx.projectionSourceType != null &&
+              tx.projectionSourceType !== "installment" && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleConfirmProjected(tx);
+                  }}
+                  title="Confirmar pagamento deste lançamento previsto"
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent-soft px-1.5 py-px text-2xs font-semibold text-accent-ink transition-colors hover:bg-accent/20"
+                >
+                  <Check className="size-2.5" />
+                  Confirmar
+                </button>
+              )}
+          </>,
+        )}
+        {categoryCell(tx)}
+        {amountCell(tx, null)}
+      </>,
+    );
+  };
+
+  const cardRow = (tx: TransactionWithCategory) => {
+    const isProjected = tx.isProjected === true;
+    const isInstallmentShadow =
+      isProjected && tx.projectionSourceType === "installment";
+    const isEditingInstallment =
+      editingCell?.txId === tx.id && editingCell.field === "installment";
+    const current = tx.installmentCurrent ?? tx.projectedInstallmentCurrent;
+    const total = tx.installmentTotal ?? tx.projectedInstallmentTotal;
+    const installmentLabel = current
+      ? total
+        ? `${current}/${total}`
+        : `${current}`
+      : null;
+    return rowShell(
+      tx,
+      <>
+        {descriptionCell(tx, null)}
+        <div
+          className={cn(
+            "text-center",
+            !isEditingInstallment && !isProjected && "cursor-pointer",
+          )}
+          onClick={() =>
+            !isEditingInstallment &&
+            !isProjected &&
+            handleStartCellEdit(tx, "installment")
+          }
+        >
+          {isEditingInstallment ? (
+            <Input
+              type="text"
+              placeholder="1/10"
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onBlur={() => {
+                if (isNavigatingRef.current) return;
+                handleSaveCell(tx);
+              }}
+              onKeyDown={(e) => handleCellKeyDown(e, tx, "installment")}
+              className={cn("w-full px-0.5 text-center font-mono", inputH)}
+              autoFocus
+            />
+          ) : (
+            <span
+              title={
+                isInstallmentShadow
+                  ? `Parcela ${installmentLabel} (vinculada à compra original)`
+                  : installmentLabel
+                    ? `Parcela ${installmentLabel} — clique para editar`
+                    : "Sem parcelas — clique para definir"
+              }
+            >
+              {installmentLabel ? (
+                <Tag>{installmentLabel}</Tag>
+              ) : (
+                <span className="text-faint">—</span>
+              )}
+            </span>
+          )}
+        </div>
+        {categoryCell(tx)}
+        {amountCell(tx, installmentLabel)}
+      </>,
+    );
+  };
+
+  const groupHeader = (label: string, right?: React.ReactNode) => (
+    <div className="flex items-center justify-between bg-bg/60 px-4 py-1">
+      <Eyebrow as="span">{label}</Eyebrow>
+      {right}
+    </div>
+  );
+
+  const quickAddKeys = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleAddTransaction(e);
+    if (e.key === "Escape") handleCancelAdd();
+  };
+  const canSave =
+    !isSubmitting &&
+    newDescription.trim() !== "" &&
+    newAmount.trim() !== "" &&
+    newAmount !== "-";
+
+  const sortedCardTxs = isCard
+    ? sortCreditCardTransactions(filteredTransactions)
+    : [];
+  const cardGroups = groupConsecutive(sortedCardTxs, (tx) => {
+    const isRecurring =
+      (tx.isProjected && tx.projectionSourceType === "recurring") ||
+      tx.sourceType === "recurring" ||
+      tx.projectionSourceType === "recurring";
+    return isRecurring
+      ? "Recorrentes"
+      : (getFormattedPurchaseDate(
+          tx.purchaseDate,
+          tx.month || month,
+          tx.day,
+          tx.month,
+        ) ?? "Sem data");
+  });
+
+  const emptyText =
+    filteredTransactions.length > 0
+      ? null
+      : hasActiveFilter && data.transactions.length > 0
+        ? "Nenhum lançamento com esse filtro."
+        : isCard
+          ? "Nenhuma transação lançada."
+          : "Nenhum lançamento neste mês.";
 
   return (
-    <Card
-      className={`flex flex-col shadow-xs flex-1 min-w-[360px] border-slate-200 transition-opacity ${hasZeroFilterMatches ? "opacity-50 hover:opacity-100" : ""}`}
+    <Tile
+      flat
+      aria-label={name}
+      className={cn(
+        "flex w-full max-w-column min-w-0 flex-col overflow-hidden p-0 transition-opacity duration-(--dur)",
+        hasZeroFilterMatches && "opacity-50 hover:opacity-100",
+      )}
     >
-      {/* Header */}
-      <CardHeader
-        className="py-4 border-b bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition-colors"
-        onClick={toggleExpanded}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-2 h-8 rounded-full"
-              style={{ backgroundColor: data.account.color }}
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Building className="w-4 h-4 text-slate-500" />
-                  {data.account.name}
-                </CardTitle>
-                {data.account.pluggyAccountId && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSyncPluggy?.(data.account.id);
-                    }}
-                    title="Atualizar lançamentos via Pluggy"
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors inline-flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {onOpenDuplicates && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenDuplicates(data.account.id);
-                    }}
-                    title={
-                      duplicateStats.hasDuplicates
-                        ? `Identificar duplicadas (${duplicateStats.groupsCount} grupo(s) identificado(s))`
-                        : "Identificar transações duplicadas nesta conta"
-                    }
-                    className={cn(
-                      "px-1.5 py-0.5 rounded-md text-2xs font-medium transition-colors inline-flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
-                      duplicateStats.hasDuplicates
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-semibold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-slate-200/70 dark:hover:bg-slate-800",
-                    )}
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>
-                      {duplicateStats.hasDuplicates
-                        ? `${duplicateStats.groupsCount} duplicada${duplicateStats.groupsCount > 1 ? "s" : ""}`
-                        : "Duplicadas"}
-                    </span>
-                  </button>
-                )}
-                {hasActiveFilter && (
-                  <Badge
-                    variant="outline"
-                    className="text-2xs font-normal font-sans py-0 h-5 bg-background/80"
-                  >
-                    {filteredTransactions.length} de {data.transactions.length}{" "}
-                    lançamentos
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                <div
-                  className="flex items-center gap-1"
-                  title="Total de Entradas"
-                >
-                  <ArrowDownRight className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400 font-mono tabular-nums privacy-sensitive">
-                    {formatCurrency(data.totalIncome)}
-                  </span>
-                </div>
-                <div
-                  className="flex items-center gap-1"
-                  title="Total de Saídas"
-                >
-                  <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
-                  <span className="text-rose-600 dark:text-rose-400 font-mono tabular-nums privacy-sensitive">
-                    {formatCurrency(data.totalExpense)}
-                  </span>
-                </div>
-                <div
-                  className="flex items-center gap-1 font-medium"
-                  title="Balanço do Mês"
-                >
-                  <span className="text-slate-300 mx-0.5 no-privacy-blur">
-                    |
-                  </span>
-                  <span
-                    className={`font-mono tabular-nums privacy-sensitive ${data.netBalance >= 0 ? "text-indigo-600" : "text-rose-600"}`}
-                  >
-                    {data.netBalance >= 0 ? "+" : ""}
-                    {formatCurrency(data.netBalance)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">
-                Saldo
-              </div>
-              <div
-                className={`font-bold text-lg font-mono tabular-nums privacy-sensitive ${data.finalBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
-              >
-                {formatCurrency(data.finalBalance)}
-              </div>
-            </div>
-
-            <div className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-              {effectiveExpanded ? (
-                <ChevronUp className="w-5 h-5" />
-              ) : (
-                <ChevronDown className="w-5 h-5" />
+      <header className="flex flex-col gap-2 border-b border-line px-4 py-3">
+        <div className="flex items-start gap-2.5">
+          <span
+            aria-hidden="true"
+            className="mt-1.5 size-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: data.account.color }}
+          />
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-semibold text-ink">{name}</h2>
+            <div className="flex flex-wrap items-center gap-1.5 text-2xs text-mut">
+              <span>{isCard ? "cartão" : "conta corrente"}</span>
+              {bill && <Tag variant={bill.variant}>{bill.label}</Tag>}
+              {isCard && data.account.dueDay && (
+                <span>vence dia {data.account.dueDay}</span>
               )}
             </div>
           </div>
-        </div>
-      </CardHeader>
-      {/* Body */}
-      {effectiveExpanded && (
-        <div className="flex-1 flex flex-col">
-          {/* Table Container */}
-          <div className="overflow-x-auto flex-1">
-            <Table className="w-full text-sm text-left border-collapse table-fixed">
-              <TableHeader>
-                <TableRow
-                  className={cn(
-                    "hover:bg-transparent border-b",
-                    density === "compact" ? "h-8" : "h-9",
-                  )}
-                >
-                  <TableHead
-                    className={cn(
-                      "w-12 text-center",
-                      density === "compact" && "py-1 text-xs",
-                    )}
-                  >
-                    Dia
-                  </TableHead>
-                  <TableHead
-                    className={cn(
-                      "pl-7",
-                      density === "compact" && "py-1 text-xs",
-                    )}
-                  >
-                    Descrição
-                  </TableHead>
-                  <TableHead
-                    className={cn(
-                      "w-32",
-                      density === "compact" && "py-1 text-xs",
-                    )}
-                  >
-                    Categoria
-                  </TableHead>
-                  <TableHead
-                    className={cn(
-                      "text-right w-28 pr-7",
-                      density === "compact" && "py-1 text-xs",
-                    )}
-                  >
-                    Valor
-                  </TableHead>
-                  <TableHead
-                    className={cn(
-                      "text-right w-28",
-                      density === "compact" && "py-1 text-xs",
-                    )}
-                  >
-                    Saldo
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-slate-100">
-                {/* Saldo anterior row */}
-                <TableRow
-                  className={cn(
-                    "bg-muted/50 hover:bg-muted font-medium text-muted-foreground",
-                    density === "compact" ? "h-[34px] text-xs" : "h-12",
-                  )}
-                >
-                  <TableCell
-                    className={cn(
-                      "text-center text-slate-500",
-                      density === "compact" && "py-1 px-2 text-xs",
-                    )}
-                  >
-                    1
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-slate-800 font-semibold",
-                      density === "compact" && "py-1 px-2 text-xs",
-                    )}
-                  >
-                    Saldo anterior
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-slate-400",
-                      density === "compact" && "py-1 px-2 text-xs",
-                    )}
-                  >
-                    -
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-right font-semibold font-mono tabular-nums",
-                      density === "compact" && "py-1 px-2 text-xs",
-                    )}
-                  >
-                    <span
-                      className="font-medium text-slate-500"
-                      title="Saldo anterior calculado automaticamente"
-                    >
-                      {formatCurrency(data.initialBalance)}
-                    </span>
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-right font-bold font-mono tabular-nums",
-                      density === "compact" && "py-1 px-2 text-xs",
-                      data.initialBalance >= 0
-                        ? "text-emerald-700"
-                        : "text-rose-600",
-                    )}
-                  >
-                    {formatCurrency(data.initialBalance)}
-                  </TableCell>
-                </TableRow>
-
-                {/* Transactions rows */}
-                {filteredTransactions.map((tx) => {
-                  const isPositive = tx.amount > 0;
-                  const isRunningPositive = (tx.runningBalance || 0) >= 0;
-                  const isProjected = tx.isProjected === true;
-                  const isInstallmentShadow =
-                    isProjected && tx.projectionSourceType === "installment";
-                  const isRecurringProjected =
-                    isProjected && !isInstallmentShadow;
-                  const saveCell = handleSaveCell;
-                  const isEditingDay =
-                    editingCell?.txId === tx.id && editingCell?.field === "day";
-                  const isEditingDesc =
-                    editingCell?.txId === tx.id &&
-                    editingCell?.field === "description";
-                  const isEditingCat =
-                    editingCell?.txId === tx.id &&
-                    editingCell?.field === "category";
-                  const isEditingAmount =
-                    editingCell?.txId === tx.id &&
-                    editingCell?.field === "amount";
-
-                  return (
-                    <TableRow
-                      key={tx.id}
-                      id={`tx-bank-${tx.id}`}
-                      className={cn(
-                        "transition-colors border-b group",
-                        density === "compact" ? "h-[34px]" : "h-12",
-                        tx.id === highlightedTxId
-                          ? "bg-amber-500/20 dark:bg-amber-500/30 ring-2 ring-amber-500/60 border-amber-400 animate-pulse"
-                          : isInstallmentShadow
-                            ? "bg-slate-50/50 hover:bg-slate-100/60 border-slate-100"
-                            : isRecurringProjected
-                              ? "bg-amber-50/20 hover:bg-amber-50/40 border-dashed border-slate-200"
-                              : "hover:bg-slate-50 border-slate-100",
-                      )}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenu({ tx, x: e.clientX, y: e.clientY });
-                      }}
-                      onDoubleClick={() => !tx.isProjected && setDetailTx(tx)}
-                    >
-                      {/* Dia Cell */}
-                      <TableCell
-                        className={cn(
-                          "text-center px-2",
-                          density === "compact" && "py-0.5 text-xs",
-                          !isEditingDay ? "cursor-pointer" : "",
-                        )}
-                        onClick={() =>
-                          !isEditingDay && handleStartCellEdit(tx, "day")
-                        }
-                      >
-                        {isEditingDay ? (
-                          <Input
-                            type="text"
-                            maxLength={2}
-                            value={tempValue}
-                            onChange={(e) => setTempValue(e.target.value)}
-                            onBlur={() => {
-                              if (isNavigatingRef.current) return;
-                              saveCell(tx);
-                            }}
-                            onKeyDown={(e) => handleCellKeyDown(e, tx, "day")}
-                            className={cn(
-                              "w-full px-1 text-center font-mono",
-                              density === "compact"
-                                ? "h-6 text-xs"
-                                : "h-8 text-sm",
-                            )}
-                            autoFocus
-                          />
-                        ) : (
-                          <span
-                            onClick={() => handleStartCellEdit(tx, "day")}
-                            className="cursor-pointer inline-block w-full text-center"
-                            title={
-                              isProjected
-                                ? "Clique para confirmar com este dia"
-                                : "Clique para editar o dia"
-                            }
-                          >
-                            {tx.day}
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Descrição Cell */}
-                      <TableCell
-                        className={cn(
-                          density === "compact" ? "py-0.5 px-2" : "",
-                          !isEditingDesc && !isInstallmentShadow
-                            ? "cursor-pointer"
-                            : "",
-                        )}
-                        onClick={() =>
-                          !isEditingDesc &&
-                          !isInstallmentShadow &&
-                          handleStartCellEdit(tx, "description")
-                        }
-                      >
-                        {isEditingDesc ? (
-                          <Input
-                            type="text"
-                            value={tempValue}
-                            onChange={(e) => setTempValue(e.target.value)}
-                            onBlur={() => {
-                              if (isNavigatingRef.current) return;
-                              saveCell(tx);
-                            }}
-                            onKeyDown={(e) =>
-                              handleCellKeyDown(e, tx, "description")
-                            }
-                            className={cn(
-                              "w-full",
-                              density === "compact"
-                                ? "h-7 text-xs px-2"
-                                : "text-sm",
-                            )}
-                            autoFocus
-                          />
-                        ) : (
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5 border border-transparent rounded truncate",
-                              density === "compact"
-                                ? "h-7 px-1.5 text-xs"
-                                : "h-9 px-3 text-sm",
-                              isInstallmentShadow
-                                ? "cursor-default text-slate-600"
-                                : isRecurringProjected
-                                  ? "cursor-pointer text-amber-700 font-medium"
-                                  : "cursor-pointer text-slate-800",
-                            )}
-                            title={
-                              isInstallmentShadow
-                                ? "Lançamento automático (edite a original para alterar)"
-                                : isRecurringProjected
-                                  ? "Projeção recorrente — clique para confirmar com edição"
-                                  : "Clique para editar ou dê duplo clique para ver detalhes"
-                            }
-                          >
-                            <span className="truncate">{tx.description}</span>
-                            {tx.tags && tx.tags.length > 0 && (
-                              <span
-                                className="inline-flex items-center gap-0.5 px-1 py-px rounded text-2xs font-medium bg-muted text-muted-foreground border border-border shrink-0 max-w-[90px] truncate"
-                                title={`Tags: ${tx.tags.map((t) => `#${t.name}`).join(", ")}`}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                <span className="truncate">
-                                  #{tx.tags[0].name}
-                                </span>
-                                {tx.tags.length > 1 && (
-                                  <span className="text-2xs text-muted-foreground shrink-0">
-                                    +{tx.tags.length - 1}
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                            {isRecurringProjected && (
-                              <span title="Gasto recorrente projetado">
-                                <Repeat className="w-3 h-3 text-amber-500 shrink-0" />
-                              </span>
-                            )}
-                            {tx.linkedTransactionId && (
-                              <span
-                                title={
-                                  tx.linkedAccountName
-                                    ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
-                                    : "Transferência vinculada"
-                                }
-                                className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded bg-blue-50/80 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 font-medium text-2xs"
-                              >
-                                <span className="tracking-tight">
-                                  {tx.linkedAccountName
-                                    ? tx.amount < 0
-                                      ? `→ ${tx.linkedAccountName}`
-                                      : `← ${tx.linkedAccountName}`
-                                    : tx.amount < 0
-                                      ? "→"
-                                      : "←"}
-                                </span>
-                              </span>
-                            )}
-                            {isProjected && tx.projectedInstallmentCurrent && (
-                              <span className="ml-1 text-sm text-slate-400 not-italic shrink-0">
-                                {tx.projectedInstallmentCurrent}/
-                                {tx.projectedInstallmentTotal}
-                              </span>
-                            )}
-                            {isProjected &&
-                              tx.projectionSourceType != null &&
-                              tx.projectionSourceType !== "installment" && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleConfirmProjected(tx);
-                                  }}
-                                  title="Confirmar pagamento deste lançamento previsto"
-                                  className="ml-1.5 inline-flex items-center gap-0.5 text-2xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-1.5 py-0.5 rounded transition-colors"
-                                >
-                                  <Check className="w-2.5 h-2.5" />
-                                  <span>Confirmar</span>
-                                </button>
-                              )}
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Categoria Cell */}
-                      <TableCell
-                        className={cn(
-                          "text-center px-1",
-                          density === "compact" && "py-0.5",
-                        )}
-                      >
-                        <CategoryPicker
-                          ref={isEditingCat ? categoryPickerRef : undefined}
-                          categories={categories}
-                          value={tx.categoryId}
-                          categoryName={tx.categoryName}
-                          categoryColor={tx.categoryColor}
-                          parentCategoryId={tx.parentCategoryId}
-                          parentCategoryName={tx.parentCategoryName}
-                          onSelect={(newCatId) =>
-                            handleSelectCategory(tx, newCatId)
-                          }
-                          onFocus={() => {
-                            if (
-                              !isProjected &&
-                              !isInstallmentShadow &&
-                              !isEditingCat
-                            ) {
-                              handleStartCellEdit(tx, "category");
-                            }
-                          }}
-                          onKeyDown={(e) =>
-                            isEditingCat && handleCellKeyDown(e, tx, "category")
-                          }
-                          tabIndex={isEditingCat ? 0 : -1}
-                        />
-                      </TableCell>
-
-                      {/* Valor Cell */}
-                      <TableCell
-                        className={cn(
-                          "text-right font-semibold font-mono tabular-nums",
-                          density === "compact" ? "py-0.5 px-2 text-xs" : "",
-                          !isEditingAmount && !isInstallmentShadow
-                            ? "cursor-pointer"
-                            : "",
-                        )}
-                        onClick={() =>
-                          !isEditingAmount &&
-                          !isInstallmentShadow &&
-                          handleStartCellEdit(tx, "amount")
-                        }
-                      >
-                        {isEditingAmount ? (
-                          <CurrencyInput
-                            value={tempValue}
-                            onChangeValue={setTempValue}
-                            allowNegative={true}
-                            onBlur={() => {
-                              if (isNavigatingRef.current) return;
-                              saveCell(tx);
-                            }}
-                            onKeyDown={(e) =>
-                              handleCellKeyDown(e, tx, "amount")
-                            }
-                            className={cn(
-                              "w-full",
-                              density === "compact" ? "h-7 text-xs" : "text-sm",
-                            )}
-                            autoFocus
-                          />
-                        ) : (
-                          <span
-                            className={cn(
-                              "relative text-xs w-full flex items-center justify-end font-mono tabular-nums border rounded",
-                              density === "compact" ? "py-0.5 px-1" : "p-1.5",
-                              isInstallmentShadow
-                                ? "border-transparent text-slate-600 cursor-default"
-                                : isRecurringProjected
-                                  ? "border-amber-500/50 text-amber-600 font-medium hover:bg-amber-50 cursor-pointer"
-                                  : `border-transparent cursor-pointer hover:bg-slate-100/60 ${isPositive ? "text-emerald-600" : "text-rose-600"}`,
-                            )}
-                            title={
-                              isInstallmentShadow
-                                ? "Lançamento automático"
-                                : isRecurringProjected
-                                  ? "Projeção recorrente — clique para confirmar com edição"
-                                  : "Clique para editar o valor"
-                            }
-                          >
-                            {formatCurrency(tx.amount)}
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Saldo Cell */}
-                      <TableCell
-                        className={cn(
-                          "text-right font-medium font-mono tabular-nums",
-                          density === "compact" ? "py-0.5 px-2 text-xs" : "",
-                          isRunningPositive
-                            ? "text-emerald-600"
-                            : "text-rose-600 font-bold",
-                          isProjected ? "opacity-60" : "",
-                        )}
-                      >
-                        {formatCurrency(tx.runningBalance || 0)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-
-                {/* Quick Add Row / Collapsible Trigger */}
-                {!isAdding ? (
-                  <TableRow
-                    className={cn(
-                      "hover:bg-slate-50/75 transition-colors border-t border-dashed border-slate-200",
-                      density === "compact" ? "h-8" : "h-10",
-                    )}
-                  >
-                    <TableCell
-                      colSpan={5}
-                      className={cn(
-                        density === "compact" ? "py-1 px-4" : "py-2 px-4",
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setIsAdding(true)}
-                        className="group inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors py-1 px-2 rounded-md hover:bg-slate-100"
-                      >
-                        <span className="flex items-center justify-center w-5 h-5 rounded-md border border-slate-200 bg-white group-hover:border-slate-300 group-hover:bg-slate-50 text-slate-500 group-hover:text-slate-900 transition-colors shadow-2xs">
-                          <Plus className="w-3 h-3" />
-                        </span>
-                        <span>Novo lançamento</span>
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  <TableRow
-                    className={cn(
-                      "bg-slate-50/90 border-t-2 border-indigo-200 animate-in fade-in duration-150",
-                      density === "compact" ? "h-9" : "h-12",
-                    )}
-                  >
-                    <TableCell
-                      className={cn(
-                        "text-center px-1",
-                        density === "compact" && "py-1",
-                      )}
-                    >
-                      <Input
-                        ref={newDayInputRef}
-                        type="text"
-                        maxLength={2}
-                        placeholder="Dia"
-                        value={newDay}
-                        onChange={(e) => setNewDay(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAddTransaction(e);
-                          if (e.key === "Escape") handleCancelAdd();
-                        }}
-                        className={cn(
-                          "w-full text-center font-mono bg-white",
-                          density === "compact" ? "h-7 text-xs" : "h-8 text-sm",
-                        )}
-                        required
-                      />
-                    </TableCell>
-                    <TableCell
-                      className={cn("px-2", density === "compact" && "py-1")}
-                    >
-                      <Input
-                        type="text"
-                        placeholder="Descrição"
-                        value={newDescription}
-                        onChange={(e) => setNewDescription(e.target.value)}
-                        className={cn(
-                          "w-full bg-white",
-                          density === "compact" ? "h-7 text-xs" : "h-8 text-sm",
-                        )}
-                        required
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAddTransaction(e);
-                          if (e.key === "Escape") handleCancelAdd();
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-center px-1",
-                        density === "compact" && "py-1",
-                      )}
-                    >
-                      <CategoryPicker
-                        categories={categories}
-                        value={
-                          newCategoryId === "" ? null : Number(newCategoryId)
-                        }
-                        onSelect={(catId) =>
-                          setNewCategoryId(catId !== null ? catId : "")
-                        }
-                        tabIndex={0}
-                      />
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right px-2",
-                        density === "compact" && "py-1",
-                      )}
-                    >
-                      <CurrencyInput
-                        placeholder="0,00"
-                        value={newAmount}
-                        onChangeValue={setNewAmount}
-                        allowNegative={true}
-                        className={cn(
-                          "w-full bg-white",
-                          density === "compact" ? "h-7 text-xs" : "h-8 text-sm",
-                        )}
-                        required
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAddTransaction(e);
-                          if (e.key === "Escape") handleCancelAdd();
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right pr-4",
-                        density === "compact" && "py-1",
-                      )}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          onClick={() => handleAddTransaction()}
-                          disabled={
-                            isSubmitting ||
-                            !newDescription.trim() ||
-                            !newAmount ||
-                            newAmount === "-"
-                          }
-                          size="icon"
-                          className={cn(
-                            "flex",
-                            density === "compact" ? "h-6 w-6" : "h-7 w-7",
-                          )}
-                          title="Salvar lançamento (Enter)"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={handleCancelAdd}
-                          size="icon"
-                          className={cn(
-                            "flex text-slate-400 hover:text-slate-600 hover:bg-slate-200/60",
-                            density === "compact" ? "h-6 w-6" : "h-7 w-7",
-                          )}
-                          title="Cancelar (Esc)"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="text-right">
+            <Eyebrow as="p">{isCard ? "Fatura" : "Saldo"}</Eyebrow>
+            {isCard ? (
+              <Money
+                value={data.totalExpense}
+                className="text-base font-semibold"
+              />
+            ) : (
+              <Money
+                value={data.finalBalance}
+                tone="balance"
+                className="text-base font-semibold"
+              />
+            )}
           </div>
+          {onToggleExpanded && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Fechar ${name}`}
+              onClick={onToggleExpanded}
+              className="-mr-1.5 size-7 text-mut hover:text-ink"
+            >
+              <X className="size-4" />
+            </Button>
+          )}
         </div>
-      )}
+
+        <div className="flex flex-wrap items-center gap-1.5 text-2xs text-mut">
+          {!isCard && (
+            <>
+              <span
+                className="flex items-center gap-1"
+                title="Total de Entradas"
+              >
+                Entradas <Money value={data.totalIncome} />
+              </span>
+              <span className="flex items-center gap-1" title="Total de Saídas">
+                Saídas <Money value={-Math.abs(data.totalExpense)} />
+              </span>
+            </>
+          )}
+          {isCard &&
+            !billPaid &&
+            data.totalExpense > 0 &&
+            data.account.defaultPaymentAccountId && (
+              <Button
+                variant="accent"
+                size="sm"
+                onClick={handlePayBill}
+                disabled={isPayingBill}
+                title="Registrar pagamento da fatura na conta bancária vinculada"
+                className="h-6 gap-1 px-2 text-2xs"
+              >
+                <Check className="size-3" />
+                {isPayingBill ? "Pagando..." : "Pagar fatura"}
+              </Button>
+            )}
+          <span className="ml-auto flex items-center gap-1">
+            {hasActiveFilter && (
+              <Tag>
+                {filteredTransactions.length} de {data.transactions.length}{" "}
+                lançamentos
+              </Tag>
+            )}
+            {data.account.pluggyAccountId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSyncPluggy?.(data.account.id)}
+                title={
+                  isCard
+                    ? "Atualizar fatura via Pluggy"
+                    : "Atualizar lançamentos via Pluggy"
+                }
+                aria-label={
+                  isCard
+                    ? "Atualizar fatura via Pluggy"
+                    : "Atualizar lançamentos via Pluggy"
+                }
+                className="size-6 text-mut hover:text-ink"
+              >
+                <RefreshCw className="size-3.5" />
+              </Button>
+            )}
+            {onOpenDuplicates && (
+              <button
+                type="button"
+                onClick={() => onOpenDuplicates(data.account.id)}
+                title={
+                  duplicateStats.hasDuplicates
+                    ? `Identificar duplicadas (${duplicateStats.groupsCount} grupo(s) identificado(s))`
+                    : "Identificar transações duplicadas nesta conta"
+                }
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-1.5 py-px text-2xs font-medium transition-colors duration-(--dur-fast)",
+                  duplicateStats.hasDuplicates
+                    ? "bg-caution-soft text-caution-ink"
+                    : "text-mut hover:bg-hover hover:text-ink",
+                )}
+              >
+                <Copy className="size-3" />
+                {duplicateStats.hasDuplicates
+                  ? `${duplicateStats.groupsCount} duplicada${duplicateStats.groupsCount > 1 ? "s" : ""}`
+                  : "Duplicadas"}
+              </button>
+            )}
+          </span>
+        </div>
+      </header>
+
+      <div className="flex flex-col">
+        {!isCard && (
+          <div className="flex items-center justify-between px-4 py-1.5 text-xs text-mut">
+            <span title="Saldo anterior calculado automaticamente">
+              Saldo anterior
+            </span>
+            <Money value={data.initialBalance} tone="balance" />
+          </div>
+        )}
+
+        {emptyText && (
+          <p className="px-4 py-6 text-center text-xs text-mut">{emptyText}</p>
+        )}
+
+        {!isCard &&
+          dayGroups(filteredTransactions).map((g, i) => (
+            <div key={`${g.day}-${i}`} className="border-t border-line">
+              {groupHeader(
+                fmtDateWeekday(
+                  `${g.txs[0].month || month}-${String(g.day).padStart(2, "0")}`,
+                ),
+                <span data-day-balance className="text-2xs">
+                  <Money value={g.endBalance} tone="balance" />
+                </span>,
+              )}
+              {g.txs.map(bankRow)}
+            </div>
+          ))}
+
+        {isCard &&
+          cardGroups.map((g, i) => (
+            <div key={`${g.key}-${i}`} className="border-t border-line">
+              {groupHeader(g.key)}
+              {g.items.map(cardRow)}
+            </div>
+          ))}
+
+        <div className="border-t border-dashed border-line px-4 py-1.5">
+          {!isAdding ? (
+            <button
+              type="button"
+              onClick={() => setIsAdding(true)}
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-mut transition-colors duration-(--dur-fast) hover:bg-hover hover:text-ink"
+            >
+              <Plus className="size-3.5" />
+              {isCard ? "Nova despesa" : "Novo lançamento"}
+            </button>
+          ) : (
+            <div
+              className={cn(
+                "grid items-center gap-x-2 gap-y-1",
+                isCard
+                  ? "grid-cols-[1fr_3.5rem_6.5rem]"
+                  : "grid-cols-[2.5rem_1fr_6.5rem]",
+              )}
+            >
+              {!isCard && (
+                <Input
+                  ref={newDayInputRef}
+                  type="text"
+                  maxLength={2}
+                  placeholder="Dia"
+                  value={newDay}
+                  onChange={(e) => setNewDay(e.target.value)}
+                  onKeyDown={quickAddKeys}
+                  className={cn("w-full px-1 text-center font-mono", inputH)}
+                  required
+                />
+              )}
+              <Input
+                ref={isCard ? newDescInputRef : undefined}
+                type="text"
+                placeholder="Descrição"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                onKeyDown={quickAddKeys}
+                className={cn("w-full", inputH)}
+                required
+              />
+              {isCard && (
+                <Input
+                  type="text"
+                  placeholder="1/10"
+                  title="Parcela (ex: 1/10)"
+                  value={newInstallment}
+                  onChange={(e) => setNewInstallment(e.target.value)}
+                  onKeyDown={quickAddKeys}
+                  className={cn("w-full px-1 text-center font-mono", inputH)}
+                />
+              )}
+              <CategoryPicker
+                categories={categories}
+                value={newCategoryId === "" ? null : Number(newCategoryId)}
+                onSelect={(catId) =>
+                  setNewCategoryId(catId !== null ? catId : "")
+                }
+                tabIndex={0}
+              />
+              <div
+                className={cn(
+                  "flex items-center gap-1",
+                  isCard ? "col-span-3" : "col-span-3",
+                )}
+              >
+                <CurrencyInput
+                  placeholder="0,00"
+                  value={newAmount}
+                  onChangeValue={setNewAmount}
+                  allowNegative={!isCard}
+                  onKeyDown={quickAddKeys}
+                  className={cn("w-full", inputH)}
+                  required
+                />
+                <Button
+                  onClick={() => handleAddTransaction()}
+                  disabled={!canSave}
+                  size="icon"
+                  className="size-7 shrink-0"
+                  title={
+                    isCard
+                      ? "Salvar despesa (Enter)"
+                      : "Salvar lançamento (Enter)"
+                  }
+                >
+                  <Check className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleCancelAdd}
+                  size="icon"
+                  className="size-7 shrink-0 text-mut hover:text-ink"
+                  title="Cancelar (Esc)"
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {contextMenu && (
         <TransactionContextMenu
           tx={contextMenu.tx}
@@ -1807,12 +1000,16 @@ export default function AccountColumn({
             handleDismissProjected(tx);
             setContextMenu(null);
           }}
-          onTransfer={(tx) => {
-            setTransferTxId(tx.id);
-            setContextMenu(null);
-          }}
+          onTransfer={
+            isCard
+              ? null
+              : (tx) => {
+                  setTransferTxId(tx.id);
+                  setContextMenu(null);
+                }
+          }
           onDelete={(tx) => {
-            handleDelete(tx.id, !!tx.linkedTransactionId);
+            handleDelete(tx.id, !isCard && !!tx.linkedTransactionId);
             setContextMenu(null);
           }}
         />
@@ -1832,17 +1029,24 @@ export default function AccountColumn({
         />
       )}
 
-      {transferTxId && (
-        <div className="fixed inset-0 bg-black/20 z-50 flex items-center justify-center">
-          <div className="bg-white p-5 rounded-xl shadow-2xl w-80 flex flex-col gap-4 animate-in fade-in zoom-in-95">
-            <h4 className="text-lg font-semibold text-slate-800">
-              Transferência
-            </h4>
-            <p className="text-sm text-slate-500">
+      {!isCard && (
+        <Dialog
+          open={transferTxId != null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setTransferTxId(null);
+              setTransferTargetId(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogTitle>Transferência</DialogTitle>
+            <DialogDescription>
               Selecione a conta destino para criar a transação correspondente.
-            </p>
+            </DialogDescription>
             <select
-              className="w-full h-10 border border-slate-300 rounded-md px-3 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden"
+              aria-label="Conta destino"
+              className="mt-4 h-10 w-full rounded-md border border-line bg-tile px-3 text-sm text-ink outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
               value={transferTargetId || ""}
               onChange={(e) => setTransferTargetId(Number(e.target.value))}
             >
@@ -1855,7 +1059,7 @@ export default function AccountColumn({
                   </option>
                 ))}
             </select>
-            <div className="flex gap-3 justify-end mt-2">
+            <div className="mt-5 flex justify-end gap-2">
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -1869,9 +1073,9 @@ export default function AccountColumn({
                 Confirmar
               </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
-    </Card>
+    </Tile>
   );
 }
