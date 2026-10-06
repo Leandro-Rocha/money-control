@@ -14,9 +14,12 @@ function setup(over: Partial<CashflowToolbarProps> = {}) {
     month: "2026-01",
     monthLabel: "Janeiro de 2026",
     onMonthChange: vi.fn(),
-    income: 5000,
-    expense: 1234.56,
-    balance: -200,
+    indicators: [
+      { label: "Saldo em contas hoje", value: 850, tone: "balance" },
+      { label: "Faturas do mês", value: 1234.56, tone: "neutral" },
+      { label: "Entradas no mês", value: 5000, tone: "neutral" },
+      { label: "Fim do mês previsto", value: -200, tone: "balance" },
+    ],
     projectionState: "none",
     uncategorizedCount: 0,
     onOpenTriage: vi.fn(),
@@ -48,10 +51,17 @@ describe("CashflowToolbar", () => {
     expect(screen.queryByRole("button", { name: "Mês atual" })).toBeNull();
   });
 
-  it("saídas entre parênteses e balanço negativo em vermelho", () => {
+  it("mostra os 4 indicadores; saldo negativo em vermelho, fatura sem cor", () => {
     setup();
-    expect(screen.getByText(/\(1\.234,56/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Extrato" })).toBeInTheDocument();
+    for (const l of ["Saldo em contas hoje", "Faturas do mês", "Entradas no mês", "Fim do mês previsto"]) expect(screen.getByText(l)).toBeInTheDocument();
     expect(screen.getByText(/\(200,00/)).toHaveClass("text-negative");
+    expect(screen.getByText(/1\.234,56/)).not.toHaveClass("text-negative");
+  });
+
+  it("legenda dos estados", () => {
+    setup();
+    for (const l of ["realizado", "previsto", "atrasado"]) expect(screen.getByText(l)).toBeInTheDocument();
   });
 
   it("triagem só com lançamentos sem categoria; ações do mês chamam os modais", () => {

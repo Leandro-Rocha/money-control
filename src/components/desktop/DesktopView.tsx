@@ -18,6 +18,8 @@ import { ReviewView } from "../forecast/ReviewView";
 import { DueDatesTimelineWidget } from "../DueDatesTimelineWidget";
 import { DashboardState } from "@/hooks/useDashboard";
 import { cn } from "@/lib/utils";
+import { cashflowIndicators } from "@/lib/cashflow/indicators";
+import { localToday } from "@/lib/forecast/dates";
 
 export function DesktopView(state: DashboardState) {
   const {
@@ -60,10 +62,6 @@ export function DesktopView(state: DashboardState) {
     allAccounts,
     allCategories,
     globalIncome,
-    globalExpense,
-    globalBalance,
-    totalBankBalance,
-    totalCreditCardExpense,
   } = state;
 
   return (
@@ -91,53 +89,19 @@ export function DesktopView(state: DashboardState) {
             month={currentMonth}
             monthLabel={data.monthLabel}
             onMonthChange={loadMonth}
-            income={globalIncome}
-            expense={globalExpense}
-            balance={globalBalance}
+            indicators={cashflowIndicators({
+              month: currentMonth,
+              today: localToday(),
+              banks: bankAccounts,
+              cards: creditCards,
+              income: globalIncome,
+            })}
             projectionState={data.projectionState}
             uncategorizedCount={uncategorizedCount}
             onOpenTriage={() => setTriageOpen(true)}
             onOpenTransfers={() => setTransfersOpen(true)}
             onOpenImport={() => handleOpenImport()}
           />
-          {/* KPI da Posição Financeira ("Quanto dinheiro eu tenho?") */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="bg-card text-card-foreground p-3.5 rounded-xl border border-border flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <Wallet className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground font-medium">Saldo em Contas</div>
-                  <div className={`text-lg font-bold font-mono tabular-nums privacy-sensitive ${totalBankBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                    {formatCurrency(totalBankBalance)}
-                  </div>
-                </div>
-              </div>
-              <span className="text-2xs text-muted-foreground font-medium">
-                {bankAccounts.length} {bankAccounts.length === 1 ? "conta" : "contas"}
-              </span>
-            </div>
-
-            <div className="bg-card text-card-foreground p-3.5 rounded-xl border border-border flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                  <CreditCard className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground font-medium">Faturas de Cartão</div>
-                  <div className="text-lg font-bold font-mono tabular-nums privacy-sensitive text-rose-600 dark:text-rose-400">
-                    {formatCurrency(totalCreditCardExpense)}
-                  </div>
-                </div>
-              </div>
-              <span className="text-2xs text-muted-foreground font-medium">
-                {creditCards.length} {creditCards.length === 1 ? "cartão" : "cartões"}
-              </span>
-            </div>
-
-          </div>
-
           {/* Agenda Sequencial de Vencimentos */}
           <DueDatesTimelineWidget
             month={currentMonth}

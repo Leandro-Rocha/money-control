@@ -3,7 +3,9 @@
 import { ArrowRightLeft, ChevronLeft, ChevronRight, ListFilter, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
+import { StatusDot } from "@/components/ui/status-dot";
 import { Tag } from "@/components/ui/tag";
+import type { Indicator } from "@/lib/cashflow/indicators";
 import { addMonths, currentMonth } from "@/lib/date-helpers";
 import type { ProjectionState } from "@/lib/types";
 
@@ -16,9 +18,7 @@ export interface CashflowToolbarProps {
   month: string;
   monthLabel: string;
   onMonthChange: (m: string) => void;
-  income: number;
-  expense: number;
-  balance: number;
+  indicators: Indicator[];
   projectionState: ProjectionState;
   uncategorizedCount: number;
   onOpenTriage: () => void;
@@ -30,9 +30,7 @@ export function CashflowToolbar({
   month,
   monthLabel,
   onMonthChange,
-  income,
-  expense,
-  balance,
+  indicators,
   projectionState,
   uncategorizedCount,
   onOpenTriage,
@@ -44,6 +42,7 @@ export function CashflowToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <h1 className="text-lg font-semibold text-ink">Extrato</h1>
       <div className="flex items-center gap-2">
         <div className="flex items-center rounded-lg bg-tile p-0.5 shadow-tile">
           <Button variant="ghost" size="icon" aria-label="Mês anterior" onClick={() => onMonthChange(addMonths(month, -1))} className="size-7 text-mut hover:text-ink">
@@ -62,20 +61,30 @@ export function CashflowToolbar({
         {projection && <Tag variant="projected">{projection}</Tag>}
       </div>
 
-      <dl className="flex items-baseline gap-4 text-sm">
-        <div className="flex items-baseline gap-1.5">
-          <dt className="text-xs text-mut">Entradas</dt>
-          <dd><Money value={income} /></dd>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <dt className="text-xs text-mut">Saídas</dt>
-          <dd><Money value={-Math.abs(expense)} /></dd>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <dt className="text-xs text-mut">Balanço</dt>
-          <dd><Money value={balance} tone="balance" className="font-semibold" /></dd>
-        </div>
+      <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
+        {indicators.map((i) => (
+          <div key={i.label} className="flex flex-col">
+            <dt className="text-2xs text-mut">{i.label}</dt>
+            <dd>
+              <Money value={i.value} tone={i.tone} className="font-semibold" />
+            </dd>
+          </div>
+        ))}
       </dl>
+      <ul aria-label="Legenda" className="flex items-center gap-3 text-2xs text-mut">
+        <li className="flex items-center gap-1.5">
+          <StatusDot status="realized" />
+          realizado
+        </li>
+        <li className="flex items-center gap-1.5">
+          <StatusDot status="projected" />
+          previsto
+        </li>
+        <li className="flex items-center gap-1.5">
+          <StatusDot status="overdue" />
+          atrasado
+        </li>
+      </ul>
 
       <div className="ml-auto flex items-center gap-1.5">
         {uncategorizedCount > 0 && (
