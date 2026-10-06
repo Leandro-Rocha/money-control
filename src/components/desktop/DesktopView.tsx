@@ -48,10 +48,8 @@ export function DesktopView(state: DashboardState) {
     filterHighValue,
     setFilterHighValue,
     allTags,
-    expandedMap,
-    handleToggleExpanded,
-    handleExpandAll,
-    handleCollapseAll,
+    openAccountIds,
+    closeAccountColumn,
     tableDensity,
     setTableDensity,
     loadWealth,
@@ -248,105 +246,33 @@ export function DesktopView(state: DashboardState) {
             );
           })()}
 
-          {/* Main Layout Area */}
-          <div className="flex flex-col xl:flex-row gap-5 items-start flex-1">
-            {/* Left / Center: Columns for Bank Accounts & Credit Cards */}
-            <div className="flex-1 w-full flex flex-col md:flex-row gap-5 items-start">
-              {/* Bank Accounts Pillar */}
-              <div className="flex-1 w-full flex flex-col gap-3">
-                <div className="flex items-center justify-between px-1 text-xs text-muted-foreground font-medium">
-                  <span>Contas Correntes ({bankAccounts.length})</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleExpandAll(bankAccounts.map((a) => a.account.id))}
-                      className="hover:text-foreground transition-colors hover:underline"
-                    >
-                      Expandir todas
-                    </button>
-                    <span>·</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCollapseAll(bankAccounts.map((a) => a.account.id))}
-                      className="hover:text-foreground transition-colors hover:underline"
-                    >
-                      Recolher todas
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-5">
-                  {bankAccounts.map((accData) => (
-                    <AccountColumn variant="bank"
-                      key={accData.account.id}
-                      data={accData}
-                      month={currentMonth}
-                      categories={allCategories}
-                      allAccounts={allAccounts}
-                      onRefresh={refreshCurrentMonth}
-                      onSyncPluggy={(accId) => handleOpenImport(accId, true)}
-                      onOpenDuplicates={handleOpenDuplicates}
-                      filterText={filterText}
-                      filterCategoryId={filterCategoryId}
-                      filterHighValue={filterHighValue}
-                      availableTags={allTags}
-                      isExpanded={expandedMap[accData.account.id] !== undefined ? expandedMap[accData.account.id] : true}
-                      onToggleExpanded={() => handleToggleExpanded(accData.account.id)}
-                      highlightedTxId={highlightedTxId}
-                      density={tableDensity}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Credit Cards Pillar */}
-              <div className="flex-1 w-full flex flex-col gap-3">
-                <div className="flex items-center justify-between px-1 text-xs text-muted-foreground font-medium">
-                  <span>Cartões de Crédito ({creditCards.length})</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleExpandAll(creditCards.map((a) => a.account.id))}
-                      className="hover:text-foreground transition-colors hover:underline"
-                    >
-                      Expandir todos
-                    </button>
-                    <span>·</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCollapseAll(creditCards.map((a) => a.account.id))}
-                      className="hover:text-foreground transition-colors hover:underline"
-                    >
-                      Recolher todos
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-5">
-                  {creditCards.map((accData) => (
-                    <AccountColumn variant="card"
-                      key={accData.account.id}
-                      data={accData}
-                      month={currentMonth}
-                      categories={allCategories}
-                      allAccounts={allAccounts}
-                      allAccountsData={data.accountsData}
-                      onRefresh={refreshCurrentMonth}
-                      onSyncPluggy={(accId) => handleOpenImport(accId, true)}
-                      onOpenDuplicates={handleOpenDuplicates}
-                      filterText={filterText}
-                      filterCategoryId={filterCategoryId}
-                      filterHighValue={filterHighValue}
-                      availableTags={allTags}
-                      isExpanded={expandedMap[accData.account.id] !== undefined ? expandedMap[accData.account.id] : true}
-                      onToggleExpanded={() => handleToggleExpanded(accData.account.id)}
-                      highlightedTxId={highlightedTxId}
-                      density={tableDensity}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* Colunas abertas (provisório até a tela nova do extrato) */}
+          <div className="flex items-start gap-5">
+            {openAccountIds
+              .map((id) => data.accountsData.find((ad) => ad.account.id === id))
+              .filter((ad): ad is NonNullable<typeof ad> => ad != null)
+              .map((accData) => (
+                <AccountColumn
+                  key={accData.account.id}
+                  variant={accData.account.type === "credit_card" ? "card" : "bank"}
+                  data={accData}
+                  month={currentMonth}
+                  categories={allCategories}
+                  allAccounts={allAccounts}
+                  allAccountsData={data.accountsData}
+                  onRefresh={refreshCurrentMonth}
+                  onSyncPluggy={(accId) => handleOpenImport(accId, true)}
+                  onOpenDuplicates={handleOpenDuplicates}
+                  filterText={filterText}
+                  filterCategoryId={filterCategoryId}
+                  filterHighValue={filterHighValue}
+                  availableTags={allTags}
+                  isExpanded
+                  onToggleExpanded={() => closeAccountColumn(accData.account.id)}
+                  highlightedTxId={highlightedTxId}
+                  density={tableDensity}
+                />
+              ))}
           </div>
         </>
       ) : viewMode === "wealth" ? (

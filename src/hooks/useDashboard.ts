@@ -10,6 +10,9 @@ import { getForecastAction, type ForecastPayload } from "@/lib/actions/forecast"
 import type { SettingsTab } from "@/components/SettingsDrawer";
 
 import { DEFAULT_VIEW, parseViewMode, type ViewMode } from "@/lib/view-mode";
+import { closeAccount, openAccount, parseSelection, selectAccount } from "@/lib/cashflow/selection";
+
+const SELECTION_KEY = "money_control_expanded_accounts";
 
 export { VIEW_MODES, DEFAULT_VIEW, parseViewMode, type ViewMode } from "@/lib/view-mode";
 export type AccountTypeCreation = "bank_account" | "credit_card" | "investment" | "financing" | "loan_receivable" | null;
@@ -127,50 +130,33 @@ export function useDashboard(
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Persisted card expansion state
-  const [expandedMap, setExpandedMap] = useState<Record<number, boolean>>({});
+  // Contas abertas como coluna no extrato (1 a 3); salvo como lista de ids.
+  const accountIdsKey = data.accountsData.map((a) => a.account.id).join(",");
+  const [openAccountIds, setOpenAccountIds] = useState<number[]>([]);
 
   useEffect(() => {
+    const ids = accountIdsKey ? accountIdsKey.split(",").map(Number) : [];
+    let raw: string | null = null;
     try {
-      const saved = localStorage.getItem("money_control_expanded_accounts");
-      if (saved) {
-        setExpandedMap(JSON.parse(saved));
-      }
+      raw = localStorage.getItem(SELECTION_KEY);
     } catch {}
+    setOpenAccountIds(parseSelection(raw, ids));
+  }, [accountIdsKey]);
+
+  const updateOpenAccounts = useCallback((f: (sel: number[]) => number[]) => {
+    setOpenAccountIds((prev) => {
+      const next = f(prev);
+      try {
+        localStorage.setItem(SELECTION_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   }, []);
-
-  const handleToggleExpanded = (accountId: number) => {
-    setExpandedMap((prev) => {
-      const isCurrentlyExpanded = prev[accountId] !== undefined ? prev[accountId] : true;
-      const next = { ...prev, [accountId]: !isCurrentlyExpanded };
-      try {
-        localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  const handleExpandAll = (accountIds: number[]) => {
-    setExpandedMap((prev) => {
-      const next = { ...prev };
-      accountIds.forEach((id) => { next[id] = true; });
-      try {
-        localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  const handleCollapseAll = (accountIds: number[]) => {
-    setExpandedMap((prev) => {
-      const next = { ...prev };
-      accountIds.forEach((id) => { next[id] = false; });
-      try {
-        localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
+  const selectAccountColumn = useCallback(
+    (id: number, additive: boolean) => updateOpenAccounts((s) => selectAccount(s, id, additive)),
+    [updateOpenAccounts],
+  );
+  const closeAccountColumn = useCallback((id: number) => updateOpenAccounts((s) => closeAccount(s, id)), [updateOpenAccounts]);
 
   // Persisted cash flow table density state ("compact" | "comfortable")
   const [tableDensity, setTableDensity] = useState<TableDensity>("compact");
@@ -290,14 +276,8 @@ export function useDashboard(
     (tx: GlobalSearchResultItem) => {
       setSearchOpen(false);
 
-      // Expand the account card
-      setExpandedMap((prev) => {
-        const next = { ...prev, [tx.accountId]: true };
-        try {
-          localStorage.setItem("money_control_expanded_accounts", JSON.stringify(next));
-        } catch {}
-        return next;
-      });
+      // Abre a conta como coluna
+      updateOpenAccounts((s) => openAccount(s, tx.accountId));
 
       // Highlight the transaction
       setHighlightedTxId(tx.id);
@@ -317,7 +297,7 @@ export function useDashboard(
         setHighlightedTxId((curr) => (curr === tx.id ? null : curr));
       }, 4000);
     },
-    [currentMonth, viewMode, loadMonth]
+    [currentMonth, viewMode, loadMonth, updateOpenAccounts]
   );
 
   useEffect(() => {
@@ -472,10 +452,9 @@ export function useDashboard(
     filterHighValue,
     setFilterHighValue,
     allTags,
-    expandedMap,
-    handleToggleExpanded,
-    handleExpandAll,
-    handleCollapseAll,
+    openAccountIds,
+    selectAccountColumn,
+    closeAccountColumn,
     tableDensity,
     setTableDensity: handleTableDensityChange,
     loadWealth,
