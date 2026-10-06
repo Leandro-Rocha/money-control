@@ -150,6 +150,9 @@
   --animate-shimmer: shimmer 1.4s linear infinite;
   --animate-live-pulse: live-pulse 2s var(--ease-out) infinite;
   --animate-grow-x: grow-x var(--dur-slow) var(--ease-out) both;
+  --animate-reveal-x: reveal-x 900ms var(--ease-out) both;
+  --animate-fade-in: fade-in var(--dur-slow) var(--ease-out) 500ms both;
+  --animate-slide-out: slide-out var(--dur) var(--ease-out) forwards;
 
   @keyframes tile-in {
     from {
@@ -177,6 +180,25 @@
   @keyframes grow-x {
     from {
       transform: scaleX(0);
+    }
+  }
+  @keyframes reveal-x {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes slide-out {
+    to {
+      opacity: 0;
+      transform: translateX(24px);
     }
   }
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);

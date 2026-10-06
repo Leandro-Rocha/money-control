@@ -49,3 +49,10 @@ describe("view transitions", () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^@]*::view-transition-group\(\*\)/);
   });
 });
+
+describe("animações do gráfico e das filas", () => {
+  it.each(["reveal-x", "fade-in", "slide-out"])("%s tem token e keyframes", (name) => {
+    expect(css).toContain(`--animate-${name}:`);
+    expect(css).toContain(`@keyframes ${name}`);
+  });
+});
