@@ -15,14 +15,18 @@ import { dateOf, diffDays, localToday } from "../forecast/dates";
 import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
 import { isSameInstallmentSeries } from "../installments-helpers";
 import { setTransactionTags } from "./tags";
+import { isAutoInvestSweepDescription } from "../staging-utils";
 
 export async function getMonthData(month: string): Promise<MonthData> {
   // 1. Fetch all real transactions for the month
-  const allTx = await db
-    .select()
-    .from(transactions)
-    .where(eq(transactions.month, month))
-    .orderBy(asc(transactions.day), asc(transactions.id));
+  // Aplicação/resgate automático da conta não é movimento real; fica fora do extrato
+  const allTx = (
+    await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.month, month))
+      .orderBy(asc(transactions.day), asc(transactions.id))
+  ).filter((t) => !isAutoInvestSweepDescription(t.originalDescription ?? t.description));
 
   const monthTxAccIds = Array.from(new Set(allTx.map((t) => t.accountId)));
 

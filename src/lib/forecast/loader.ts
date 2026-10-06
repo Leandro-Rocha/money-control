@@ -11,6 +11,7 @@ import {
   transactions,
 } from "@/db/schema";
 import { addMonths } from "../date-helpers";
+import { isAutoInvestSweepDescription } from "../staging-utils";
 import { getProjectedInstallments } from "../repositories/projections";
 import { addDays, localToday, monthOf } from "./dates";
 import { buildForecast, BASELINE_MONTHS } from "./engine";
@@ -95,6 +96,8 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
   const fTx: FTransaction[] = [];
   for (const t of txRows) {
     if (!activeIds.has(t.accountId)) continue;
+    // Aplicação/resgate automático: vai-e-volta que não mexe no saldo sacável
+    if (isAutoInvestSweepDescription(t.originalDescription ?? t.description)) continue;
     const reimbursable = t.isReimbursable === 1;
     // Despesas reembolsáveis antigas ainda pendentes precisam aparecer mesmo fora da janela.
     if (!bankIds.has(t.accountId) && t.month < fromMonth && !reimbursable) continue;

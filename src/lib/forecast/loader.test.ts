@@ -56,6 +56,19 @@ describe("forecast loader", () => {
     expect(r.events.find((e) => e.key.startsWith("rec:") && e.dueDate === "2026-10-10")).toMatchObject({ amount: -500 });
   });
 
+  it("ignora aplicação/resgate automático da conta", async () => {
+    await testDb.insert(transactions).values([
+      { id: 1, accountId: 1, month: "2026-09", day: 30, description: "Saldo", amount: 2000 },
+      { id: 2, accountId: 1, month: "2026-10", day: 1, description: "Saída APL APLIC AUT MAIS AP", amount: -1500 },
+      { id: 3, accountId: 1, month: "2026-10", day: 2, description: "Resgate RES APLIC AUT MAIS", amount: 300 },
+      { id: 4, accountId: 1, month: "2026-10", day: 3, description: "Rendimentos", originalDescription: "REND PAGO APLIC AUT MAIS", amount: 5 },
+    ]);
+
+    const r = await computeForecast({ today: "2026-10-05", horizonDays: 40, scenario: { includeBaseline: false } });
+
+    expect(r.starts[0]).toMatchObject({ computedBalance: 2005 });
+  });
+
   it("lê e grava configurações com padrão", async () => {
     expect((await getForecastSettings()).cushion).toBe(500);
     await saveForecastSettings({ cushion: 1000, horizonDays: 90 });
