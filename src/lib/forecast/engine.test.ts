@@ -270,7 +270,7 @@ describe("buildForecast — linha de base e faixas", () => {
     tx({ accountId: 1, month: "2026-09", day: 1, amount: 10000, categoryKind: "transfer" }),
   ];
 
-  it("usa a mediana de 3 meses, desconta o já realizado e distribui nos dias 7/14/21/28", () => {
+  it("usa a mediana de 3 meses, desconta o já realizado e lança uma linha no fim do mês", () => {
     const r = buildForecast(
       base({
         accounts: [bank(1)],
@@ -280,10 +280,10 @@ describe("buildForecast — linha de base e faixas", () => {
     );
     expect(r.baselines.find((b) => b.accountId === 1)).toMatchObject({ typical: -1000, worst: -1200 });
     const oct = r.events.filter((e) => e.band === "baseline" && e.source.month === "2026-10");
-    expect(oct.map((e) => e.date)).toEqual(["2026-10-07", "2026-10-14", "2026-10-21", "2026-10-28"]);
+    expect(oct.map((e) => e.date)).toEqual(["2026-10-31"]);
     expect(oct.reduce((s, e) => s + e.amount, 0)).toBeCloseTo(-600);
     const nov = r.events.filter((e) => e.band === "baseline" && e.source.month === "2026-11");
-    expect(nov.reduce((s, e) => s + e.amount, 0)).toBeCloseTo(-1000);
+    expect(nov.map((e) => [e.date, e.amount])).toEqual([["2026-11-30", -1000]]);
   });
 
   it("separa as faixas: otimista sem linha de base, pessimista com o pior mês e sem reembolsos", () => {

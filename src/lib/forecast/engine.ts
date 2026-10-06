@@ -1,5 +1,5 @@
 import { addMonths } from "../date-helpers";
-import { addDays, dateOf, dateRange, diffDays, monthOf } from "./dates";
+import { addDays, dateOf, dateRange, daysInMonth, diffDays, monthOf } from "./dates";
 import { amountClose, descriptionsMatch, median, occursInMonth, round2, significantTokens } from "./matching";
 import type {
   AccountStart,
@@ -23,8 +23,6 @@ import type {
 export const CARD_CLOSING_OFFSET_DAYS = 7;
 /** Meses completos usados na linha de base. */
 export const BASELINE_MONTHS = 3;
-/** Dias do mês em que a linha de base bancária é distribuída. */
-const BASELINE_DAYS = [7, 14, 21, 28];
 const EPS = 0.005;
 
 const txDate = (t: FTransaction) => dateOf(t.month, t.day);
@@ -639,28 +637,25 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     for (const m of months) {
       if (m < currentMonth) continue;
       const realized = m === currentMonth ? unplannedNet(id, m, today) : 0;
-      const days = BASELINE_DAYS.map((d) => dateOf(m, d)).filter((d) => d > today && d <= horizonEnd);
-      if (days.length === 0) continue;
-      const slots = m === currentMonth ? days.length : BASELINE_DAYS.length;
+      // Uma linha só, no último dia do mês: reserva para o que ainda deve sair sem aviso.
+      const d = dateOf(m, daysInMonth(m));
+      if (d < today || d > horizonEnd) continue;
       for (const [band, monthly] of [["baseline", b.typical], ["baselinePessimistic", b.worst]] as const) {
-        const remaining = remainderOf(monthly, realized);
+        const remaining = round2(remainderOf(monthly, realized));
         if (Math.abs(remaining) < EPS) continue;
-        const per = round2(remaining / slots);
-        for (const d of days) {
-          events.push({
-            key: `base:${band}:${id}:${d}`,
-            date: d,
-            dueDate: d,
-            accountId: id,
-            amount: per,
-            description: "Gasto típico não planejado",
-            kind: "baseline",
-            status: "pending",
-            band,
-            categoryId: null,
-            source: { type: "baseline", id: null, month: m },
-          });
-        }
+        events.push({
+          key: `base:${band}:${id}:${d}`,
+          date: d,
+          dueDate: d,
+          accountId: id,
+          amount: remaining,
+          description: "Gasto típico não planejado",
+          kind: "baseline",
+          status: "pending",
+          band,
+          categoryId: null,
+          source: { type: "baseline", id: null, month: m },
+        });
       }
     }
   }
