@@ -18,6 +18,7 @@ import { localToday, dayOf } from "@/lib/forecast/dates";
 import { parseNumberInput } from "@/lib/format";
 import type { ForecastEvent, SourceType } from "@/lib/forecast/types";
 import { KIND_LABEL, LoadingCard, Money, Section, fmtDate } from "./shared";
+import { countReviewPending } from "@/lib/forecast/review-count";
 
 const SOURCE_TYPES: SourceType[] = ["installment", "recurring", "credit_card_bill"];
 
@@ -47,13 +48,7 @@ export function ReviewView({ state }: { state: DashboardState }) {
   const bankAccounts = state.allAccounts.filter((a) => a.type === "bank_account" && a.isActive !== 0);
   const suggestions = data.recurringSuggestions.filter((s) => !hiddenSuggestions.has(`${s.accountId}|${s.description}`));
 
-  const total =
-    data.overdue.length +
-    data.discrepancies.length +
-    data.reimbursementCandidates.length +
-    suggestions.length +
-    data.unpairedTransfers.length +
-    (data.uncategorizedCount > 0 ? 1 : 0);
+  const total = countReviewPending(data, hiddenSuggestions);
 
   return (
     <div className="flex flex-col gap-4">
