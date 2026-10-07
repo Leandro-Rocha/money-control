@@ -5,6 +5,7 @@ import { CashflowScreen } from "./CashflowScreen";
 import { ScreenTransition } from "@/components/ui/view-transition";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tile } from "@/components/ui/tile";
 import WealthDashboard from "../WealthDashboard";
 import { TodayView } from "../forecast/TodayView";
 import { PlanView } from "../forecast/PlanView";
@@ -28,6 +29,7 @@ export function DesktopView(state: DashboardState) {
     setSettingsInitialAccountType,
     handleOpenCreateAccount,
     loadWealth,
+    forecast,
   } = state;
 
   return (
@@ -62,6 +64,7 @@ export function DesktopView(state: DashboardState) {
           {wealthData ? (
           <WealthDashboard
             initialData={wealthData}
+            liquidity={forecast?.forecast.kpis.balanceToday ?? null}
             onRefresh={loadWealth}
             onOpenSettings={() => {
               setSettingsInitialAccountType(null);
@@ -70,10 +73,10 @@ export function DesktopView(state: DashboardState) {
             onOpenCreateAccount={handleOpenCreateAccount}
           />
         ) : (
-          <div className="bg-card text-card-foreground border border-border p-12 rounded-xl shadow-xs text-center flex flex-col items-center justify-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground font-medium">Carregando dados patrimoniais...</p>
-          </div>
+          <Tile flat className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+            <Loader2 className="size-6 animate-spin text-accent" />
+            <p className="text-xs font-medium text-mut">Carregando patrimônio...</p>
+          </Tile>
         )}
         </>
       ) : viewMode === "today" ? (
