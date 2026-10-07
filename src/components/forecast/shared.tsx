@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { Money as UiMoney } from "@/components/ui/money";
+import { Tile } from "@/components/ui/tile";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ForecastAccount } from "@/lib/actions/forecast";
@@ -55,9 +56,9 @@ export function Section({
 
 export function LoadingCard({ label }: { label: string }) {
   return (
-    <div className="bg-card text-card-foreground border border-border p-12 rounded-xl text-center flex flex-col items-center gap-3">
-      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
+    <Tile flat className="flex flex-col items-center gap-3 p-12 text-center">
+      <Loader2 className="size-6 animate-spin text-accent" />
+      <p className="text-xs text-mut">{label}</p>
+    </Tile>
   );
 }
