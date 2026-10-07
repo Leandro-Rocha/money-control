@@ -50,7 +50,7 @@ Os valores dos protótipos são fictícios. Onde protótipo e spec divergirem, v
 | V7 | Âmbar | Abaixo do colchão; lançamento atrasado |
 | V8 | Previsto | Linha esmaecida + etiqueta "prevista" |
 | V9 | Acento | Configurável por presets; padrão **verde-azulado** |
-| V10 | Extrato | Lista lateral (contas e cartões) + 1 ou 2 colunas abertas, dividindo toda a largura (mínimo 380px cada) |
+| V10 | Extrato | Lista lateral (contas e cartões) + 1 ou 2 colunas abertas, cada uma com metade da largura (mínimo 380px); uma só não se estica além da metade |
 | V11 | Cartão × conta | Cartão com ícone próprio, selo de fatura, barra de limite e sem saldo por dia |
 | V12 | Modo escuro | Tokens prontos agora; seletor fica escondido até conferência tela a tela |
 | V13 | Abordagem | Migrar para Tailwind 4 primeiro; redesenho tela por tela, um commit por tela |

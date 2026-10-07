@@ -84,6 +84,17 @@ describe("CashflowScreen", () => {
     expect(screen.getByText("Escolha uma conta ou cartão na lista ao lado.")).toBeInTheDocument();
   });
 
+  it("uma conta só ocupa metade: espaço vazio do mesmo tamanho ao lado", () => {
+    const { container, rerender } = render(<CashflowScreen state={state([1])} />);
+    const spacer = container.querySelector("[data-column-spacer]");
+    expect(spacer).not.toBeNull();
+    expect(spacer!.className).toContain("flex-1");
+    expect(spacer!.className).toContain("basis-0");
+    expect(spacer!.className).toContain("min-w-column");
+    rerender(<CashflowScreen state={state([1, 2])} />);
+    expect(container.querySelector("[data-column-spacer]")).toBeNull();
+  });
+
   it("colunas dividem todo o espaço, sem teto de largura", () => {
     render(<CashflowScreen state={state([1, 2])} />);
     for (const col of screen.getAllByRole("region")) {
