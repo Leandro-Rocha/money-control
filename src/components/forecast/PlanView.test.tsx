@@ -146,6 +146,26 @@ describe("PlanView", () => {
     expect(screen.getByRole("status")).not.toHaveTextContent("Não cabe");
   });
 
+  it("veredito some ao mudar os campos até chegar a resposta nova", async () => {
+    getForecastAction.mockResolvedValueOnce(payload({ kpis: { lowest: { date: "2026-10-22", balance: 300 } } }));
+    getForecastAction.mockImplementationOnce(() => new Promise(() => {}));
+    render(<PlanView state={state()} />);
+    fireEvent.change(amountInput(), { target: { value: "10" } });
+    const status = await screen.findByRole("status", {}, { timeout: 2000 });
+    await waitFor(() => expect(status).toHaveTextContent("Cabe"));
+    fireEvent.change(amountInput(), { target: { value: "50000" } });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByText("Calculando…")).toBeInTheDocument();
+  });
+
+  it("erro na simulação mostra aviso e não derruba a tela", async () => {
+    getForecastAction.mockRejectedValueOnce(new Error("servidor fora"));
+    render(<PlanView state={state()} />);
+    fireEvent.change(amountInput(), { target: { value: "10" } });
+    expect(await screen.findByText("Não foi possível simular agora. Tente de novo.", {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(amountInput()).toBeInTheDocument();
+  });
+
   it("salva, carrega e exclui cenário", async () => {
     render(<PlanView state={state()} />);
     fireEvent.change(screen.getByLabelText("Descrição da compra 1"), { target: { value: "TV" } });

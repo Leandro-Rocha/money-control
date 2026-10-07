@@ -199,8 +199,10 @@ export function useDashboard(
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      if (viewMode === "wealth" && !wealthData) {
-        loadWealth();
+      if (viewMode === "wealth") {
+        if (!wealthData) loadWealth();
+        // Patrimônio soma a liquidez de hoje, que vem da previsão.
+        if (!forecast) startTransition(loadForecast);
       } else if ((viewMode === "today" || viewMode === "plan") && !forecast) {
         startTransition(loadForecast);
       }
@@ -209,6 +211,7 @@ export function useDashboard(
 
     if (viewMode === "wealth") {
       loadWealth();
+      if (!forecast) startTransition(loadForecast);
     } else if (viewMode === "today" || viewMode === "plan") {
       startTransition(loadForecast);
     }

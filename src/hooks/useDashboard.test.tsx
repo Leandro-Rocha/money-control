@@ -98,4 +98,10 @@ describe("useDashboard", () => {
     expect(result.current.openAccountIds).toEqual([1]);
     expect(result.current.viewMode).toBe("wealth");
   });
+
+  it("abrir direto no Patrimônio também carrega a previsão (liquidez)", async () => {
+    const { getForecastAction } = await import("@/lib/actions/forecast");
+    renderHook(() => useDashboard(month, "wealth"));
+    await waitFor(() => expect(getForecastAction).toHaveBeenCalled());
+  });
 });

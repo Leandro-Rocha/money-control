@@ -47,7 +47,8 @@ function PlanContent({ payload }: { payload: ForecastPayload }) {
   const [drafts, setDrafts] = useState<PurchaseDraft[]>(blank);
   const [includeBaseline, setIncludeBaseline] = useState(true);
   const [includeReimbursements, setIncludeReimbursements] = useState(true);
-  const [sim, setSim] = useState<ForecastPayload | null>(null);
+  // Resposta guardada junto do cenário que a pediu: campos mudaram → veredito antigo some.
+  const [sim, setSim] = useState<{ scenario: unknown; payload: ForecastPayload | null; failed: boolean } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const [saved, setSaved] = useState<SavedScenario[]>(() => loadScenarios(browserStorage()));
@@ -64,8 +65,13 @@ function PlanContent({ payload }: { payload: ForecastPayload }) {
     let cancelled = false;
     const timer = setTimeout(() => {
       startTransition(async () => {
-        const result = await getForecastAction({ scenario: built.scenario });
-        if (!cancelled) setSim(result);
+        try {
+          const result = await getForecastAction({ scenario: built.scenario });
+          if (!cancelled) setSim({ scenario: built.scenario, payload: result, failed: false });
+        } catch (err) {
+          console.error("Erro ao simular cenário:", err);
+          if (!cancelled) setSim({ scenario: built.scenario, payload: null, failed: true });
+        }
       });
     }, LIVE_DELAY_MS);
     return () => {
@@ -74,7 +80,8 @@ function PlanContent({ payload }: { payload: ForecastPayload }) {
     };
   }, [built]);
 
-  const liveSim = built.status === "ok" ? sim : null;
+  const current = built.status === "ok" && sim?.scenario === built.scenario ? sim : null;
+  const liveSim = current?.payload ?? null;
 
   const updateDraft = (i: number, patch: Partial<PurchaseDraft>) =>
     setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, ...patch } : d)));
@@ -206,7 +213,8 @@ function PlanContent({ payload }: { payload: ForecastPayload }) {
             updating={isPending}
           />
         )}
-        {!liveSim && built.status === "ok" && <p className="text-xs text-mut">Calculando…</p>}
+        {current?.failed && <p className="text-xs text-mut">Não foi possível simular agora. Tente de novo.</p>}
+        {!current && built.status === "ok" && <p className="text-xs text-mut">Calculando…</p>}
 
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={clear}>
