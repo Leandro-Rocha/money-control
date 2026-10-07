@@ -84,12 +84,12 @@ describe("CashflowScreen", () => {
     expect(screen.getByText("Escolha uma conta ou cartão na lista ao lado.")).toBeInTheDocument();
   });
 
-  it("colunas dividem o espaço, entre a largura mínima e o teto de lista", () => {
+  it("colunas dividem todo o espaço, sem teto de largura", () => {
     render(<CashflowScreen state={state([1, 2])} />);
     for (const col of screen.getAllByRole("region")) {
       expect(col.className).toContain("flex-1");
       expect(col.className).toContain("min-w-column");
-      expect(col.className).toContain("max-w-column-wide");
+      expect(col.className).not.toMatch(/max-w-/);
       expect(col.className).not.toContain("min-w-0");
     }
   });

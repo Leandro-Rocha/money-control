@@ -696,7 +696,7 @@ export default function AccountColumn({
       aria-label={name}
       className={cn(
         "flex flex-col overflow-hidden p-0 transition-opacity duration-(--dur)",
-        fill ? "min-w-column max-w-column-wide flex-1 basis-0" : "w-column max-w-full shrink-0",
+        fill ? "min-w-column flex-1 basis-0" : "w-column max-w-full shrink-0",
         hasZeroFilterMatches && "opacity-50 hover:opacity-100",
       )}
     >
