@@ -56,7 +56,7 @@ export function MobileView(state: DashboardState) {
         onLogout={logoutAction}
       />
 
-      <ScreenTransition screenKey={viewMode}>
+      <ScreenTransition screenKey={viewMode} name="screen-mobile">
         <div className="flex flex-col gap-4">
           {viewMode === "cashflow" ? (
             <MobileCashflow state={state} />

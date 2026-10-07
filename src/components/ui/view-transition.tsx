@@ -19,10 +19,19 @@ const ViewTransition = (React as unknown as { ViewTransition?: React.ComponentTy
  * Troca de tela com crossfade (View Transitions API). Só anima quando a troca
  * acontece dentro de startTransition. Sem suporte (React ou navegador), só troca.
  */
-export function ScreenTransition({ screenKey, children }: { screenKey: string; children: React.ReactNode }) {
+export function ScreenTransition({
+  screenKey,
+  name = "screen",
+  children,
+}: {
+  screenKey: string;
+  /** Único por página: desktop e celular ficam montados juntos até a hidratação. */
+  name?: string;
+  children: React.ReactNode;
+}) {
   if (!ViewTransition) return <React.Fragment key={screenKey}>{children}</React.Fragment>;
   return (
-    <ViewTransition key={screenKey} name="screen" share="auto" enter="auto" default="none">
+    <ViewTransition key={screenKey} name={name} share="auto" enter="auto" default="none">
       {children}
     </ViewTransition>
   );
