@@ -32,7 +32,7 @@ describe("buildScenario", () => {
 
   it("sem descrição usa 'Compra simulada' e parcelas inválidas viram 1", () => {
     const r = buildScenario([draft({ amount: "100", installments: "abc" })], true, true);
-    expect(r.status === "ok" && r.scenario.extraPurchases[0]).toMatchObject({ description: "Compra simulada", installments: 1 });
+    expect(r.status === "ok" && r.scenario.extraPurchases?.[0]).toMatchObject({ description: "Compra simulada", installments: 1 });
   });
 
   it("valor não positivo ou ilegível é inválido", () => {
