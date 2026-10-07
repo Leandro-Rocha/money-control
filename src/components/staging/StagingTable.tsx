@@ -48,7 +48,7 @@ export function StagingTable({
         <thead className="bg-muted/50 border-b">
           <tr>
             <th className="px-4 py-2 w-10 text-center">
-              <Check className="w-4 h-4 mx-auto text-slate-500" />
+              <Check className="w-4 h-4 mx-auto text-mut" />
             </th>
             <th className="px-4 py-2 font-semibold">Dia</th>
             <th className="px-4 py-2 font-semibold">Descrição</th>
@@ -64,7 +64,7 @@ export function StagingTable({
                 <tr>
                   <td
                     colSpan={!isBankAccount ? 6 : 5}
-                    className="px-4 py-2 bg-slate-100 dark:bg-muted/60 font-semibold text-xs text-slate-600 dark:text-slate-300 uppercase tracking-wider"
+                    className="px-4 py-2 bg-hover dark:bg-muted/60 font-semibold text-xs text-mut uppercase tracking-wider"
                   >
                     {group.title}
                   </td>

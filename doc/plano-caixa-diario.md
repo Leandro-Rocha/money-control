@@ -47,6 +47,6 @@ Branch `feat/caixa-diario` (worktree `.worktrees/caixa-diario`). Interface antig
       - Resumo por categoria mostra "Plano" = soma das estimativas do mês
 
 ## Pendências
-- [ ] Estética (depois da validação funcional)
+- [x] Estética — redesenho visual no branch `feat/visual`: spec `docs/superpowers/specs/2026-10-06-redesenho-visual-design.md`, planos `docs/superpowers/plans/2026-10-06-visual-*.md` e `2026-10-07-visual-6-configuracoes-celular-login.md`
 - [ ] Remover `getCarryForwardBalance`/`buildProjectedMonthData` quando cartões também usarem o motor
 - [ ] Transferências automáticas na sincronização (hoje: item em Revisar)

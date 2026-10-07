@@ -15,7 +15,10 @@ export type ConfirmRequest =
 
 type Ask = (req: ConfirmRequest) => Promise<boolean>;
 
-const fallback: Ask = async (req) => window.confirm(typeof req === "string" ? req : req.title);
+const fallback: Ask = async () => {
+  console.error("useConfirm usado fora do ConfirmProvider; a ação foi cancelada.");
+  return false;
+};
 
 const ConfirmContext = React.createContext<Ask>(fallback);
 

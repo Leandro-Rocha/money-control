@@ -517,8 +517,8 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Contas</h2>
-          <p className="text-sm text-slate-500">Gerencie suas contas, cartões, investimentos e dívidas</p>
+          <h2 className="text-xl font-bold text-ink">Contas</h2>
+          <p className="text-sm text-mut">Gerencie suas contas, cartões, investimentos e dívidas</p>
         </div>
         <Button onClick={() => setIsAdding(!isAdding)} variant={isAdding ? "outline" : "default"}>
           {isAdding ? "Cancelar" : <><Plus className="w-4 h-4 mr-2" /> Nova Conta</>}
@@ -526,7 +526,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
       </div>
 
       {isAdding && (
-        <form onSubmit={handleCreate} className="p-4 bg-slate-50 border rounded-lg space-y-4 animate-in fade-in slide-in-from-top-4">
+        <form onSubmit={handleCreate} className="p-4 bg-hover border rounded-lg space-y-4 animate-in fade-in slide-in-from-top-4">
           <div>
             <label className="text-sm font-medium mb-1 block">Nome da Conta / Contrato</label>
             <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Nubank, Financiamento Caixa..." autoFocus />
@@ -710,8 +710,8 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
           )}
 
           {newType === 'loan_receivable' && (
-            <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-3">
-              <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Dados do Crédito a Receber</h4>
+            <div className="p-3 bg-white border border-line rounded-lg space-y-3">
+              <h4 className="text-xs font-semibold text-ink uppercase tracking-wider">Dados do Crédito a Receber</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium mb-1 block">Valor Total Emprestado (R$)</label>
@@ -745,8 +745,8 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
           )}
 
           {newType === 'financing' && (
-            <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-3">
-              <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Dados do Financiamento</h4>
+            <div className="p-3 bg-white border border-line rounded-lg space-y-3">
+              <h4 className="text-xs font-semibold text-ink uppercase tracking-wider">Dados do Financiamento</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium mb-1 block">Valor Total do Contrato (R$)</label>
@@ -841,12 +841,12 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
             className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 border rounded-lg transition-all gap-3 ${
               editingId === acc.id 
                 ? "border-primary/40 bg-hover/20 ring-1 ring-primary/20 shadow-xs" 
-                : "hover:border-slate-300 dark:hover:border-slate-700 bg-card"
+                : "hover:border-edge bg-card"
             }`}
           >
             <div className="flex items-start sm:items-center gap-3">
               <div className="w-1.5 h-10 rounded-full shrink-0 mt-0.5 sm:mt-0" style={{ backgroundColor: acc.color }} />
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-500 shrink-0">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-hover text-mut shrink-0">
                 {acc.type === "bank_account" ? (
                   <Building className="w-5 h-5" />
                 ) : acc.type === "investment" ? (
@@ -970,21 +970,21 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     {(editType === 'financing' || editType === 'loan_receivable') && (
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400">Saldo:</span>
+                          <span className="text-faint">Saldo:</span>
                           <Input type="number" step="0.01" value={editFinancingRemaining} onChange={e => setEditFinancingRemaining(e.target.value ? Number(e.target.value) : "")} placeholder="Saldo" className="h-7 w-28 py-0 font-mono" />
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400">Parcela:</span>
+                          <span className="text-faint">Parcela:</span>
                           <Input type="number" step="0.01" value={editFinancingInstallmentAmount} onChange={e => setEditFinancingInstallmentAmount(e.target.value ? Number(e.target.value) : "")} placeholder="Valor Parcela" className="h-7 w-24 py-0 font-mono" />
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400">Pagas/Total:</span>
+                          <span className="text-faint">Pagas/Total:</span>
                           <Input type="number" min={0} value={editFinancingPaid} onChange={e => setEditFinancingPaid(e.target.value ? Number(e.target.value) : "")} placeholder="Pagas" className="h-7 w-16 py-0 font-mono" />
-                          <span className="text-slate-400">/</span>
+                          <span className="text-faint">/</span>
                           <Input type="number" min={0} value={editFinancingInstallmentsTotal} onChange={e => setEditFinancingInstallmentsTotal(e.target.value ? Number(e.target.value) : "")} placeholder="Total" className="h-7 w-16 py-0 font-mono" />
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400">Dia Venc:</span>
+                          <span className="text-faint">Dia Venc:</span>
                           <Input type="number" min={1} max={31} value={editDueDay} onChange={e => setEditDueDay(e.target.value ? Number(e.target.value) : "")} placeholder="Dia" className="h-7 w-14 py-0" />
                         </div>
                       </div>
@@ -993,7 +993,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                 ) : (
                   <div className="flex items-center gap-2">
                     <h4 
-                      className="font-semibold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-primary transition-colors text-sm"
+                      className="font-semibold text-ink cursor-pointer hover:text-primary transition-colors text-sm"
                       onClick={() => startEdit(acc)}
                       title="Clique para editar a conta"
                     >
@@ -1001,7 +1001,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     </h4>
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                <div className="flex items-center gap-2 text-xs text-mut mt-0.5">
                   <span>
                     {acc.type === "bank_account"
                       ? "Conta Corrente"
@@ -1083,10 +1083,10 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                     variant="outline"
                     size="sm"
                     onClick={() => startEdit(acc)}
-                    className="h-8 px-3 gap-1.5 text-xs font-medium border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 shadow-2xs"
+                    className="h-8 px-3 gap-1.5 text-xs font-medium border-line text-ink hover:bg-hover hover:text-ink shadow-2xs"
                     title="Editar dados da conta"
                   >
-                    <Pencil className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                    <Pencil className="w-3.5 h-3.5 text-mut" />
                     <span>Editar</span>
                   </Button>
 
@@ -1105,7 +1105,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
                       title="Mudar cor da conta"
                     />
                     
-                    <Button variant="ghost" size="icon" onClick={() => handleArchive(acc.id)} className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800" title="Arquivar conta (preserva histórico)">
+                    <Button variant="ghost" size="icon" onClick={() => handleArchive(acc.id)} className="h-8 w-8 text-faint hover:text-mut hover:bg-hover" title="Arquivar conta (preserva histórico)">
                       <Archive className="w-4 h-4" />
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(acc.id)} className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40" title="Excluir permanentemente">
@@ -1123,7 +1123,7 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
             <button
               type="button"
               onClick={() => setShowArchived(!showArchived)}
-              className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              className="flex items-center gap-2 text-xs font-semibold text-mut hover:text-ink transition-colors"
             >
               {showArchived ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               <span>Contas Arquivadas ({accounts.filter((a) => a.isActive === 0).length})</span>
@@ -1132,12 +1132,12 @@ export function AccountsTab({ accounts, onRefresh, initialType, initialIsAdding 
             {showArchived && (
               <div className="space-y-2">
                 {accounts.filter((a) => a.isActive === 0).map((acc) => (
-                  <div key={acc.id} className="flex items-center justify-between p-3 border border-dashed rounded-lg bg-slate-50/50">
+                  <div key={acc.id} className="flex items-center justify-between p-3 border border-dashed rounded-lg bg-hover">
                     <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-8 rounded-full bg-slate-300" />
+                      <div className="w-1.5 h-8 rounded-full bg-faint" />
                       <div>
-                        <h4 className="font-medium text-sm text-slate-600">{acc.name}</h4>
-                        <span className="text-2xs text-slate-400">Arquivada</span>
+                        <h4 className="font-medium text-sm text-mut">{acc.name}</h4>
+                        <span className="text-2xs text-faint">Arquivada</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

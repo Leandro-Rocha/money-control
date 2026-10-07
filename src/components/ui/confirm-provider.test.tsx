@@ -57,13 +57,17 @@ describe("useConfirm", () => {
     await waitFor(() => expect(onResult).toHaveBeenCalledWith(false));
   });
 
-  it("fora do provider usa window.confirm", async () => {
+  it("fora do provider recusa sem diálogo nativo", async () => {
     const spy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const onResult = vi.fn();
     render(<Asker req="Seguir?" onResult={onResult} />);
     fireEvent.click(screen.getByText("perguntar"));
-    await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
-    expect(spy).toHaveBeenCalledWith("Seguir?");
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith(false));
+    expect(spy).not.toHaveBeenCalled();
+    expect(err).toHaveBeenCalled();
+    spy.mockRestore();
+    err.mockRestore();
   });
 
   it("pedido encadeado logo após confirmar continua aberto e resolve", async () => {

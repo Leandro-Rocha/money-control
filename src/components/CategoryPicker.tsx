@@ -310,15 +310,15 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           onFocus={onFocus}
           disabled={disabled}
           className={cn(
-            "w-full sm:w-[190px] h-9 px-3 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700 hover:bg-slate-100 transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary/20 select-none",
+            "w-full sm:w-[190px] h-9 px-3 rounded-md bg-hover border border-line flex items-center justify-between text-xs text-ink hover:bg-hover transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary/20 select-none",
             className
           )}
         >
           <div className="flex items-center gap-2 truncate flex-1 min-w-0 pr-1">
             {numValue === -1 ? (
               <>
-                <div className="w-2.5 h-2.5 rounded-full border border-dashed border-slate-400 shrink-0" />
-                <span className="truncate font-medium text-slate-700">Sem categoria</span>
+                <div className="w-2.5 h-2.5 rounded-full border border-dashed border-edge shrink-0" />
+                <span className="truncate font-medium text-ink">Sem categoria</span>
               </>
             ) : currentCat ? (
               <>
@@ -326,17 +326,17 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: effectiveColor }}
                 />
-                <span className="truncate font-medium text-slate-800">
+                <span className="truncate font-medium text-ink">
                   {resolvedParentName ? `${resolvedParentName} > ${currentCat.name}` : currentCat.name}
                 </span>
               </>
             ) : (
-              <span className="text-slate-500 font-normal">
+              <span className="text-mut font-normal">
                 {placeholder || "Todas as categorias"}
               </span>
             )}
           </div>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-faint shrink-0" />
         </button>
       )}
 
@@ -351,7 +351,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           onFocus={onFocus}
           disabled={disabled}
           className={cn(
-            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-xs sm:text-sm shadow-xs transition-colors hover:bg-slate-50/80 focus:outline-hidden focus:ring-2 focus:ring-primary/20 select-none disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-xs sm:text-sm shadow-xs transition-colors hover:bg-hover focus:outline-hidden focus:ring-2 focus:ring-primary/20 select-none disabled:cursor-not-allowed disabled:opacity-50",
             className
           )}
         >
@@ -390,7 +390,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
             "inline-flex items-center max-w-[200px] truncate px-2 py-0.5 rounded text-2xs uppercase font-semibold transition-all select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50",
             disabled
               ? "cursor-default opacity-85"
-              : "cursor-pointer hover:ring-1 hover:ring-slate-300 hover:shadow-xs",
+              : "cursor-pointer hover:ring-1 hover:ring-edge hover:shadow-xs",
             className
           )}
           style={{
@@ -415,13 +415,13 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
               left: coords.left,
               zIndex: 99999,
             }}
-            className="w-[300px] sm:w-[320px] bg-white border border-slate-200 rounded-lg shadow-2xl py-1.5 text-xs animate-in fade-in zoom-in-95 duration-100"
+            className="w-[300px] sm:w-[320px] bg-white border border-line rounded-lg shadow-2xl py-1.5 text-xs animate-in fade-in zoom-in-95 duration-100"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Campo de Busca Rápida */}
-            <div className="px-2 pb-1.5 pt-0.5 border-b border-slate-100">
+            <div className="px-2 pb-1.5 pt-0.5 border-b border-line">
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 absolute left-2 text-slate-400 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 absolute left-2 text-faint pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -454,14 +454,14 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                     }
                   }}
                   placeholder="Buscar categoria..."
-                  className="w-full h-7 pl-7 pr-6 bg-slate-50 border border-slate-200 rounded text-xs placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                  className="w-full h-7 pl-7 pr-6 bg-hover border border-line rounded text-xs placeholder:text-faint focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                   autoFocus
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-1.5 text-slate-400 hover:text-slate-600 p-0.5"
+                    className="absolute right-1.5 text-faint hover:text-mut p-0.5"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -473,7 +473,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
             {searchQuery.trim() ? (
               <div className="space-y-0.5 max-h-[260px] overflow-y-auto pt-1">
                 {filteredSearchResults.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-slate-400 italic text-xs">
+                  <div className="px-3 py-4 text-center text-faint italic text-xs">
                     Nenhuma categoria encontrada para "{searchQuery}".
                   </div>
                 ) : (
@@ -487,10 +487,10 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                         onClick={() => handleSelectOption(item.id)}
                         onMouseEnter={() => setHighlightedIndex(idx)}
                         className={cn(
-                          "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-800 transition-colors",
+                          "w-full flex items-center justify-between px-3 py-1.5 text-left text-ink transition-colors",
                           (isHighlighted || isSelected)
-                            ? "bg-slate-100 font-medium text-primary"
-                            : "hover:bg-slate-50"
+                            ? "bg-hover font-medium text-primary"
+                            : "hover:bg-hover"
                         )}
                       >
                         <div className="flex items-center gap-2 truncate flex-1 min-w-0 pr-2">
@@ -509,7 +509,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
             ) : step === 1 ? (
               /* CASO 2: NAVEGAÇÃO HIERÁRQUICA - PASSO 1 (CATEGORIAS PAI) */
               <div className="space-y-0.5 max-h-[280px] overflow-y-auto pt-1">
-                <div className="px-3 py-1 text-2xs font-semibold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 py-1 text-2xs font-semibold text-faint uppercase tracking-wider">
                   {mode === "filter" ? "Filtrar por categoria" : "Categorias Principais"}
                 </div>
 
@@ -519,12 +519,12 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                     type="button"
                     onClick={() => handleSelectOption(null)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-700 hover:bg-slate-100 transition-colors",
-                      (numValue === null || numValue === undefined) && "bg-slate-50 font-medium text-primary"
+                      "w-full flex items-center justify-between px-3 py-1.5 text-left text-ink hover:bg-hover transition-colors",
+                      (numValue === null || numValue === undefined) && "bg-hover font-medium text-primary"
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full border border-slate-300" />
+                      <div className="w-2.5 h-2.5 rounded-full border border-edge" />
                       <span>Todas as categorias</span>
                     </div>
                     {(numValue === null || numValue === undefined) && (
@@ -539,13 +539,13 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                     type="button"
                     onClick={() => handleSelectOption(mode === "filter" ? -1 : null)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-700 hover:bg-slate-100 transition-colors",
+                      "w-full flex items-center justify-between px-3 py-1.5 text-left text-ink hover:bg-hover transition-colors",
                       (mode === "filter" ? numValue === -1 : !numValue) &&
-                        "bg-slate-50 font-medium text-primary"
+                        "bg-hover font-medium text-primary"
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full border border-dashed border-slate-400" />
+                      <div className="w-2.5 h-2.5 rounded-full border border-dashed border-edge" />
                       <span className="italic">{resolvedNullLabel}</span>
                     </div>
                     {(mode === "filter" ? numValue === -1 : !numValue) && (
@@ -554,7 +554,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                   </button>
                 )}
 
-                <div className="border-t border-slate-100 my-1" />
+                <div className="border-t border-line my-1" />
 
                 {/* Lista de Categorias Pai */}
                 {parentCategories.map((parent) => {
@@ -576,8 +576,8 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                         }
                       }}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2 text-left text-slate-800 hover:bg-slate-100 transition-colors",
-                        (isCurrentParentSelected || isChildSelected) && "bg-slate-50 font-medium"
+                        "w-full flex items-center justify-between px-3 py-2 text-left text-ink hover:bg-hover transition-colors",
+                        (isCurrentParentSelected || isChildSelected) && "bg-hover font-medium"
                       )}
                     >
                       <div className="flex items-center gap-2 truncate flex-1 min-w-0 pr-2">
@@ -587,7 +587,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                         />
                         <span className="truncate">{parent.name}</span>
                         {hasSubs && (
-                          <span className="text-2xs text-slate-400 font-normal">
+                          <span className="text-2xs text-faint font-normal">
                             ({subs.length})
                           </span>
                         )}
@@ -595,7 +595,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
 
                       <div className="flex items-center gap-1 shrink-0">
                         {hasSubs ? (
-                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                          <ChevronRight className="w-4 h-4 text-faint" />
                         ) : (
                           isCurrentParentSelected && <Check className="w-3.5 h-3.5 text-primary" />
                         )}
@@ -608,14 +608,14 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
               /* CASO 3: NAVEGAÇÃO HIERÁRQUICA - PASSO 2 (SUBCATEGORIAS) */
               <div className="space-y-0.5 max-h-[280px] overflow-y-auto">
                 {/* Botão Voltar */}
-                <div className="px-2 pb-1.5 border-b border-slate-100">
+                <div className="px-2 pb-1.5 border-b border-line">
                   <button
                     type="button"
                     onClick={() => {
                       setStep(1);
                       setSelectedParent(null);
                     }}
-                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors text-xs font-semibold"
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-ink hover:text-ink hover:bg-hover rounded transition-colors text-xs font-semibold"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>Voltar para categorias</span>
@@ -628,7 +628,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                     className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: selectedParent?.color || "#64748b" }}
                   />
-                  <span className="font-bold text-slate-900 text-xs truncate">
+                  <span className="font-bold text-ink text-xs truncate">
                     {selectedParent?.name}
                   </span>
                 </div>
@@ -638,12 +638,12 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                   type="button"
                   onClick={() => handleSelectOption(selectedParent!.id)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-700 hover:bg-slate-100 transition-colors",
-                    numValue === selectedParent?.id && "bg-slate-50 font-medium text-primary"
+                    "w-full flex items-center justify-between px-3 py-1.5 text-left text-ink hover:bg-hover transition-colors",
+                    numValue === selectedParent?.id && "bg-hover font-medium text-primary"
                   )}
                 >
                   <div className="flex items-center gap-2 pl-2 truncate flex-1">
-                    <span className="text-slate-400 text-xs">└</span>
+                    <span className="text-faint text-xs">└</span>
                     <span className="italic">
                       {mode === "filter"
                         ? `${selectedParent?.name} (Todas)`
@@ -655,7 +655,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                   )}
                 </button>
 
-                <div className="border-t border-slate-100 my-1" />
+                <div className="border-t border-line my-1" />
 
                 {/* Subcategorias Filhas */}
                 {(subcategoriesByParent.get(selectedParent!.id) || []).map((child) => {
@@ -668,8 +668,8 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
                       type="button"
                       onClick={() => handleSelectOption(child.id)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-1.5 text-left text-slate-700 hover:bg-slate-100 transition-colors",
-                        isSelected && "bg-slate-50 font-medium text-primary"
+                        "w-full flex items-center justify-between px-3 py-1.5 text-left text-ink hover:bg-hover transition-colors",
+                        isSelected && "bg-hover font-medium text-primary"
                       )}
                     >
                       <div className="flex items-center gap-2 pl-2 truncate flex-1 min-w-0 pr-2">

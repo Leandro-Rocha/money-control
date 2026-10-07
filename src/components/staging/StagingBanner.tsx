@@ -51,7 +51,7 @@ export function StagingBanner({
             type="checkbox"
             checked={replaceExisting}
             onChange={(e) => onToggleReplaceExisting(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+            className="mt-0.5 w-4 h-4 rounded border-edge text-primary focus:ring-primary cursor-pointer"
           />
           <div className="space-y-0.5">
             <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">

@@ -31,14 +31,14 @@ export function TransactionContextMenu({
 }: TransactionContextMenuProps) {
   return (
     <div
-      className="fixed z-50 w-56 bg-white rounded-md shadow-lg border border-slate-200 py-1"
+      className="fixed z-50 w-56 bg-white rounded-md shadow-lg border border-line py-1"
       style={{ top: y, left: x }}
     >
       {tx.isProjected ? (
         <>
           {tx.projectionSourceType != null && tx.projectionSourceType !== "installment" && (
             <button
-              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-green-600"
+              className="w-full text-left px-4 py-2 text-sm hover:bg-hover flex items-center gap-2 text-green-600"
               onClick={() => onConfirmProjected(tx)}
             >
               <Check className="w-4 h-4" /> Confirmar projeção
@@ -46,13 +46,13 @@ export function TransactionContextMenu({
           )}
           {tx.projectionSourceType != null ? (
             <button
-              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-slate-600"
+              className="w-full text-left px-4 py-2 text-sm hover:bg-hover flex items-center gap-2 text-mut"
               onClick={() => onDismissProjected(tx)}
             >
               <X className="w-4 h-4" /> Dispensar este mês
             </button>
           ) : (
-            <div className="px-4 py-2 text-xs text-slate-500">
+            <div className="px-4 py-2 text-xs text-mut">
               Estimativa da previsão (gasto típico ou reembolso esperado). Ajuste em Configurações › Previsão ou na tela Revisar.
             </div>
           )}
@@ -61,22 +61,22 @@ export function TransactionContextMenu({
         <>
           {onViewDetails && (
             <button
-              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-slate-700 font-medium"
+              className="w-full text-left px-4 py-2 text-sm hover:bg-hover flex items-center gap-2 text-ink font-medium"
               onClick={() => onViewDetails(tx)}
             >
-              <FileText className="w-4 h-4 text-slate-500" /> Ver detalhes / Editar
+              <FileText className="w-4 h-4 text-mut" /> Ver detalhes / Editar
             </button>
           )}
           {onTransfer && !tx.linkedTransactionId && (
             <button
-              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-blue-600"
+              className="w-full text-left px-4 py-2 text-sm hover:bg-hover flex items-center gap-2 text-blue-600"
               onClick={() => onTransfer(tx)}
             >
               <ArrowRightLeft className="w-4 h-4" /> Transformar em Transferência
             </button>
           )}
           <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 text-rose-600"
+            className="w-full text-left px-4 py-2 text-sm hover:bg-hover flex items-center gap-2 text-rose-600"
             onClick={() => onDelete(tx)}
           >
             <Trash2 className="w-4 h-4" /> Excluir lançamento

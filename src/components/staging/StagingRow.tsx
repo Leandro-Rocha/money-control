@@ -55,12 +55,12 @@ export function StagingRow({
     <tr
       className={`${
         row.ignored
-          ? "opacity-50 bg-slate-50 dark:bg-muted/20"
+          ? "opacity-50 bg-hover dark:bg-muted/20"
           : isBatchDuplicate
           ? "bg-amber-50/50 dark:bg-amber-950/20"
           : row.isDuplicate
-          ? "bg-slate-50/60 dark:bg-muted/30"
-          : "hover:bg-slate-50 dark:hover:bg-muted/40"
+          ? "bg-hover dark:bg-muted/30"
+          : "hover:bg-hover dark:hover:bg-muted/40"
       }`}
     >
       <td className="px-4 py-2 text-center align-middle">
@@ -68,11 +68,11 @@ export function StagingRow({
           type="checkbox"
           checked={!row.ignored}
           onChange={() => onToggleIgnore(row.id)}
-          className="w-4 h-4 rounded border-slate-300 accent-primary cursor-pointer"
+          className="w-4 h-4 rounded border-edge accent-primary cursor-pointer"
         />
       </td>
       <td
-        className="px-4 py-2 align-middle font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap"
+        className="px-4 py-2 align-middle font-medium text-ink whitespace-nowrap"
         title={row.purchaseDate || undefined}
       >
         {row.day}
@@ -87,14 +87,14 @@ export function StagingRow({
           }`}
           disabled={row.ignored}
         />
-        <div className="text-2xs text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+        <div className="text-2xs text-faint mt-1 flex flex-wrap items-center gap-2">
           <span>{row.originalDescription}</span>
           {isBatchDuplicate ? (
             <span className="text-2xs bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium">
               Duplicata no lote
             </span>
           ) : row.isDuplicate ? (
-            <span className="text-2xs bg-slate-100 text-slate-600 dark:bg-muted dark:text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium">
+            <span className="text-2xs bg-hover text-mut dark:bg-muted dark:text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium">
               Já importada
             </span>
           ) : null}
@@ -109,7 +109,7 @@ export function StagingRow({
           )}
           {samePatternCount > 1 && (
             <span
-              className="text-2xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border font-medium"
+              className="text-2xs bg-hover text-mut px-1.5 py-0.5 rounded border font-medium"
               title={`Existem ${samePatternCount} transações com este texto no lote`}
             >
               {samePatternCount} no lote
@@ -125,7 +125,7 @@ export function StagingRow({
             >
               <input
                 type="checkbox"
-                className="w-3 h-3 rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="w-3 h-3 rounded-sm border-edge text-indigo-600 focus:ring-indigo-500"
                 checked={row.createRule}
                 onChange={(e) => onToggleCreateRule(row.id, e.target.checked)}
               />
@@ -183,7 +183,7 @@ export function StagingRow({
         </div>
       </td>
       {!isBankAccount && (
-        <td className="px-4 py-2 align-middle text-center text-xs text-slate-600 font-medium whitespace-nowrap">
+        <td className="px-4 py-2 align-middle text-center text-xs text-mut font-medium whitespace-nowrap">
           {row.installmentCurrent && row.installmentTotal
             ? `${row.installmentCurrent}/${row.installmentTotal}`
             : row.installmentCurrent

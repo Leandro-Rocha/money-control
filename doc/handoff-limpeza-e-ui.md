@@ -73,6 +73,7 @@ nas alterações locais em andamento (`pluggy-v2-and-consent-tracking`) sem alin
   mesmo contador, ou contagem por item em vez de por conta. Reavaliar depois de corrigir A1.
 
 ### A3 · Botão "Recorrências" do mobile não faz nada — **alto**
+> **Resolvido (2026-10-07)** — `SettingsDrawer` com `initialTab` e `openSettingsTab("recurring")`; no celular, Mais → Recorrências (topo, `MobileTopBar`), Tasks 3–4 de `docs/superpowers/plans/2026-10-07-visual-6-configuracoes-celular-login.md`.
 - **Onde:** `src/hooks/useDashboard.ts:28` (`recurringOpen`), exportado em `:404-405`;
   disparado em `src/components/mobile/MobileView.tsx:173` e `MobileBottomNav.tsx:176`;
   também em `src/components/desktop/DesktopView.tsx:139` → `MonthHeader.tsx:53,97` (prop nunca usada).
@@ -138,6 +139,7 @@ CSS (confirmado compilando o Tailwind e cruzando com as classes usadas).
   bloco `.dark` e as 320 classes. Hoje é peso morto nas duas direções.
 
 ### A7 · Ícones de entrada/saída invertidos entre desktop e mobile — **baixo** 👁
+> **Resolvido (2026-10-07)** — `MonthHeader` e `MobileHeader` saíram no redesenho (planos 2 e 6); lançamento não tem mais ícone nem cor de entrada/saída (spec `docs/superpowers/specs/2026-10-06-redesenho-visual-design.md`).
 - **Onde:** entradas usam `ArrowDownRight` em `MonthHeader.tsx` e `ArrowUpRight` em
   `mobile/MobileHeader.tsx`.
 - **Fazer:** escolher uma convenção (sugestão: entrada = `ArrowDownLeft` verde "entrou na conta",
@@ -352,6 +354,7 @@ centavos inteiros no futuro.
 - 10 arquivos com listener manual de `Escape`, 4 com click-outside manual → somem com Radix (U5).
 
 ### R6 · `BankAccountColumn` × `CreditCardColumn` — a maior duplicação do projeto
+> **Resolvido (2026-10-06)** — uma `AccountColumn` com `variant="bank" | "card"`, `docs/superpowers/plans/2026-10-06-visual-4-extrato.md`; no celular a mesma coluna abre a partir da lista (Task 5 de `docs/superpowers/plans/2026-10-07-visual-6-configuracoes-celular-login.md`).
 712 e 715 linhas, ~321 idênticas. O estado já foi extraído (`useAccountColumnState`), o JSX não.
 **Fazer:** `src/components/account-column/` com
 - `AccountColumn.tsx` (casca: cabeçalho, colapso, tabela, rodapé),
@@ -384,6 +387,7 @@ repetido 4× em `Dashboard.tsx:67,73,90,131` — `accountsData` já é `AccountD
 ---
 
 ## Fase 5 — Interface
+> **Resolvido (2026-10-07)** — redesenho visual no branch `feat/visual` (spec `docs/superpowers/specs/2026-10-06-redesenho-visual-design.md`, planos `docs/superpowers/plans/2026-10-06-visual-1` a `-5` e `docs/superpowers/plans/2026-10-07-visual-6-configuracoes-celular-login.md`). `src/app/style-cleanup.test.ts` trava zero `slate-`, `text-[9|10|11px]`, `alert(` e `confirm(` em `src/`.
 
 Diagnóstico em números (código de produção, sem testes):
 
@@ -521,6 +525,7 @@ do app, e `aria-live` na mensagem de erro (`:49-54`). É a primeira tela — hoj
 ---
 
 ## Fase 6 — Mobile
+> **Parcial (2026-10-07)** — `docs/superpowers/plans/2026-10-07-visual-6-configuracoes-celular-login.md`: P1, P2, P5, P6, P7 e P9 resolvidos (celular usa as telas do desktop, barra de abas embaixo, `BrandMark`, Configurações em folha). P3, P4 e P8 continuam abertos.
 
 | ID | Problema | Onde | Fazer |
 |---|---|---|---|

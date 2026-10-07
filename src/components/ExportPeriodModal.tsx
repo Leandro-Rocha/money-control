@@ -295,11 +295,11 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
             )}
           </div>
 
-          <div className="relative flex-1 rounded-lg border border-border bg-slate-900 text-slate-100 overflow-hidden shadow-inner flex flex-col">
+          <div className="relative flex-1 rounded-lg border border-border bg-ink text-tile overflow-hidden shadow-inner flex flex-col">
             {isLoading ? (
-              <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10">
+              <div className="absolute inset-0 bg-ink/80 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10">
                 <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                <p className="text-xs text-slate-300">Carregando e agregando transações...</p>
+                <p className="text-xs text-faint">Carregando e agregando transações...</p>
               </div>
             ) : error ? (
               <div className="p-6 text-center text-rose-400 text-sm">{error}</div>
@@ -308,7 +308,7 @@ export function ExportPeriodModal({ currentMonth, onClose }: ExportPeriodModalPr
             <textarea
               readOnly
               value={markdownText}
-              className="w-full h-[360px] p-4 font-mono text-xs leading-relaxed bg-transparent text-slate-200 resize-none outline-hidden overflow-y-auto selection:bg-indigo-500 selection:text-white"
+              className="w-full h-[360px] p-4 font-mono text-xs leading-relaxed bg-transparent text-tile resize-none outline-hidden overflow-y-auto selection:bg-indigo-500 selection:text-white"
               placeholder="O prompt em Markdown aparecerá aqui..."
             />
           </div>
