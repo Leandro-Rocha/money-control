@@ -35,10 +35,25 @@ export function MobileCashflow({ state }: { state: DashboardState }) {
     tableDensity,
   } = state;
   const [listOpen, setListOpen] = useState(true);
+  const [focusId, setFocusId] = useState<number | null>(null);
 
-  const currentId = openAccountIds[openAccountIds.length - 1];
+  // Busca: foca a conta que tem o lançamento destacado e fica nela mesmo depois que o destaque some.
+  const hitId =
+    highlightedTxId == null
+      ? null
+      : (data.accountsData.find((ad) => ad.transactions.some((t) => t.id === highlightedTxId))?.account.id ?? null);
+  const [seenHit, setSeenHit] = useState<number | null>(null);
+  if (hitId !== seenHit) {
+    setSeenHit(hitId);
+    if (hitId != null) {
+      setFocusId(hitId);
+      setListOpen(false);
+    }
+  }
+
+  const currentId = focusId ?? openAccountIds[openAccountIds.length - 1];
   const current = data.accountsData.find((ad) => ad.account.id === currentId);
-  const showColumn = current != null && (!listOpen || highlightedTxId != null);
+  const showColumn = current != null && !listOpen;
 
   const back = () => {
     setListOpen(true);
@@ -139,6 +154,7 @@ export function MobileCashflow({ state }: { state: DashboardState }) {
               openIds={[]}
               onSelect={(id) => {
                 selectAccountColumn(id, false);
+                setFocusId(id);
                 setListOpen(false);
               }}
             />

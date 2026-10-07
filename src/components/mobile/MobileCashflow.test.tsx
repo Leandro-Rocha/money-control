@@ -18,12 +18,17 @@ vi.mock("../AccountColumn", () => ({
 import { MobileCashflow } from "./MobileCashflow";
 import type { DashboardState } from "@/hooks/useDashboard";
 
-const ad = (id: number, name: string, type: "bank_account" | "credit_card") =>
-  ({ account: { id, name, type, color: null }, transactions: [], finalBalance: 100, initialBalance: 0 }) as never;
+const ad = (id: number, name: string, type: "bank_account" | "credit_card", txIds: number[] = []) =>
+  ({
+    account: { id, name, type, color: null },
+    transactions: txIds.map((t) => ({ id: t })),
+    finalBalance: 100,
+    initialBalance: 0,
+  }) as never;
 
 function state(over: Partial<DashboardState> = {}): DashboardState {
   const banks = [ad(1, "Itaú", "bank_account")];
-  const cards = [ad(2, "Nubank", "credit_card")];
+  const cards = [ad(2, "Nubank", "credit_card", [99])];
   return {
     currentMonth: "2026-10",
     data: { monthLabel: "outubro de 2026", accountsData: [...banks, ...cards] },
@@ -76,6 +81,28 @@ describe("MobileCashflow", () => {
   it("busca que destaca lançamento mostra a coluna da conta", () => {
     render(<MobileCashflow state={state({ highlightedTxId: 99, openAccountIds: [2] })} />);
     expect(screen.getByRole("region", { name: "Coluna Nubank" })).toBeInTheDocument();
+  });
+
+  it("coluna da busca continua aberta depois que o destaque some", () => {
+    const s = state({ highlightedTxId: 99, openAccountIds: [2] });
+    const { rerender } = render(<MobileCashflow state={s} />);
+    rerender(<MobileCashflow state={{ ...s, highlightedTxId: null }} />);
+    expect(screen.getByRole("region", { name: "Coluna Nubank" })).toBeInTheDocument();
+  });
+
+  it("busca mostra a conta do lançamento mesmo que não seja a última aberta", () => {
+    render(<MobileCashflow state={state({ highlightedTxId: 99, openAccountIds: [2, 1] })} />);
+    expect(screen.getByRole("region", { name: "Coluna Nubank" })).toBeInTheDocument();
+  });
+
+  it("depois da busca, voltar e tocar outra conta abre a conta tocada", () => {
+    const s = state({ highlightedTxId: 99, openAccountIds: [2] });
+    const { rerender } = render(<MobileCashflow state={s} />);
+    fireEvent.click(screen.getByRole("button", { name: "Voltar para contas" }));
+    rerender(<MobileCashflow state={{ ...s, highlightedTxId: null }} />);
+    fireEvent.click(screen.getByRole("button", { name: /Itaú/ }));
+    rerender(<MobileCashflow state={{ ...s, highlightedTxId: null, openAccountIds: [1] }} />);
+    expect(screen.getByRole("region", { name: "Coluna Itaú" })).toBeInTheDocument();
   });
 
   it("muda de mês pelos botões", () => {
