@@ -82,6 +82,7 @@ function state(over: Partial<DashboardState> = {}) {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 const group = (title: string) => screen.getByRole("region", { name: title });
@@ -189,5 +190,43 @@ describe("ReviewView", () => {
     await waitFor(() =>
       expect(within(group("Previstos que não apareceram")).getByText("Internet").closest("li")).not.toHaveAttribute("data-leaving"),
     );
+  });
+
+  it("cartão sem pendência começa fechado; abrir fica salvo", async () => {
+    getReviewDataAction.mockResolvedValue(review());
+    render(<ReviewView state={state()} />);
+    await screen.findByRole("region", { name: "Transferências sem par" });
+    const toggle = (t: string) => within(group(t)).getByRole("button", { name: t });
+    expect(toggle("Transferências sem par")).toHaveAttribute("aria-expanded", "false");
+    expect(toggle("Previstos que não apareceram")).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(toggle("Transferências sem par"));
+    expect(toggle("Transferências sem par")).toHaveAttribute("aria-expanded", "true");
+    expect(JSON.parse(localStorage.getItem("money_control_review_layout")!).collapsed).toEqual({ transfers: false });
+  });
+
+  it("Alt+seta move o cartão entre colunas, salva e mantém o foco na alça", async () => {
+    getReviewDataAction.mockResolvedValue(review());
+    render(<ReviewView state={state()} />);
+    await screen.findByRole("region", { name: "Avisos da previsão" });
+    const handle = screen.getByRole("button", { name: "Mover Avisos da previsão" });
+    handle.focus();
+    fireEvent.keyDown(handle, { key: "ArrowRight", altKey: true });
+    fireEvent.keyDown(screen.getByRole("button", { name: "Mover Avisos da previsão" }), { key: "ArrowUp", altKey: true });
+
+    const saved = JSON.parse(localStorage.getItem("money_control_review_layout")!);
+    expect(saved.columns[1]).toEqual(["balances", "suggestions", "warnings", "reimbursements"]);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Mover Avisos da previsão" })));
+  });
+
+  it("layout salvo define a ordem dos cartões", async () => {
+    localStorage.setItem(
+      "money_control_review_layout",
+      JSON.stringify({ columns: [["warnings"], ["overdue", "balances", "uncategorized", "suggestions", "transfers", "reimbursements"]] }),
+    );
+    getReviewDataAction.mockResolvedValue(review());
+    render(<ReviewView state={state()} />);
+    await screen.findByRole("region", { name: "Avisos da previsão" });
+    await waitFor(() => expect(screen.getAllByRole("region")[0]).toHaveAccessibleName("Avisos da previsão"));
   });
 });

@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronRight, GripVertical } from "lucide-react";
+import { Fragment, createContext, use, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Money } from "@/components/ui/money";
 import { Tile } from "@/components/ui/tile";
 import type { DashboardState } from "@/hooks/useDashboard";
+import { useReviewLayout, type Column, type Nudge } from "@/hooks/useReviewLayout";
 import {
   createBalanceAdjustmentAction,
   createRecurringFromSuggestionAction,
@@ -85,215 +87,311 @@ export function ReviewView({ state }: { state: DashboardState }) {
   const rawEmpty = new Set(reviewGroups(data, hidden).filter((x) => x.count === 0).map((x) => x.key));
   const total = groups.filter((x) => x.needsAction).reduce((s, x) => s + x.count, 0);
 
+  const cards: Record<ReviewGroupKey, React.ReactNode> = {
+    overdue: (
+      <Group group={g.overdue} empty={rawEmpty.has("overdue")}>
+        {data.overdue.length > 0 && (
+          <>
+            <p className="text-xs text-mut">Enquanto não forem resolvidos, entram na previsão como se acontecessem hoje.</p>
+            <ul className="flex flex-col">
+              {data.overdue.map((e) => (
+                <Item key={e.key} leaving={leaving.has(`o:${e.key}`)}>
+                  <OverdueRow e={e} accountName={accountName} run={run} />
+                </Item>
+              ))}
+            </ul>
+          </>
+        )}
+      </Group>
+    ),
+    balances: (
+      <Group group={g.balances} empty={rawEmpty.has("balances")} keepBody>
+        <p className="text-xs text-mut">
+          Informe o saldo que aparece no app do banco. A previsão parte dele; diferenças com os lançamentos aparecem abaixo.
+        </p>
+        {data.accountsWithoutSnapshot.length > 0 && (
+          <p className="text-xs text-caution-ink">
+            Sem saldo do banco: {data.accountsWithoutSnapshot.map((a) => a.name).join(", ")} (usando só a soma dos lançamentos).
+          </p>
+        )}
+        <div className="flex flex-col gap-2">
+          {bankAccounts.map((a) => (
+            <BalanceInput key={a.id} accountId={a.id} name={a.name} run={run} />
+          ))}
+        </div>
+        {data.discrepancies.length > 0 && (
+          <ul className="flex flex-col border-t border-line pt-2">
+            {data.discrepancies.map((d) => (
+              <Item key={d.accountId} leaving={leaving.has(`d:${d.accountId}`)}>
+                <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                  <span>
+                    {d.accountName}: banco em {fmtDate(d.snapshotDate ?? "")} difere em <Money value={d.discrepancy} sign />{" "}
+                    (calculado <Money value={d.computedBalance} />)
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      run(`d:${d.accountId}`, () =>
+                        createBalanceAdjustmentAction({ accountId: d.accountId, date: d.snapshotDate!, amount: d.discrepancy }),
+                      )
+                    }
+                  >
+                    Lançar ajuste
+                  </Button>
+                </div>
+              </Item>
+            ))}
+            <p className="pt-1 text-2xs text-mut">
+              O ajuste cria um lançamento “Ajuste de saldo” (fora dos resumos). Prefira antes procurar lançamento faltando ou
+              duplicado.
+            </p>
+          </ul>
+        )}
+      </Group>
+    ),
+    uncategorized: (
+      <Group
+        group={g.uncategorized}
+        empty={rawEmpty.has("uncategorized")}
+        keepBody
+        right={
+          <Button size="sm" variant="ghost" onClick={() => state.handleOpenDuplicates()}>
+            Procurar duplicados
+          </Button>
+        }
+      >
+        {data.uncategorized.length > 0 && (
+          <ul className="flex flex-col">
+            {data.uncategorized.map((t) => (
+              <Item key={t.id} leaving={leaving.has(`u:${t.id}`)}>
+                <UncategorizedRow
+                  tx={t}
+                  accountName={accountName}
+                  chips={chipCategories(t.amount, data.topCategories, state.allCategories)}
+                  onPick={(categoryId) => run(`u:${t.id}`, () => updateTransaction(t.id, { categoryId }))}
+                  onMore={() => state.setTriageOpen(true)}
+                />
+              </Item>
+            ))}
+          </ul>
+        )}
+        {data.uncategorizedCount > data.uncategorized.length && (
+          <Button size="sm" variant="outline" className="self-start" onClick={() => state.setTriageOpen(true)}>
+            Abrir triagem ({data.uncategorizedCount})
+          </Button>
+        )}
+      </Group>
+    ),
+    suggestions: (
+      <Group group={g.suggestions} empty={rawEmpty.has("suggestions")}>
+        {suggestions.length > 0 && (
+          <ul className="flex flex-col">
+            {suggestions.map((s) => {
+              const key = suggestionKey(s);
+              return (
+                <Item key={key} leaving={leaving.has(`s:${key}`)}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate">{s.description}</div>
+                      <div className="text-2xs text-mut">
+                        {accountName(s.accountId)} · dia {s.day} · em {s.months.map((m) => m.slice(5)).join(", ")}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Money value={s.amount} sign />
+                      <Button size="sm" variant="outline" onClick={() => run(`s:${key}`, () => createRecurringFromSuggestionAction(s))}>
+                        Criar recorrência
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => state.hideSuggestion(key)}>
+                        Ignorar
+                      </Button>
+                    </div>
+                  </div>
+                </Item>
+              );
+            })}
+          </ul>
+        )}
+      </Group>
+    ),
+    transfers: (
+      <Group
+        group={g.transfers}
+        empty={rawEmpty.has("transfers")}
+        right={
+          data.unpairedTransfers.length > 0 ? (
+            <Button size="sm" variant="ghost" onClick={() => state.setTransfersOpen(true)}>
+              Assistente
+            </Button>
+          ) : undefined
+        }
+      >
+        {data.unpairedTransfers.length > 0 && (
+          <>
+            <p className="text-xs text-mut">
+              Saiu de uma conta e não entrou em outra (ou vice-versa). Se a outra ponta é sua, falta lançá-la; se não é, a
+              categoria deveria ser outra.
+            </p>
+            <ul className="flex flex-col gap-1 text-sm">
+              {data.unpairedTransfers.map((t) => (
+                <li key={t.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">
+                    {fmtDate(`${t.month}-${String(t.day).padStart(2, "0")}`)} · {accountName(t.accountId)} · {t.description}
+                  </span>
+                  <Money value={t.amount} sign />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Group>
+    ),
+    reimbursements: (
+      <Group group={g.reimbursements} empty={rawEmpty.has("reimbursements")} keepBody={data.pendingReimbursements.length > 0}>
+        {data.reimbursementCandidates.length > 0 && (
+          <ul className="flex flex-col">
+            {data.reimbursementCandidates.map((c) => (
+              <Item key={c.credit.id} leaving={leaving.has(`r:${c.credit.id}`)}>
+                <ReimbursementCandidateRow c={c} accountName={accountName} run={run} />
+              </Item>
+            ))}
+          </ul>
+        )}
+        {data.pendingReimbursements.length > 0 && (
+          <div className="flex flex-col gap-1 border-t border-line pt-3 text-sm">
+            <p className="text-xs font-semibold">Aguardando reembolso</p>
+            {data.pendingReimbursements.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="truncate">
+                  {fmtDate(p.date)} · {accountName(p.accountId)} · {p.description}
+                </span>
+                <span className="flex items-center gap-2">
+                  falta <Money value={p.pending} />
+                  {p.received > 0 ? (
+                    <Button size="sm" variant="ghost" onClick={() => run(null, () => setReimbursementClosedAction(p.id, true))}>
+                      O restante não vem
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => run(null, () => setTransactionReimbursableAction(p.id, false))}>
+                      Não será reembolsado
+                    </Button>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Group>
+    ),
+    warnings: (
+      <Group group={g.warnings} empty={rawEmpty.has("warnings")}>
+        {data.warnings.length > 0 && (
+          <ul className="list-disc pl-4 text-xs text-mut">
+            {data.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        )}
+      </Group>
+    ),
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-mut" aria-live="polite">
         {total === 0 ? "Nada pendente. A previsão está usando dados conferidos." : `${total} pendência(s) que afetam a previsão.`}
         {isPending && " Atualizando..."}
       </p>
+      <Board cards={cards} collapsedByDefault={rawEmpty} />
+    </div>
+  );
+}
 
+type DropAt = { col: Column; index: number };
+
+interface BoardCtx {
+  isCollapsed: (key: ReviewGroupKey) => boolean;
+  setCollapsed: (key: ReviewGroupKey, value: boolean) => void;
+  nudge: (key: ReviewGroupKey, dir: Nudge) => void;
+  dragging: ReviewGroupKey | null;
+  setDragging: (key: ReviewGroupKey | null) => void;
+  dropEdge: (key: ReviewGroupKey) => "before" | "after" | null;
+  dragOver: (key: ReviewGroupKey, before: boolean) => void;
+}
+
+const BoardContext = createContext<BoardCtx | null>(null);
+
+const NUDGE_KEYS: Record<string, Nudge> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
+
+/** Duas colunas que a pessoa organiza: arrasta pela alça (ou Alt+setas) e fecha o que não quer ver. */
+function Board({ cards, collapsedByDefault }: { cards: Record<ReviewGroupKey, React.ReactNode>; collapsedByDefault: ReadonlySet<ReviewGroupKey> }) {
+  const { layout, setCollapsed, move, nudge } = useReviewLayout();
+  const [dragging, setDragging] = useState<ReviewGroupKey | null>(null);
+  const [drop, setDrop] = useState<DropAt | null>(null);
+  const focusAfterMove = useRef<ReviewGroupKey | null>(null);
+
+  // Reordenar tira o nó do DOM e o foco se perde; devolve para a alça de quem andou.
+  useEffect(() => {
+    const key = focusAfterMove.current;
+    focusAfterMove.current = null;
+    if (key) document.querySelector<HTMLElement>(`[data-move-handle="${key}"]`)?.focus();
+  }, [layout]);
+
+  const ctx: BoardCtx = {
+    isCollapsed: (key) => layout.collapsed[key] ?? collapsedByDefault.has(key),
+    setCollapsed,
+    nudge: (key, dir) => {
+      focusAfterMove.current = key;
+      nudge(key, dir);
+    },
+    dragging,
+    setDragging: (key) => {
+      setDragging(key);
+      if (!key) setDrop(null);
+    },
+    dropEdge: (key) => {
+      if (!drop || !dragging) return null;
+      const col = layout.columns[drop.col];
+      if (col[drop.index] === key) return "before";
+      return drop.index === col.length && col[col.length - 1] === key ? "after" : null;
+    },
+    dragOver: (key, before) => {
+      const col: Column = layout.columns[0].includes(key) ? 0 : 1;
+      const index = layout.columns[col].indexOf(key) + (before ? 0 : 1);
+      if (drop?.col !== col || drop.index !== index) setDrop({ col, index });
+    },
+  };
+
+  return (
+    <BoardContext value={ctx}>
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        <Group group={g.overdue} empty={rawEmpty.has("overdue")}>
-          {data.overdue.length > 0 && (
-            <>
-              <p className="text-xs text-mut">Enquanto não forem resolvidos, entram na previsão como se acontecessem hoje.</p>
-              <ul className="flex flex-col">
-                {data.overdue.map((e) => (
-                  <Item key={e.key} leaving={leaving.has(`o:${e.key}`)}>
-                    <OverdueRow e={e} accountName={accountName} run={run} />
-                  </Item>
-                ))}
-              </ul>
-            </>
-          )}
-        </Group>
-
-        <Group group={g.balances} empty={rawEmpty.has("balances")} keepBody>
-          <p className="text-xs text-mut">
-            Informe o saldo que aparece no app do banco. A previsão parte dele; diferenças com os lançamentos aparecem abaixo.
-          </p>
-          {data.accountsWithoutSnapshot.length > 0 && (
-            <p className="text-xs text-caution-ink">
-              Sem saldo do banco: {data.accountsWithoutSnapshot.map((a) => a.name).join(", ")} (usando só a soma dos lançamentos).
-            </p>
-          )}
-          <div className="flex flex-col gap-2">
-            {bankAccounts.map((a) => (
-              <BalanceInput key={a.id} accountId={a.id} name={a.name} run={run} />
+        {layout.columns.map((keys, c) => (
+          <div
+            key={c}
+            className={cn(
+              "flex min-h-24 flex-col gap-5 rounded-tile transition-colors duration-(--dur)",
+              dragging && keys.length === 0 && drop?.col === c && "bg-hover",
+            )}
+            onDragOver={(e) => {
+              if (!dragging) return;
+              e.preventDefault();
+              if (e.target === e.currentTarget && (drop?.col !== c || drop.index !== keys.length)) setDrop({ col: c as Column, index: keys.length });
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragging && drop) move(dragging, drop.col, drop.index);
+              setDragging(null);
+              setDrop(null);
+            }}
+          >
+            {keys.map((k) => (
+              <Fragment key={k}>{cards[k]}</Fragment>
             ))}
           </div>
-          {data.discrepancies.length > 0 && (
-            <ul className="flex flex-col border-t border-line pt-2">
-              {data.discrepancies.map((d) => (
-                <Item key={d.accountId} leaving={leaving.has(`d:${d.accountId}`)}>
-                  <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
-                    <span>
-                      {d.accountName}: banco em {fmtDate(d.snapshotDate ?? "")} difere em <Money value={d.discrepancy} sign />{" "}
-                      (calculado <Money value={d.computedBalance} />)
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        run(`d:${d.accountId}`, () =>
-                          createBalanceAdjustmentAction({ accountId: d.accountId, date: d.snapshotDate!, amount: d.discrepancy }),
-                        )
-                      }
-                    >
-                      Lançar ajuste
-                    </Button>
-                  </div>
-                </Item>
-              ))}
-              <p className="pt-1 text-2xs text-mut">
-                O ajuste cria um lançamento “Ajuste de saldo” (fora dos resumos). Prefira antes procurar lançamento faltando ou
-                duplicado.
-              </p>
-            </ul>
-          )}
-        </Group>
-
-        <Group
-          group={g.uncategorized}
-          empty={rawEmpty.has("uncategorized")}
-          keepBody
-          right={
-            <Button size="sm" variant="ghost" onClick={() => state.handleOpenDuplicates()}>
-              Procurar duplicados
-            </Button>
-          }
-        >
-          {data.uncategorized.length > 0 && (
-            <ul className="flex flex-col">
-              {data.uncategorized.map((t) => (
-                <Item key={t.id} leaving={leaving.has(`u:${t.id}`)}>
-                  <UncategorizedRow
-                    tx={t}
-                    accountName={accountName}
-                    chips={chipCategories(t.amount, data.topCategories, state.allCategories)}
-                    onPick={(categoryId) => run(`u:${t.id}`, () => updateTransaction(t.id, { categoryId }))}
-                    onMore={() => state.setTriageOpen(true)}
-                  />
-                </Item>
-              ))}
-            </ul>
-          )}
-          {data.uncategorizedCount > data.uncategorized.length && (
-            <Button size="sm" variant="outline" className="self-start" onClick={() => state.setTriageOpen(true)}>
-              Abrir triagem ({data.uncategorizedCount})
-            </Button>
-          )}
-        </Group>
-
-        <Group group={g.suggestions} empty={rawEmpty.has("suggestions")}>
-          {suggestions.length > 0 && (
-            <ul className="flex flex-col">
-              {suggestions.map((s) => {
-                const key = suggestionKey(s);
-                return (
-                  <Item key={key} leaving={leaving.has(`s:${key}`)}>
-                    <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
-                      <div className="min-w-0">
-                        <div className="truncate">{s.description}</div>
-                        <div className="text-2xs text-mut">
-                          {accountName(s.accountId)} · dia {s.day} · em {s.months.map((m) => m.slice(5)).join(", ")}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Money value={s.amount} sign />
-                        <Button size="sm" variant="outline" onClick={() => run(`s:${key}`, () => createRecurringFromSuggestionAction(s))}>
-                          Criar recorrência
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => state.hideSuggestion(key)}>
-                          Ignorar
-                        </Button>
-                      </div>
-                    </div>
-                  </Item>
-                );
-              })}
-            </ul>
-          )}
-        </Group>
-
-        <Group
-          group={g.transfers}
-          empty={rawEmpty.has("transfers")}
-          right={
-            data.unpairedTransfers.length > 0 ? (
-              <Button size="sm" variant="ghost" onClick={() => state.setTransfersOpen(true)}>
-                Assistente
-              </Button>
-            ) : undefined
-          }
-        >
-          {data.unpairedTransfers.length > 0 && (
-            <>
-              <p className="text-xs text-mut">
-                Saiu de uma conta e não entrou em outra (ou vice-versa). Se a outra ponta é sua, falta lançá-la; se não é, a
-                categoria deveria ser outra.
-              </p>
-              <ul className="flex flex-col gap-1 text-sm">
-                {data.unpairedTransfers.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2">
-                    <span className="truncate">
-                      {fmtDate(`${t.month}-${String(t.day).padStart(2, "0")}`)} · {accountName(t.accountId)} · {t.description}
-                    </span>
-                    <Money value={t.amount} sign />
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </Group>
-
-        <Group group={g.reimbursements} empty={rawEmpty.has("reimbursements")} keepBody={data.pendingReimbursements.length > 0}>
-          {data.reimbursementCandidates.length > 0 && (
-            <ul className="flex flex-col">
-              {data.reimbursementCandidates.map((c) => (
-                <Item key={c.credit.id} leaving={leaving.has(`r:${c.credit.id}`)}>
-                  <ReimbursementCandidateRow c={c} accountName={accountName} run={run} />
-                </Item>
-              ))}
-            </ul>
-          )}
-          {data.pendingReimbursements.length > 0 && (
-            <div className="flex flex-col gap-1 border-t border-line pt-3 text-sm">
-              <p className="text-xs font-semibold">Aguardando reembolso</p>
-              {data.pendingReimbursements.map((p) => (
-                <div key={p.id} className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="truncate">
-                    {fmtDate(p.date)} · {accountName(p.accountId)} · {p.description}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    falta <Money value={p.pending} />
-                    {p.received > 0 ? (
-                      <Button size="sm" variant="ghost" onClick={() => run(null, () => setReimbursementClosedAction(p.id, true))}>
-                        O restante não vem
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="ghost" onClick={() => run(null, () => setTransactionReimbursableAction(p.id, false))}>
-                        Não será reembolsado
-                      </Button>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Group>
-
-        <Group group={g.warnings} empty={rawEmpty.has("warnings")}>
-          {data.warnings.length > 0 && (
-            <ul className="list-disc pl-4 text-xs text-mut">
-              {data.warnings.map((w, i) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
-          )}
-        </Group>
+        ))}
       </div>
-    </div>
+    </BoardContext>
   );
 }
 
@@ -312,13 +410,66 @@ function Group({
   keepBody?: boolean;
   children: React.ReactNode;
 }) {
+  const board = use(BoardContext)!;
   const id = `review-${group.key}`;
   const done = group.count === 0;
+  const collapsed = board.isCollapsed(group.key);
+  const edge = board.dropEdge(group.key);
+  const bar = "before:absolute before:inset-x-2 before:h-1 before:rounded-full before:bg-accent";
   return (
-    <Tile aria-labelledby={id} className="flex flex-col gap-3">
-      <header className="flex items-center justify-between gap-2">
-        <h2 id={id} className="text-sm font-semibold">
-          {group.title}
+    <Tile
+      aria-labelledby={id}
+      className={cn(
+        "relative flex flex-col",
+        board.dragging === group.key && "opacity-50",
+        edge === "before" && cn(bar, "before:-top-3"),
+        edge === "after" && cn(bar, "before:-bottom-3"),
+      )}
+      onDragOver={(e) => {
+        if (!board.dragging) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        board.dragOver(group.key, e.clientY < r.top + r.height / 2);
+      }}
+    >
+      <header className="flex items-center gap-2">
+        <button
+          type="button"
+          draggable
+          data-move-handle={group.key}
+          aria-label={`Mover ${group.title}`}
+          title="Arraste para mover (ou Alt + setas)"
+          className="-ml-1.5 cursor-grab rounded p-0.5 text-mut hover:bg-hover hover:text-ink active:cursor-grabbing"
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", group.key);
+            const card = e.currentTarget.closest("section");
+            if (card) e.dataTransfer.setDragImage(card, 24, 16);
+            board.setDragging(group.key);
+          }}
+          onDragEnd={() => board.setDragging(null)}
+          onKeyDown={(e) => {
+            const dir = NUDGE_KEYS[e.key];
+            if (!e.altKey || !dir) return;
+            e.preventDefault();
+            board.nudge(group.key, dir);
+          }}
+        >
+          <GripVertical className="size-3.5" aria-hidden />
+        </button>
+        <h2 id={id} className="min-w-0 flex-1 text-sm font-semibold">
+          <button
+            type="button"
+            aria-expanded={!collapsed}
+            aria-controls={`${id}-body`}
+            className="flex w-full items-center gap-1 text-left"
+            onClick={() => board.setCollapsed(group.key, !collapsed)}
+          >
+            <ChevronRight
+              className={cn("size-4 shrink-0 text-mut transition-transform duration-(--dur)", !collapsed && "rotate-90")}
+              aria-hidden
+            />
+            <span className="truncate">{group.title}</span>
+          </button>
         </h2>
         <div className="flex items-center gap-2">
           {right}
@@ -334,7 +485,21 @@ function Group({
           </span>
         </div>
       </header>
-      {empty && !keepBody ? <p className="text-sm text-mut">Nada pendente.</p> : children}
+      <div
+        id={`${id}-body`}
+        inert={collapsed}
+        data-collapsed={collapsed || undefined}
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-(--dur) ease-out",
+          collapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]",
+        )}
+      >
+        <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          {/* Espaçador no lugar de padding: padding não encolhe a 0 quando a linha do grid fecha. */}
+          <div className="h-0" />
+          {empty && !keepBody ? <p className="text-sm text-mut">Nada pendente.</p> : children}
+        </div>
+      </div>
     </Tile>
   );
 }
