@@ -110,7 +110,7 @@ export function AccountSideList({ banks, cards, allAccountsData, month, openIds,
         </div>
       )}
 
-      <p className="px-2 text-2xs text-faint">Ctrl+clique abre lado a lado (até 3).</p>
+      <p className="px-2 text-2xs text-faint">Ctrl+clique abre lado a lado (até 2).</p>
     </nav>
   );
 }

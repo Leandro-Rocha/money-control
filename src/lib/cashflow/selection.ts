@@ -1,5 +1,5 @@
-/** Contas abertas como coluna no extrato: 1 a 3, a mais antiga sai primeiro. */
-export const MAX_OPEN = 3;
+/** Contas abertas como coluna no extrato: 1 ou 2, a mais antiga sai primeiro. */
+export const MAX_OPEN = 2;
 
 /** Só conta corrente e cartão abrem como coluna no extrato. */
 export const isColumnAccountType = (type: string | null | undefined) => type === "bank_account" || type === "credit_card";

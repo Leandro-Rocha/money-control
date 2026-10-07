@@ -145,6 +145,7 @@
 
   --container-read: 40rem;
   --container-column: 23.75rem;
+  --container-column-wide: 40rem;
 
   --animate-tile-in: tile-in var(--dur-slow) var(--ease-out) both;
   --animate-shimmer: shimmer 1.4s linear infinite;

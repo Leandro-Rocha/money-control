@@ -74,6 +74,8 @@ export interface AccountColumnProps {
   onToggleExpanded?: () => void;
   highlightedTxId?: number | null;
   density?: TableDensity;
+  /** Cresce para dividir o espaço com as outras colunas (Extrato do desktop). */
+  fill?: boolean;
   /** YYYY-MM-DD; padrão hoje. Previsto antes disso = atrasado. */
   today?: string;
 }
@@ -104,6 +106,7 @@ export default function AccountColumn({
   onToggleExpanded,
   highlightedTxId,
   density = "compact",
+  fill = false,
   today = localToday(),
 }: AccountColumnProps) {
   const isCard = variant === "card";
@@ -692,7 +695,8 @@ export default function AccountColumn({
       flat
       aria-label={name}
       className={cn(
-        "flex w-column max-w-full shrink-0 flex-col overflow-hidden p-0 transition-opacity duration-(--dur)",
+        "flex flex-col overflow-hidden p-0 transition-opacity duration-(--dur)",
+        fill ? "min-w-column max-w-column-wide flex-1 basis-0" : "w-column max-w-full shrink-0",
         hasZeroFilterMatches && "opacity-50 hover:opacity-100",
       )}
     >

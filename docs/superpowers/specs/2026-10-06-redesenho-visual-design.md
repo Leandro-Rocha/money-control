@@ -50,7 +50,7 @@ Os valores dos protótipos são fictícios. Onde protótipo e spec divergirem, v
 | V7 | Âmbar | Abaixo do colchão; lançamento atrasado |
 | V8 | Previsto | Linha esmaecida + etiqueta "prevista" |
 | V9 | Acento | Configurável por presets; padrão **verde-azulado** |
-| V10 | Extrato | Lista lateral (contas e cartões) + 1 a 3 colunas abertas |
+| V10 | Extrato | Lista lateral (contas e cartões) + 1 ou 2 colunas abertas, dividindo a largura (380–640px cada) |
 | V11 | Cartão × conta | Cartão com ícone próprio, selo de fatura, barra de limite e sem saldo por dia |
 | V12 | Modo escuro | Tokens prontos agora; seletor fica escondido até conferência tela a tela |
 | V13 | Abordagem | Migrar para Tailwind 4 primeiro; redesenho tela por tela, um commit por tela |
@@ -231,7 +231,7 @@ ações de uma tela ficam na tela. Seletor de mês só nas telas que usam mês (
 - **Lista lateral** (240px) com grupos **Contas** e **Cartões**, cada grupo com total. Conta:
   avatar, nome, tipo, saldo. Cartão: ícone de cartão, selo da fatura (aberta/fechada/paga),
   vencimento ou fechamento, total da fatura. Conta sem movimento esmaecida.
-- Clicar abre a conta numa coluna; 1 a 3 colunas abertas; Ctrl+clique soma ao conjunto. Seleção
+- Clicar abre a conta numa coluna; 1 ou 2 colunas abertas, que crescem até ~640px para ocupar a largura; Ctrl+clique soma ao conjunto. Seleção
   salva em `money_control_expanded_accounts` (localStorage já usado por `useDashboard.ts`).
 - **Coluna de conta:** cabeçalho com saldo; lançamentos agrupados por dia com **saldo ao fim do
   dia** (`tone="balance"`); `StatusDot` + `Tag` para previsto/atrasado; previsto esmaecido.

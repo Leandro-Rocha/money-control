@@ -84,11 +84,12 @@ describe("CashflowScreen", () => {
     expect(screen.getByText("Escolha uma conta ou cartão na lista ao lado.")).toBeInTheDocument();
   });
 
-  it("colunas têm largura fixa e rolam na horizontal em vez de espremer", () => {
-    render(<CashflowScreen state={state([1, 2, 9])} />);
+  it("colunas dividem o espaço, entre a largura mínima e o teto de lista", () => {
+    render(<CashflowScreen state={state([1, 2])} />);
     for (const col of screen.getAllByRole("region")) {
-      expect(col.className).toContain("w-column");
-      expect(col.className).toContain("shrink-0");
+      expect(col.className).toContain("flex-1");
+      expect(col.className).toContain("min-w-column");
+      expect(col.className).toContain("max-w-column-wide");
       expect(col.className).not.toContain("min-w-0");
     }
   });

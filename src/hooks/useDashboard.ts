@@ -132,7 +132,7 @@ export function useDashboard(
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Contas abertas como coluna no extrato (1 a 3); salvo como lista de ids.
+  // Contas abertas como coluna no extrato (1 ou 2); salvo como lista de ids.
   const accountIdsKey = data.accountsData
     .filter((a) => isColumnAccountType(a.account.type))
     .map((a) => a.account.id)

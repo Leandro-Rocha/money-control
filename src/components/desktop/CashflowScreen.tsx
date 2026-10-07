@@ -14,7 +14,7 @@ import { DueDatesTimelineWidget } from "../DueDatesTimelineWidget";
 import { AccountSideList } from "./AccountSideList";
 import { CashflowToolbar } from "./CashflowToolbar";
 
-/** Extrato: topo, filtros, lista lateral e 1 a 3 colunas abertas. */
+/** Extrato: topo, filtros, lista lateral e 1 ou 2 colunas abertas. */
 export function CashflowScreen({ state }: { state: DashboardState }) {
   const {
     currentMonth,
@@ -188,6 +188,7 @@ export function CashflowScreen({ state }: { state: DashboardState }) {
                 onToggleExpanded={() => closeAccountColumn(accData.account.id)}
                 highlightedTxId={highlightedTxId}
                 density={tableDensity}
+                fill
               />
             ))
           )}
