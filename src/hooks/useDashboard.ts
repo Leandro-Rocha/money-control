@@ -10,7 +10,7 @@ import { getForecastAction, type ForecastPayload } from "@/lib/actions/forecast"
 import type { SettingsTab } from "@/components/SettingsDrawer";
 
 import { DEFAULT_VIEW, parseViewMode, type ViewMode } from "@/lib/view-mode";
-import { closeAccount, openAccount, parseSelection, selectAccount } from "@/lib/cashflow/selection";
+import { closeAccount, isColumnAccountType, openAccount, parseSelection, selectAccount } from "@/lib/cashflow/selection";
 
 const SELECTION_KEY = "money_control_expanded_accounts";
 
@@ -131,7 +131,10 @@ export function useDashboard(
   }, []);
 
   // Contas abertas como coluna no extrato (1 a 3); salvo como lista de ids.
-  const accountIdsKey = data.accountsData.map((a) => a.account.id).join(",");
+  const accountIdsKey = data.accountsData
+    .filter((a) => isColumnAccountType(a.account.type))
+    .map((a) => a.account.id)
+    .join(",");
   const [openAccountIds, setOpenAccountIds] = useState<number[]>([]);
 
   useEffect(() => {
@@ -275,6 +278,12 @@ export function useDashboard(
   const handleSelectSearchedTransaction = useCallback(
     (tx: GlobalSearchResultItem) => {
       setSearchOpen(false);
+
+      // Investimento, financiamento etc. não viram coluna: vão para o Patrimônio
+      if (!isColumnAccountType(tx.accountType)) {
+        setViewMode("wealth");
+        return;
+      }
 
       // Abre a conta como coluna
       updateOpenAccounts((s) => openAccount(s, tx.accountId));

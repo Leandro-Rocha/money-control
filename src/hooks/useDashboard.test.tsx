@@ -77,8 +77,25 @@ describe("useDashboard", () => {
   it("escolher um lançamento na busca abre a conta dele", async () => {
     const { result } = renderHook(() => useDashboard(month, "cashflow"));
     await waitFor(() => expect(result.current.openAccountIds).toEqual([1]));
-    act(() => result.current.handleSelectSearchedTransaction({ id: 50, accountId: 9, month: "2026-10" } as never));
+    act(() => result.current.handleSelectSearchedTransaction({ id: 50, accountId: 9, accountType: "credit_card", month: "2026-10" } as never));
     expect(result.current.openAccountIds).toEqual([1, 9]);
     expect(result.current.highlightedTxId).toBe(50);
+  });
+
+  it("só conta corrente e cartão viram coluna (padrão e busca)", async () => {
+    const withInvestment = {
+      ...month,
+      accountsData: [
+        { account: { id: 5, type: "investment", name: "CDB" }, transactions: [], initialBalance: 0, finalBalance: 0, totalIncome: 0, totalExpense: 0, netBalance: 0 },
+        ...month.accountsData,
+      ],
+    } as unknown as MonthData;
+    const { result } = renderHook(() => useDashboard(withInvestment, "cashflow"));
+    await waitFor(() => expect(result.current.openAccountIds).toEqual([1]));
+    act(() =>
+      result.current.handleSelectSearchedTransaction({ id: 51, accountId: 5, accountType: "investment", month: "2026-10" } as never),
+    );
+    expect(result.current.openAccountIds).toEqual([1]);
+    expect(result.current.viewMode).toBe("wealth");
   });
 });

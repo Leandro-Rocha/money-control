@@ -32,11 +32,9 @@ import {
 } from "@/lib/actions/transactions";
 import { convertToTransfer } from "@/lib/actions/transfers";
 import { payCreditCardBillAction } from "@/lib/actions/projections";
-import { getFormattedPurchaseDate } from "@/lib/date-helpers";
-import { sortCreditCardTransactions } from "@/lib/sorting";
 import {
+  cardDateGroups,
   dayGroups,
-  groupConsecutive,
   txStatus,
   type TxStatus,
 } from "@/lib/cashflow/rows";
@@ -678,23 +676,7 @@ export default function AccountColumn({
     newAmount.trim() !== "" &&
     newAmount !== "-";
 
-  const sortedCardTxs = isCard
-    ? sortCreditCardTransactions(filteredTransactions)
-    : [];
-  const cardGroups = groupConsecutive(sortedCardTxs, (tx) => {
-    const isRecurring =
-      (tx.isProjected && tx.projectionSourceType === "recurring") ||
-      tx.sourceType === "recurring" ||
-      tx.projectionSourceType === "recurring";
-    return isRecurring
-      ? "Recorrentes"
-      : (getFormattedPurchaseDate(
-          tx.purchaseDate,
-          tx.month || month,
-          tx.day,
-          tx.month,
-        ) ?? "Sem data");
-  });
+  const cardGroups = isCard ? cardDateGroups(filteredTransactions, month) : [];
 
   const emptyText =
     filteredTransactions.length > 0
@@ -710,7 +692,7 @@ export default function AccountColumn({
       flat
       aria-label={name}
       className={cn(
-        "flex w-full max-w-column min-w-0 flex-col overflow-hidden p-0 transition-opacity duration-(--dur)",
+        "flex w-column max-w-full shrink-0 flex-col overflow-hidden p-0 transition-opacity duration-(--dur)",
         hasZeroFilterMatches && "opacity-50 hover:opacity-100",
       )}
     >

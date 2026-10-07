@@ -1,6 +1,9 @@
 /** Contas abertas como coluna no extrato: 1 a 3, a mais antiga sai primeiro. */
 export const MAX_OPEN = 3;
 
+/** Só conta corrente e cartão abrem como coluna no extrato. */
+export const isColumnAccountType = (type: string | null | undefined) => type === "bank_account" || type === "credit_card";
+
 export function parseSelection(raw: string | null, ids: number[]): number[] {
   if (ids.length === 0) return [];
   const valid = new Set(ids);

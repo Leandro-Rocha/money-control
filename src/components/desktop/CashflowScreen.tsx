@@ -151,7 +151,7 @@ export function CashflowScreen({ state }: { state: DashboardState }) {
       </Tile>
 
       <div className="flex items-start gap-5">
-        <div className="sticky top-4 hidden lg:block">
+        <div className="sticky top-4 hidden shrink-0 md:block">
           <AccountSideList
             banks={bankAccounts}
             cards={creditCards}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { dayGroups, groupConsecutive, txStatus } from "./rows";
+import { cardDateGroups, dayGroups, groupConsecutive, txStatus } from "./rows";
+import type { TransactionWithCategory } from "@/lib/types";
 
 describe("txStatus", () => {
   const today = "2026-10-06";
@@ -11,6 +12,12 @@ describe("txStatus", () => {
   it("previsto antes de hoje é atrasado", () => {
     expect(txStatus({ isProjected: true, day: 5 }, "2026-10", today)).toBe("overdue");
     expect(txStatus({ isProjected: true, day: 28 }, "2026-09", today)).toBe("overdue");
+  });
+  it("veredito do motor manda: atrasado com data de hoje é atrasado", () => {
+    expect(txStatus({ isProjected: true, day: 6, projectionStatus: "overdue" }, "2026-10", today)).toBe("overdue");
+  });
+  it("veredito do motor manda: pendente com data passada (cartão) é previsto", () => {
+    expect(txStatus({ isProjected: true, day: 2, projectionStatus: "pending" }, "2026-10", today)).toBe("projected");
   });
   it("usa o mês do lançamento quando houver", () => {
     expect(txStatus({ isProjected: true, day: 28, month: "2026-09" }, "2026-10", today)).toBe("overdue");
@@ -42,5 +49,28 @@ describe("dayGroups", () => {
   });
   it("sem runningBalance conta como 0", () => {
     expect(dayGroups([{ id: 1, day: 1 }])[0].endBalance).toBe(0);
+  });
+});
+
+describe("cardDateGroups", () => {
+  const tx = (o: Partial<TransactionWithCategory>) =>
+    ({ id: 1, accountId: 9, month: "2026-10", day: 1, description: "x", amount: -10, ...o }) as TransactionWithCategory;
+
+  it("um cabeçalho por data de compra, mesmo misturando parcela e compra comum; recorrentes no fim", () => {
+    const groups = cardDateGroups(
+      [
+        tx({ id: 1, day: 3, description: "Loja", installmentCurrent: 2, installmentTotal: 5, purchaseDate: "03/09/2026" }),
+        tx({ id: 2, day: 3, description: "Mercado", purchaseDate: "03/09/2026" }),
+        tx({ id: 3, day: 1, description: "Padaria", purchaseDate: "01/09/2026" }),
+        tx({ id: 4, day: 10, description: "Netflix", isProjected: true, projectionSourceType: "recurring" }),
+        tx({ id: 5, day: 4, description: "Spotify", sourceType: "recurring" }),
+      ],
+      "2026-10",
+    );
+    expect(groups.map((g) => [g.key, g.items.map((t) => t.id)])).toEqual([
+      ["01/09", [3]],
+      ["03/09", [1, 2]],
+      ["Recorrentes", [5, 4]],
+    ]);
   });
 });

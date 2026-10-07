@@ -83,4 +83,20 @@ describe("CashflowScreen", () => {
     render(<CashflowScreen state={state([])} />);
     expect(screen.getByText("Escolha uma conta ou cartão na lista ao lado.")).toBeInTheDocument();
   });
+
+  it("colunas têm largura fixa e rolam na horizontal em vez de espremer", () => {
+    render(<CashflowScreen state={state([1, 2, 9])} />);
+    for (const col of screen.getAllByRole("region")) {
+      expect(col.className).toContain("w-column");
+      expect(col.className).toContain("shrink-0");
+      expect(col.className).not.toContain("min-w-0");
+    }
+  });
+
+  it("lista lateral aparece em toda largura do desktop (md em diante), não só lg", () => {
+    render(<CashflowScreen state={state([1])} />);
+    const aside = screen.getByRole("button", { name: /Nubank/ }).closest(".sticky")!;
+    expect(aside.className).toContain("md:block");
+    expect(aside.className).not.toContain("lg:block");
+  });
 });
