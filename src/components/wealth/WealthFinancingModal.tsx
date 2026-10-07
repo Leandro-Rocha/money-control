@@ -7,7 +7,7 @@ import { updateFinancingBalance } from "@/lib/actions/accounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ModalShell } from "../ModalShell";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface WealthFinancingModalProps {
   item: WealthFinancingItem | null;
@@ -55,38 +55,11 @@ export function WealthFinancingModal({ item, onClose, onSaved }: WealthFinancing
   };
 
   return (
-    <ModalShell
-      open={!!item}
-      onClose={onClose}
-      title="Ajustar Saldo do Financiamento"
-      subtitle={`${item.account.name} • Reconcilie com o extrato bancário`}
-      maxWidth="max-w-md"
-      footer={
-        <div className="flex items-center justify-end gap-2 w-full">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={isSaving}
-            className="h-8 text-xs"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="form-adjust-financing"
-            size="sm"
-            disabled={isSaving}
-            className="h-8 text-xs gap-1.5"
-          >
-            {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            <span>Salvar Alterações</span>
-          </Button>
-        </div>
-      }
-    >
-      <form id="form-adjust-financing" onSubmit={handleSave} className="space-y-3">
+    <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogTitle>Ajustar Saldo do Financiamento</DialogTitle>
+        <DialogDescription>{item.account.name} • Reconcilie com o extrato bancário</DialogDescription>
+      <form id="form-adjust-financing" onSubmit={handleSave} className="mt-4 space-y-3">
         <div>
           <Label htmlFor="remAmount" className="text-xs font-medium">
             Novo Saldo Devedor Restante (R$)
@@ -106,7 +79,7 @@ export function WealthFinancingModal({ item, onClose, onSaved }: WealthFinancing
 
         <div>
           <Label htmlFor="instAmount" className="text-xs font-medium">
-            Valor Atual da Parcela (R$) <span className="text-muted-foreground font-normal">(Reajuste da parcela)</span>
+            Valor Atual da Parcela (R$) <span className="text-mut font-normal">(Reajuste da parcela)</span>
           </Label>
           <Input
             id="instAmount"
@@ -152,6 +125,16 @@ export function WealthFinancingModal({ item, onClose, onSaved }: WealthFinancing
           </div>
         </div>
       </form>
-    </ModalShell>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSaving}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="form-adjust-financing" size="sm" disabled={isSaving} className="gap-1.5">
+            {isSaving && <Loader2 className="size-3.5 animate-spin" />}
+            Salvar Alterações
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

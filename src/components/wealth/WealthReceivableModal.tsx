@@ -7,7 +7,7 @@ import { updateReceivableBalance } from "@/lib/actions/accounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ModalShell } from "../ModalShell";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface WealthReceivableModalProps {
   item: WealthReceivableItem | null;
@@ -60,38 +60,11 @@ export function WealthReceivableModal({ item, onClose, onSaved }: WealthReceivab
   };
 
   return (
-    <ModalShell
-      open={!!item}
-      onClose={onClose}
-      title="Ajustar Crédito a Receber"
-      subtitle={`${item.account.name} • Reconcilie o saldo restante e parcelas do empréstimo`}
-      maxWidth="max-w-md"
-      footer={
-        <div className="flex items-center justify-end gap-2 w-full">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={isSavingReceivable}
-            className="h-8 text-xs"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="form-adjust-receivable"
-            size="sm"
-            disabled={isSavingReceivable || newReceivableRemaining === ""}
-            className="h-8 text-xs gap-1.5"
-          >
-            {isSavingReceivable && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            <span>Salvar Alterações</span>
-          </Button>
-        </div>
-      }
-    >
-      <form id="form-adjust-receivable" onSubmit={handleSave} className="space-y-4">
+    <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogTitle>Ajustar Crédito a Receber</DialogTitle>
+        <DialogDescription>{item.account.name} • Reconcilie o saldo restante e parcelas do empréstimo</DialogDescription>
+      <form id="form-adjust-receivable" onSubmit={handleSave} className="mt-4 space-y-4">
         <div>
           <Label htmlFor="recRemaining" className="text-xs font-medium">
             Saldo Restante a Receber (R$)
@@ -176,6 +149,16 @@ export function WealthReceivableModal({ item, onClose, onSaved }: WealthReceivab
           </div>
         </div>
       </form>
-    </ModalShell>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSavingReceivable}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="form-adjust-receivable" size="sm" disabled={isSavingReceivable || newReceivableRemaining === ""} className="gap-1.5">
+            {isSavingReceivable && <Loader2 className="size-3.5 animate-spin" />}
+            Salvar Alterações
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
