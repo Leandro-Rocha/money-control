@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Money } from "@/components/ui/money";
+import { Tile } from "@/components/ui/tile";
 import type { DashboardState } from "@/hooks/useDashboard";
 import {
   createBalanceAdjustmentAction,
@@ -14,180 +16,249 @@ import {
   type ReviewData,
 } from "@/lib/actions/forecast";
 import { confirmProjectedRow, dismissProjection, payCreditCardBillAction } from "@/lib/actions/projections";
-import { localToday, dayOf } from "@/lib/forecast/dates";
-import { parseNumberInput } from "@/lib/format";
+import { updateTransaction } from "@/lib/actions/transactions";
+import { dayOf, localToday } from "@/lib/forecast/dates";
+import { reviewGroups, suggestionKey, type ReviewGroup, type ReviewGroupKey } from "@/lib/forecast/review-groups";
 import type { ForecastEvent, SourceType } from "@/lib/forecast/types";
-import { KIND_LABEL, LoadingCard, Money, Section, fmtDate } from "./shared";
-import { countReviewPending } from "@/lib/forecast/review-count";
+import { parseNumberInput } from "@/lib/format";
+import type { Category } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { KIND_LABEL, LoadingCard, fmtDate } from "./shared";
 
 const SOURCE_TYPES: SourceType[] = ["installment", "recurring", "credit_card_bill"];
 
+type Run = (key: string | null, fn: () => Promise<unknown>) => void;
+
 export function ReviewView({ state }: { state: DashboardState }) {
   const [data, setData] = useState<ReviewData | null>(null);
+  const [leaving, setLeaving] = useState<ReadonlySet<string>>(() => new Set());
   const [isPending, startTransition] = useTransition();
-  const [hiddenSuggestions, setHiddenSuggestions] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
-    startTransition(async () => setData(await getReviewDataAction()));
+    startTransition(async () => {
+      const d = await getReviewDataAction();
+      setData(d);
+      setLeaving(new Set());
+    });
   }, []);
 
   useEffect(() => {
     load();
   }, [load, state.dataVersion]);
 
-  /** Executa uma ação e recarrega tudo (extrato, previsão e esta tela). */
-  const run = (fn: () => Promise<unknown>) =>
+  /** Tira o item (animação) e executa; o recarregamento traz a verdade (inclusive de volta, se falhou). */
+  const run: Run = (key, fn) => {
+    if (key) setLeaving((l) => new Set(l).add(key));
     startTransition(async () => {
-      await fn();
+      try {
+        await fn();
+      } catch {
+        // o item volta quando os dados recarregarem
+      }
       state.refreshCurrentMonth();
     });
+  };
 
   if (!data) return <LoadingCard label="Procurando pendências..." />;
 
   const accountName = (id: number) => state.allAccounts.find((a) => a.id === id)?.name ?? `#${id}`;
   const bankAccounts = state.allAccounts.filter((a) => a.type === "bank_account" && a.isActive !== 0);
-  const suggestions = data.recurringSuggestions.filter((s) => !hiddenSuggestions.has(`${s.accountId}|${s.description}`));
+  const hidden = state.hiddenSuggestions;
+  const suggestions = data.recurringSuggestions.filter((s) => !hidden.has(suggestionKey(s)));
+  const gone = (prefix: string) => [...leaving].filter((k) => k.startsWith(prefix)).length;
 
-  const total = countReviewPending(data, hiddenSuggestions);
+  const groups = reviewGroups(
+    {
+      overdue: data.overdue.filter((e) => !leaving.has(`o:${e.key}`)),
+      discrepancies: data.discrepancies.filter((d) => !leaving.has(`d:${d.accountId}`)),
+      uncategorizedCount: Math.max(0, data.uncategorizedCount - gone("u:")),
+      recurringSuggestions: data.recurringSuggestions.filter((s) => !leaving.has(`s:${suggestionKey(s)}`)),
+      unpairedTransfers: data.unpairedTransfers,
+      reimbursementCandidates: data.reimbursementCandidates.filter((c) => !leaving.has(`r:${c.credit.id}`)),
+      warnings: data.warnings,
+    },
+    hidden,
+  );
+  const g = Object.fromEntries(groups.map((x) => [x.key, x])) as Record<ReviewGroupKey, ReviewGroup>;
+  // Corpo vazio pelos dados crus: o último item ainda precisa sair animado.
+  const rawEmpty = new Set(reviewGroups(data, hidden).filter((x) => x.count === 0).map((x) => x.key));
+  const total = groups.filter((x) => x.needsAction).reduce((s, x) => s + x.count, 0);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm text-muted-foreground">
+      <p className="text-sm text-mut" aria-live="polite">
         {total === 0 ? "Nada pendente. A previsão está usando dados conferidos." : `${total} pendência(s) que afetam a previsão.`}
         {isPending && " Atualizando..."}
-      </div>
+      </p>
 
-      {data.overdue.length > 0 && (
-        <Section title="Previstos que não apareceram no extrato">
-          <p className="text-xs text-muted-foreground">
-            Enquanto não forem resolvidos, entram na previsão como se acontecessem hoje.
-          </p>
-          <div className="flex flex-col gap-2">
-            {data.overdue.map((e) => (
-              <OverdueRow key={e.key} e={e} accountName={accountName} run={run} />
-            ))}
-          </div>
-        </Section>
-      )}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <Group group={g.overdue} empty={rawEmpty.has("overdue")}>
+          {data.overdue.length > 0 && (
+            <>
+              <p className="text-xs text-mut">Enquanto não forem resolvidos, entram na previsão como se acontecessem hoje.</p>
+              <ul className="flex flex-col">
+                {data.overdue.map((e) => (
+                  <Item key={e.key} leaving={leaving.has(`o:${e.key}`)}>
+                    <OverdueRow e={e} accountName={accountName} run={run} />
+                  </Item>
+                ))}
+              </ul>
+            </>
+          )}
+        </Group>
 
-      <Section title="Saldo real das contas">
-        <p className="text-xs text-muted-foreground">
-          Informe o saldo que aparece no app do banco. A previsão parte dele; diferenças com os lançamentos aparecem abaixo.
-        </p>
-        {data.accountsWithoutSnapshot.length > 0 && (
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            Sem saldo do banco: {data.accountsWithoutSnapshot.map((a) => a.name).join(", ")} (usando só a soma dos lançamentos).
+        <Group group={g.balances} empty={rawEmpty.has("balances")} keepBody>
+          <p className="text-xs text-mut">
+            Informe o saldo que aparece no app do banco. A previsão parte dele; diferenças com os lançamentos aparecem abaixo.
           </p>
-        )}
-        <div className="flex flex-col gap-2">
-          {bankAccounts.map((a) => (
-            <BalanceInput key={a.id} accountId={a.id} name={a.name} run={run} />
-          ))}
-        </div>
-        {data.discrepancies.length > 0 && (
-          <div className="flex flex-col gap-2 border-t border-border pt-3">
-            <div className="text-xs font-semibold">Diferença entre o saldo do banco e os lançamentos</div>
-            {data.discrepancies.map((d) => (
-              <div key={d.accountId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span>
-                  {d.accountName}: banco em {fmtDate(d.snapshotDate ?? "")} difere em <Money value={d.discrepancy} sign /> (calculado{" "}
-                  <Money value={d.computedBalance} />)
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    run(() => createBalanceAdjustmentAction({ accountId: d.accountId, date: d.snapshotDate!, amount: d.discrepancy }))
-                  }
-                >
-                  Lançar ajuste
-                </Button>
-              </div>
-            ))}
-            <p className="text-2xs text-muted-foreground">
-              O ajuste cria um lançamento “Ajuste de saldo” (fora dos resumos). Prefira antes procurar lançamento faltando ou duplicado.
+          {data.accountsWithoutSnapshot.length > 0 && (
+            <p className="text-xs text-caution-ink">
+              Sem saldo do banco: {data.accountsWithoutSnapshot.map((a) => a.name).join(", ")} (usando só a soma dos lançamentos).
             </p>
-          </div>
-        )}
-      </Section>
-
-      {(
-        <Section title="Lançamentos">
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => state.setTriageOpen(true)} disabled={data.uncategorizedCount === 0}>
-              {data.uncategorizedCount > 0 ? `${data.uncategorizedCount} sem categoria (3 meses)` : "Nenhum sem categoria"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => state.handleOpenDuplicates()}>
-              Procurar duplicados
-            </Button>
-          </div>
-        </Section>
-      )}
-
-      {suggestions.length > 0 && (
-        <Section title="Parecem contas fixas sem recorrência cadastrada">
+          )}
           <div className="flex flex-col gap-2">
-            {suggestions.map((s) => (
-              <div key={`${s.accountId}|${s.description}`} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <div className="min-w-0">
-                  <div className="truncate">{s.description}</div>
-                  <div className="text-2xs text-muted-foreground">
-                    {accountName(s.accountId)} · dia {s.day} · em {s.months.map((m) => m.slice(5)).join(", ")}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Money value={s.amount} sign />
-                  <Button size="sm" variant="outline" onClick={() => run(() => createRecurringFromSuggestionAction(s))}>
-                    Criar recorrência
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setHiddenSuggestions((h) => new Set(h).add(`${s.accountId}|${s.description}`))}
-                  >
-                    Ignorar
-                  </Button>
-                </div>
-              </div>
+            {bankAccounts.map((a) => (
+              <BalanceInput key={a.id} accountId={a.id} name={a.name} run={run} />
             ))}
           </div>
-        </Section>
-      )}
+          {data.discrepancies.length > 0 && (
+            <ul className="flex flex-col border-t border-line pt-2">
+              {data.discrepancies.map((d) => (
+                <Item key={d.accountId} leaving={leaving.has(`d:${d.accountId}`)}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                    <span>
+                      {d.accountName}: banco em {fmtDate(d.snapshotDate ?? "")} difere em <Money value={d.discrepancy} sign />{" "}
+                      (calculado <Money value={d.computedBalance} />)
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        run(`d:${d.accountId}`, () =>
+                          createBalanceAdjustmentAction({ accountId: d.accountId, date: d.snapshotDate!, amount: d.discrepancy }),
+                        )
+                      }
+                    >
+                      Lançar ajuste
+                    </Button>
+                  </div>
+                </Item>
+              ))}
+              <p className="pt-1 text-2xs text-mut">
+                O ajuste cria um lançamento “Ajuste de saldo” (fora dos resumos). Prefira antes procurar lançamento faltando ou
+                duplicado.
+              </p>
+            </ul>
+          )}
+        </Group>
 
-      {data.unpairedTransfers.length > 0 && (
-        <Section
-          title="Transferências sem par"
+        <Group
+          group={g.uncategorized}
+          empty={rawEmpty.has("uncategorized")}
+          keepBody
           right={
-            <Button size="sm" variant="outline" onClick={() => state.setTransfersOpen(true)}>
-              Assistente de transferências
+            <Button size="sm" variant="ghost" onClick={() => state.handleOpenDuplicates()}>
+              Procurar duplicados
             </Button>
           }
         >
-          <p className="text-xs text-muted-foreground">
-            Saiu de uma conta e não entrou em outra (ou vice-versa). Se a outra ponta é sua, falta lançá-la; se não é, a categoria
-            deveria ser outra.
-          </p>
-          <div className="flex flex-col gap-1 text-sm">
-            {data.unpairedTransfers.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-2">
-                <span className="truncate">
-                  {fmtDate(`${t.month}-${String(t.day).padStart(2, "0")}`)} · {accountName(t.accountId)} · {t.description}
-                </span>
-                <Money value={t.amount} sign />
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
+          {data.uncategorized.length > 0 && (
+            <ul className="flex flex-col">
+              {data.uncategorized.map((t) => (
+                <Item key={t.id} leaving={leaving.has(`u:${t.id}`)}>
+                  <UncategorizedRow
+                    tx={t}
+                    accountName={accountName}
+                    chips={chipCategories(t.amount, data.topCategories, state.allCategories)}
+                    onPick={(categoryId) => run(`u:${t.id}`, () => updateTransaction(t.id, { categoryId }))}
+                    onMore={() => state.setTriageOpen(true)}
+                  />
+                </Item>
+              ))}
+            </ul>
+          )}
+          {data.uncategorizedCount > data.uncategorized.length && (
+            <Button size="sm" variant="outline" className="self-start" onClick={() => state.setTriageOpen(true)}>
+              Abrir triagem ({data.uncategorizedCount})
+            </Button>
+          )}
+        </Group>
 
-      {(data.reimbursementCandidates.length > 0 || data.pendingReimbursements.length > 0) && (
-        <Section title="Reembolsos">
-          {data.reimbursementCandidates.map((c) => (
-            <ReimbursementCandidateRow key={c.credit.id} c={c} accountName={accountName} run={run} />
-          ))}
+        <Group group={g.suggestions} empty={rawEmpty.has("suggestions")}>
+          {suggestions.length > 0 && (
+            <ul className="flex flex-col">
+              {suggestions.map((s) => {
+                const key = suggestionKey(s);
+                return (
+                  <Item key={key} leaving={leaving.has(`s:${key}`)}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate">{s.description}</div>
+                        <div className="text-2xs text-mut">
+                          {accountName(s.accountId)} · dia {s.day} · em {s.months.map((m) => m.slice(5)).join(", ")}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Money value={s.amount} sign />
+                        <Button size="sm" variant="outline" onClick={() => run(`s:${key}`, () => createRecurringFromSuggestionAction(s))}>
+                          Criar recorrência
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => state.hideSuggestion(key)}>
+                          Ignorar
+                        </Button>
+                      </div>
+                    </div>
+                  </Item>
+                );
+              })}
+            </ul>
+          )}
+        </Group>
+
+        <Group
+          group={g.transfers}
+          empty={rawEmpty.has("transfers")}
+          right={
+            data.unpairedTransfers.length > 0 ? (
+              <Button size="sm" variant="ghost" onClick={() => state.setTransfersOpen(true)}>
+                Assistente
+              </Button>
+            ) : undefined
+          }
+        >
+          {data.unpairedTransfers.length > 0 && (
+            <>
+              <p className="text-xs text-mut">
+                Saiu de uma conta e não entrou em outra (ou vice-versa). Se a outra ponta é sua, falta lançá-la; se não é, a
+                categoria deveria ser outra.
+              </p>
+              <ul className="flex flex-col gap-1 text-sm">
+                {data.unpairedTransfers.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate">
+                      {fmtDate(`${t.month}-${String(t.day).padStart(2, "0")}`)} · {accountName(t.accountId)} · {t.description}
+                    </span>
+                    <Money value={t.amount} sign />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Group>
+
+        <Group group={g.reimbursements} empty={rawEmpty.has("reimbursements")} keepBody={data.pendingReimbursements.length > 0}>
+          {data.reimbursementCandidates.length > 0 && (
+            <ul className="flex flex-col">
+              {data.reimbursementCandidates.map((c) => (
+                <Item key={c.credit.id} leaving={leaving.has(`r:${c.credit.id}`)}>
+                  <ReimbursementCandidateRow c={c} accountName={accountName} run={run} />
+                </Item>
+              ))}
+            </ul>
+          )}
           {data.pendingReimbursements.length > 0 && (
-            <div className="flex flex-col gap-1 text-sm border-t border-border pt-3">
-              <div className="text-xs font-semibold">Aguardando reembolso</div>
+            <div className="flex flex-col gap-1 border-t border-line pt-3 text-sm">
+              <p className="text-xs font-semibold">Aguardando reembolso</p>
               {data.pendingReimbursements.map((p) => (
                 <div key={p.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span className="truncate">
@@ -195,7 +266,7 @@ export function ReviewView({ state }: { state: DashboardState }) {
                   </span>
                   <span className="flex items-center gap-2">
                     falta <Money value={p.pending} />
-                    <Button size="sm" variant="ghost" onClick={() => run(() => setTransactionReimbursableAction(p.id, false))}>
+                    <Button size="sm" variant="ghost" onClick={() => run(null, () => setTransactionReimbursableAction(p.id, false))}>
                       Não será reembolsado
                     </Button>
                   </span>
@@ -203,37 +274,144 @@ export function ReviewView({ state }: { state: DashboardState }) {
               ))}
             </div>
           )}
-        </Section>
-      )}
+        </Group>
 
-      {data.warnings.length > 0 && (
-        <Section title="Avisos da previsão">
-          <ul className="text-xs text-muted-foreground list-disc pl-4">
-            {data.warnings.map((w, i) => (
-              <li key={i}>{w}</li>
-            ))}
-          </ul>
-        </Section>
-      )}
+        <Group group={g.warnings} empty={rawEmpty.has("warnings")}>
+          {data.warnings.length > 0 && (
+            <ul className="list-disc pl-4 text-xs text-mut">
+              {data.warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          )}
+        </Group>
+      </div>
     </div>
   );
 }
 
-function OverdueRow({
-  e,
-  accountName,
-  run,
+function Group({
+  group,
+  empty,
+  right,
+  keepBody = false,
+  children,
 }: {
-  e: ForecastEvent;
-  accountName: (id: number) => string;
-  run: (fn: () => Promise<unknown>) => void;
+  group: ReviewGroup;
+  /** Sem item nenhum nos dados (diferente de contador zerado por itens saindo). */
+  empty: boolean;
+  right?: React.ReactNode;
+  /** Conteúdo fixo (formulário, botões) que aparece mesmo sem pendência. */
+  keepBody?: boolean;
+  children: React.ReactNode;
 }) {
+  const id = `review-${group.key}`;
+  const done = group.count === 0;
+  return (
+    <Tile aria-labelledby={id} className="flex flex-col gap-3">
+      <header className="flex items-center justify-between gap-2">
+        <h2 id={id} className="text-sm font-semibold">
+          {group.title}
+        </h2>
+        <div className="flex items-center gap-2">
+          {right}
+          <span
+            data-counter
+            aria-label={done ? "Nada pendente" : `${group.count} pendente(s)`}
+            className={cn(
+              "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums transition-colors duration-(--dur)",
+              done ? "bg-accent-soft text-accent-ink" : group.needsAction ? "bg-caution-soft text-caution-ink" : "bg-hover text-mut",
+            )}
+          >
+            {done ? "✓" : group.count}
+          </span>
+        </div>
+      </header>
+      {empty && !keepBody ? <p className="text-sm text-mut">Nada pendente.</p> : children}
+    </Tile>
+  );
+}
+
+/** Linha que sai deslizando; a altura acompanha (grid 1fr → 0fr). */
+function Item({ leaving, children }: { leaving: boolean; children: React.ReactNode }) {
+  return (
+    <li
+      data-leaving={leaving || undefined}
+      aria-hidden={leaving || undefined}
+      className={cn(
+        "grid transition-[grid-template-rows,opacity,translate] duration-(--dur) ease-out",
+        leaving ? "pointer-events-none translate-x-4 grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]",
+      )}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </li>
+  );
+}
+
+function chipCategories(amount: number, top: ReviewData["topCategories"], all: Category[]): Category[] {
+  const ids = amount < 0 ? top.expense : top.income;
+  const byId = new Map(all.map((c) => [c.id, c]));
+  const fromTop = ids.map((id) => byId.get(id)).filter((c): c is Category => c != null);
+  if (fromTop.length > 0) return fromTop;
+  const wanted = amount < 0 ? "expense" : "income";
+  return all.filter((c) => (c.type === wanted || c.type === "both") && (c.kind == null || c.kind === "regular")).slice(0, 4);
+}
+
+function UncategorizedRow({
+  tx,
+  accountName,
+  chips,
+  onPick,
+  onMore,
+}: {
+  tx: ReviewData["uncategorized"][number];
+  accountName: (id: number) => string;
+  chips: Category[];
+  onPick: (categoryId: number) => void;
+  onMore: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 py-1.5 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate">{tx.description}</div>
+          <div className="text-2xs text-mut">
+            {fmtDate(tx.date)} · {accountName(tx.accountId)}
+          </div>
+        </div>
+        <Money value={tx.amount} sign />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onPick(c.id)}
+            className="rounded-full border border-line px-2 py-0.5 text-xs text-ink transition-colors duration-(--dur-fast) hover:bg-hover"
+          >
+            {c.name}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={onMore}
+          className="rounded-full px-2 py-0.5 text-xs text-mut transition-colors duration-(--dur-fast) hover:bg-hover hover:text-ink"
+        >
+          Mais…
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OverdueRow({ e, accountName, run }: { e: ForecastEvent; accountName: (id: number) => string; run: Run }) {
   const sourceType = SOURCE_TYPES.includes(e.source.type as SourceType) ? (e.source.type as SourceType) : null;
   const canDismiss = sourceType != null && e.source.id != null;
+  const key = `o:${e.key}`;
 
   const confirm = () => {
     if (e.kind === "card_bill" && e.cardAccountId != null) {
-      return run(() =>
+      return run(key, () =>
         payCreditCardBillAction({
           cardAccountId: e.cardAccountId!,
           paymentAccountId: e.accountId,
@@ -243,7 +421,7 @@ function OverdueRow({
         }),
       );
     }
-    run(() =>
+    run(key, () =>
       confirmProjectedRow({
         accountId: e.accountId,
         month: e.source.month,
@@ -258,7 +436,7 @@ function OverdueRow({
   };
 
   const dismiss = () =>
-    run(() =>
+    run(key, () =>
       dismissProjection({
         accountId: e.accountId,
         month: e.source.month,
@@ -268,10 +446,10 @@ function OverdueRow({
     );
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
       <div className="min-w-0">
         <div className="truncate">{e.description}</div>
-        <div className="text-2xs text-muted-foreground">
+        <div className="text-2xs text-mut">
           {accountName(e.accountId)} · {KIND_LABEL[e.kind]} · previsto {fmtDate(e.dueDate)}
         </div>
       </div>
@@ -292,22 +470,29 @@ function OverdueRow({
   );
 }
 
-function BalanceInput({ accountId, name, run }: { accountId: number; name: string; run: (fn: () => Promise<unknown>) => void }) {
+function BalanceInput({ accountId, name, run }: { accountId: number; name: string; run: Run }) {
   const [value, setValue] = useState("");
   const [date, setDate] = useState(localToday());
   const save = () => {
     const balance = parseNumberInput(value);
     if (balance == null) return;
-    run(async () => {
+    run(null, async () => {
       await recordBalanceSnapshotAction({ accountId, date, balance });
       setValue("");
     });
   };
   return (
-    <div className="grid grid-cols-[1fr_120px_140px_auto] gap-2 items-center text-sm">
+    <div className="grid grid-cols-[1fr_7rem_8.5rem_auto] items-center gap-2 text-sm">
       <span className="truncate">{name}</span>
-      <Input placeholder="Saldo" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
-      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <Input
+        aria-label={`Saldo do banco em ${name}`}
+        placeholder="Saldo"
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="h-8 font-mono"
+      />
+      <Input aria-label={`Data do saldo de ${name}`} type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8" />
       <Button size="sm" variant="outline" onClick={save} disabled={!value.trim()}>
         Salvar
       </Button>
@@ -322,12 +507,12 @@ function ReimbursementCandidateRow({
 }: {
   c: ReviewData["reimbursementCandidates"][number];
   accountName: (id: number) => string;
-  run: (fn: () => Promise<unknown>) => void;
+  run: Run;
 }) {
   const [expenseId, setExpenseId] = useState<string>(c.expenses[0] ? String(c.expenses[0].id) : "");
   const date = `${c.credit.month}-${String(c.credit.day).padStart(2, "0")}`;
   return (
-    <div className="flex flex-col gap-1 text-sm">
+    <div className="flex flex-col gap-1 py-1.5 text-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate">
           {fmtDate(date)} · {accountName(c.credit.accountId)} · {c.credit.description}
@@ -335,14 +520,15 @@ function ReimbursementCandidateRow({
         <Money value={c.credit.amount} sign />
       </div>
       {c.expenses.length === 0 ? (
-        <p className="text-2xs text-muted-foreground">
+        <p className="text-2xs text-mut">
           Parece reembolso, mas não há despesa marcada como reembolsável antes dele. Marque a despesa no detalhe do lançamento.
         </p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">abater de</span>
+          <span className="text-xs text-mut">abater de</span>
           <select
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs max-w-full"
+            aria-label="Despesa a abater"
+            className="h-8 max-w-full rounded-md border border-line bg-tile px-2 text-xs"
             value={expenseId}
             onChange={(e) => setExpenseId(e.target.value)}
           >
@@ -356,7 +542,9 @@ function ReimbursementCandidateRow({
             size="sm"
             variant="outline"
             disabled={!expenseId}
-            onClick={() => run(() => linkReimbursementAction({ expenseId: Number(expenseId), creditId: c.credit.id }))}
+            onClick={() =>
+              run(`r:${c.credit.id}`, () => linkReimbursementAction({ expenseId: Number(expenseId), creditId: c.credit.id }))
+            }
           >
             Vincular
           </Button>
