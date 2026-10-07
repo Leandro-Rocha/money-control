@@ -2,6 +2,7 @@
 
 import { Eye, EyeOff, RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/ui/brand-mark";
 import { Hint } from "@/components/ui/tooltip";
 import { LiveChip } from "@/components/ui/live-chip";
 import { SegmentedNav, type SegmentedNavItem } from "@/components/ui/segmented-nav";
@@ -55,10 +56,7 @@ export function AppHeader({
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div className="flex shrink-0 items-center gap-2 font-semibold tracking-tight text-ink">
-        <span
-          aria-hidden="true"
-          className="relative size-4 rounded-[5px] bg-accent after:absolute after:inset-x-1 after:bottom-1 after:h-[3px] after:rounded-sm after:bg-white/85"
-        />
+        <BrandMark />
         Money Control
       </div>
 
