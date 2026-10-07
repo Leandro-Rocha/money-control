@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createTestDb } from "../test-db";
 import { accounts, transactions } from "@/db/schema";
-import { getMonthData } from "./transactions";
+import { createMultipleTransactions, getMonthData } from "./transactions";
 
 let testDb: any;
 
@@ -83,5 +83,29 @@ describe("transactions actions - getMonthData ordering", () => {
     // 4. Mercado (-300) -> 2850
     const runningBalances = accData!.transactions.map((t) => t.runningBalance);
     expect(runningBalances).toEqual([5000, 5150, 3150, 2850]);
+  });
+});
+
+describe("createMultipleTransactions", () => {
+  beforeEach(async () => {
+    testDb = createTestDb();
+    await testDb.insert(accounts).values([
+      { id: 1, name: "Bradesco", type: "bank_account", color: "blue", displayOrder: 1, isActive: 1 },
+    ]);
+    await testDb.insert(transactions).values([
+      { id: 10, accountId: 1, month: "2026-10", day: 7, description: "Reembolso", amount: 7183.07, pluggyTransactionId: "abc" },
+    ]);
+  });
+
+  it("não insere de novo um lançamento cujo ID do Pluggy já existe", async () => {
+    const base = { accountId: 1, month: "2026-10", day: 7, amount: 7183.07 };
+    const res = await createMultipleTransactions([
+      { ...base, description: "Reembolso (forçado)", pluggyTransactionId: "abc" },
+      { ...base, description: "Outro", pluggyTransactionId: "def" },
+      { ...base, description: "Manual" },
+    ]);
+    expect(res).toEqual({ success: true, skipped: 1 });
+    const rows = await testDb.select().from(transactions);
+    expect(rows.map((r: any) => r.description).sort()).toEqual(["Manual", "Outro", "Reembolso"]);
   });
 });

@@ -69,7 +69,7 @@ export interface AccountColumnProps {
   onOpenDuplicates?: (accountId: number) => void;
   filterText?: string;
   filterCategoryId?: number | "";
-  filterHighValue?: number | "";
+  filterAmount?: string;
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   highlightedTxId?: number | null;
@@ -101,7 +101,7 @@ export default function AccountColumn({
   onOpenDuplicates,
   filterText = "",
   filterCategoryId = "",
-  filterHighValue = "",
+  filterAmount = "",
   isExpanded: propIsExpanded,
   onToggleExpanded,
   highlightedTxId,
@@ -138,7 +138,7 @@ export default function AccountColumn({
     transactions: data.transactions,
     fields: isCard ? CARD_FIELDS : BANK_FIELDS,
     onRefresh,
-    filters: { filterText, filterCategoryId, filterHighValue },
+    filters: { filterText, filterCategoryId, filterAmount },
     highlightedTxId,
     elementIdPrefix: isCard ? "tx-card-" : "tx-bank-",
     isExpanded: propIsExpanded,
@@ -662,9 +662,30 @@ export default function AccountColumn({
     );
   };
 
-  const groupHeader = (label: string, right?: React.ReactNode) => (
-    <div className="flex items-center justify-between bg-bg/60 px-4 py-1">
-      <Eyebrow as="span">{label}</Eyebrow>
+  const groupHeader = (
+    label: string,
+    right?: React.ReactNode,
+    isToday = false,
+  ) => (
+    <div
+      data-today={isToday || undefined}
+      className={cn(
+        "flex items-center justify-between px-4 py-1",
+        isToday
+          ? "bg-accent-soft shadow-[inset_3px_0_0_var(--accent)]"
+          : "bg-bg/60",
+      )}
+    >
+      <span className="flex items-center gap-1.5">
+        <Eyebrow as="span" className={cn(isToday && "text-accent-ink")}>
+          {label}
+        </Eyebrow>
+        {isToday && (
+          <span className="rounded-full bg-accent px-1.5 text-2xs font-semibold leading-4 text-white">
+            Hoje
+          </span>
+        )}
+      </span>
       {right}
     </div>
   );
@@ -843,19 +864,28 @@ export default function AccountColumn({
         )}
 
         {!isCard &&
-          dayGroups(filteredTransactions).map((g, i) => (
-            <div key={`${g.day}-${i}`} className="border-t border-line">
-              {groupHeader(
-                fmtDateWeekday(
-                  `${g.txs[0].month || month}-${String(g.day).padStart(2, "0")}`,
-                ),
-                <span data-day-balance className="text-2xs">
-                  <Money value={g.endBalance} tone="balance" />
-                </span>,
-              )}
-              {g.txs.map(bankRow)}
-            </div>
-          ))}
+          dayGroups(filteredTransactions).map((g, i) => {
+            const date = `${g.txs[0].month || month}-${String(g.day).padStart(2, "0")}`;
+            const isToday = date === today;
+            return (
+              <div
+                key={`${g.day}-${i}`}
+                className={cn(
+                  "border-t border-line",
+                  isToday && "shadow-[inset_3px_0_0_var(--accent)]",
+                )}
+              >
+                {groupHeader(
+                  fmtDateWeekday(date),
+                  <span data-day-balance className="text-2xs">
+                    <Money value={g.endBalance} tone="balance" />
+                  </span>,
+                  isToday,
+                )}
+                {g.txs.map(bankRow)}
+              </div>
+            );
+          })}
 
         {isCard &&
           cardGroups.map((g, i) => (

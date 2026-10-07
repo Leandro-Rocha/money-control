@@ -97,7 +97,7 @@ export function useDashboard(
   // Filter states
   const [filterText, setFilterText] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState<number | "">("");
-  const [filterHighValue, setFilterHighValue] = useState<number | "">("");
+  const [filterAmount, setFilterAmount] = useState("");
 
   // Triage modal state
   const [triageOpen, setTriageOpen] = useState(false);
@@ -465,8 +465,8 @@ export function useDashboard(
     setFilterText,
     filterCategoryId,
     setFilterCategoryId,
-    filterHighValue,
-    setFilterHighValue,
+    filterAmount,
+    setFilterAmount,
     allTags,
     openAccountIds,
     selectAccountColumn,

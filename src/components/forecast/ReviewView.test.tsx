@@ -7,12 +7,14 @@ import "@testing-library/jest-dom/vitest";
 import type { DashboardState } from "@/hooks/useDashboard";
 
 const getReviewDataAction = vi.fn();
+const linkReimbursementAction = vi.fn();
 vi.mock("@/lib/actions/forecast", () => ({
   getReviewDataAction: () => getReviewDataAction(),
   createBalanceAdjustmentAction: vi.fn(),
   createRecurringFromSuggestionAction: vi.fn(),
-  linkReimbursementAction: vi.fn(),
+  linkReimbursementAction: (a: unknown) => linkReimbursementAction(a),
   recordBalanceSnapshotAction: vi.fn(),
+  setReimbursementClosedAction: vi.fn(),
   setTransactionReimbursableAction: vi.fn(),
 }));
 const confirmProjectedRow = vi.fn();
@@ -86,6 +88,29 @@ const group = (title: string) => screen.getByRole("region", { name: title });
 const counter = (title: string) => group(title).querySelector("[data-counter]") as HTMLElement;
 
 describe("ReviewView", () => {
+  it("reembolso parcial: vincula o valor digitado e encerra o restante; crédito com saldo continua na lista", async () => {
+    const credit = { id: 50, accountId: 1, month: "2026-10", day: 7, amount: 7183.07, description: "Reembolso Seguro Saúde" };
+    getReviewDataAction.mockResolvedValue(
+      review({
+        reimbursementCandidates: [
+          { credit, remaining: 7183.07, expenses: [{ id: 7, description: "D20 - AT", pending: 1200, date: "2026-09-28" }] },
+        ],
+      }),
+    );
+    linkReimbursementAction.mockResolvedValue({ success: true });
+    render(<ReviewView state={state()} />);
+    const box = await screen.findByRole("region", { name: "Reembolsos" });
+    const input = within(box).getByLabelText("Valor reembolsado");
+    expect(input).toHaveValue("1200,00");
+    expect(within(box).queryByText(/não vem/)).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "900,50" } });
+    expect(within(box).getByLabelText(/o restante \(299,50\) não vem/)).toBeChecked();
+    fireEvent.click(within(box).getByRole("button", { name: "Vincular" }));
+    expect(linkReimbursementAction).toHaveBeenCalledWith({ expenseId: 7, creditId: 50, amount: 900.5, close: true });
+    expect(within(box).getByText(/Reembolso Seguro Saúde/)).toBeInTheDocument();
+  });
+
   it("mostra os 7 grupos com contadores; vazio mostra ✓", async () => {
     getReviewDataAction.mockResolvedValue(review());
     render(<ReviewView state={state()} />);

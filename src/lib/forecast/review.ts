@@ -19,7 +19,11 @@ export interface ReviewTx {
   linkedTransactionId: number | null;
   isReimbursable: boolean;
   reimbursedAmount: number;
+  /** Reembolso parcial encerrado: o que falta não vem mais. */
+  reimburseClosed: boolean;
   isReimbursementCredit: boolean;
+  /** Quanto deste crédito já foi abatido de despesas reembolsáveis. */
+  reimbursementCreditUsed: number;
 }
 
 export interface RecurringSuggestion {
@@ -121,17 +125,21 @@ export function findUnpairedTransfers(txs: ReviewTx[], ownAccountIds: Set<number
 
 export interface ReimbursementCandidate {
   credit: ReviewTx;
+  /** Saldo do crédito ainda sem despesa abatida. */
+  remaining: number;
   /** Despesas reembolsáveis pendentes que combinam, melhor primeiro. */
   expenses: { id: number; description: string; pending: number; date: string }[];
 }
 
-const looksLikeReimbursement = (t: ReviewTx) =>
-  /reembols|ressarc|restitui/.test(normalizeText(`${t.description} ${t.categoryName ?? ""}`));
+/** Texto (descrição, categoria) com cara de reembolso. */
+export const isReimbursementText = (text: string) => /reembols|ressarc|restitui/.test(normalizeText(text));
 
-/** Créditos com cara de reembolso ainda não vinculados, com sugestões de despesa a abater. */
+const looksLikeReimbursement = (t: ReviewTx) => isReimbursementText(`${t.description} ${t.categoryName ?? ""}`);
+
+/** Créditos com cara de reembolso com saldo ainda não abatido, com sugestões de despesa a abater. */
 export function findReimbursementCandidates(txs: ReviewTx[], fromMonth: string): ReimbursementCandidate[] {
   const pendingExpenses = txs
-    .filter((t) => t.isReimbursable && t.amount < 0 && Math.abs(t.amount) - t.reimbursedAmount > 0.01)
+    .filter((t) => t.isReimbursable && !t.reimburseClosed && t.amount < 0 && Math.abs(t.amount) - t.reimbursedAmount > 0.01)
     .map((t) => ({
       id: t.id,
       description: t.description,
@@ -140,17 +148,19 @@ export function findReimbursementCandidates(txs: ReviewTx[], fromMonth: string):
     }));
   const out: ReimbursementCandidate[] = [];
   for (const c of txs) {
-    if (c.month < fromMonth || c.amount <= 0 || c.isReimbursementCredit || !looksLikeReimbursement(c)) continue;
+    if (c.month < fromMonth || c.amount <= 0 || !looksLikeReimbursement(c)) continue;
+    const remaining = round2(c.amount - c.reimbursementCreditUsed);
+    if (remaining <= 0.01) continue;
     const cd = dateOf(c.month, c.day);
     const expenses = pendingExpenses
       .filter((e) => e.date <= cd)
       .sort((a, b) => {
-        const da = Math.abs(a.pending - c.amount);
-        const db = Math.abs(b.pending - c.amount);
+        const da = Math.abs(a.pending - remaining);
+        const db = Math.abs(b.pending - remaining);
         return da - db || b.date.localeCompare(a.date);
       })
       .slice(0, 5);
-    out.push({ credit: c, expenses });
+    out.push({ credit: c, remaining, expenses });
   }
   return out;
 }

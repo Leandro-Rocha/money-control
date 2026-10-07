@@ -437,10 +437,21 @@ export async function createMultipleTransactions(dataArray: {
   purchaseDate?: string | null;
   pluggyTransactionId?: string | null;
 }[], newRules?: { pattern: string; targetDescription: string; categoryId: number | null }[]) {
-  if (dataArray.length === 0) return { success: true };
-  
+  if (dataArray.length === 0) return { success: true, skipped: 0 };
+
+  let skipped = 0;
   db.transaction((tx) => {
-    tx.insert(transactions).values(dataArray.map(data => ({
+    // O ID do Pluggy identifica o lançamento: se já existe, reimportar só duplicaria (mesmo forçado no staging).
+    const ids = dataArray.map((d) => d.pluggyTransactionId).filter((id): id is string => !!id);
+    const existing = new Set(
+      ids.length === 0
+        ? []
+        : tx.select({ id: transactions.pluggyTransactionId }).from(transactions)
+            .where(inArray(transactions.pluggyTransactionId, ids)).all().map((r) => r.id)
+    );
+    const rows = dataArray.filter((d) => !d.pluggyTransactionId || !existing.has(d.pluggyTransactionId));
+    skipped = dataArray.length - rows.length;
+    if (rows.length > 0) tx.insert(transactions).values(rows.map(data => ({
       accountId: data.accountId,
       month: data.month,
       purchaseDate: data.purchaseDate ?? null,
@@ -453,14 +464,14 @@ export async function createMultipleTransactions(dataArray: {
       installmentTotal: data.installmentTotal ?? null,
       pluggyTransactionId: data.pluggyTransactionId ?? null,
     }))).run();
-    
+
     if (newRules && newRules.length > 0) {
       upsertTransactionRulesBatch(tx, newRules);
     }
   });
   
   revalidatePath("/");
-  return { success: true };
+  return { success: true, skipped };
 }
 
 export async function getAccountTransactionsForMonths(accountId: number, months: string[]) {

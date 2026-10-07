@@ -31,7 +31,7 @@ export function MobileCashflow({ state }: { state: DashboardState }) {
     setTriageOpen,
     filterText,
     filterCategoryId,
-    filterHighValue,
+    filterAmount,
     tableDensity,
   } = state;
   const [listOpen, setListOpen] = useState(true);
@@ -129,7 +129,7 @@ export function MobileCashflow({ state }: { state: DashboardState }) {
             onOpenDuplicates={handleOpenDuplicates}
             filterText={filterText}
             filterCategoryId={filterCategoryId}
-            filterHighValue={filterHighValue}
+            filterAmount={filterAmount}
             availableTags={allTags}
             isExpanded
             onToggleExpanded={back}

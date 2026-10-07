@@ -15,6 +15,8 @@ const t = (p: Partial<ReviewTx> & { accountId: number; month: string; day: numbe
   isReimbursable: false,
   reimbursedAmount: 0,
   isReimbursementCredit: false,
+  reimbursementCreditUsed: 0,
+  reimburseClosed: false,
   ...p,
 });
 
@@ -68,6 +70,30 @@ describe("findReimbursementCandidates", () => {
     const r = findReimbursementCandidates([e1, e2, credit, other], "2026-08");
     expect(r).toHaveLength(1);
     expect(r[0].expenses.map((e) => e.id)).toEqual([e2.id, e1.id]);
+  });
+
+  it("mantém o crédito enquanto sobra saldo para abater e o tira quando acaba", () => {
+    const e1 = t({ accountId: 1, month: "2026-09", day: 1, amount: -1200, isReimbursable: true });
+    const e2 = t({ accountId: 1, month: "2026-09", day: 2, amount: -1600, isReimbursable: true });
+    const partial = t({
+      accountId: 2, month: "2026-10", day: 7, amount: 7183.07, description: "Reembolso Seguro Saúde",
+      isReimbursementCredit: true, reimbursementCreditUsed: 4350,
+    });
+    const spent = t({
+      accountId: 2, month: "2026-10", day: 8, amount: 500, description: "Reembolso Seguro Saúde",
+      isReimbursementCredit: true, reimbursementCreditUsed: 500,
+    });
+    const r = findReimbursementCandidates([e1, e2, partial, spent], "2026-08");
+    expect(r.map((c) => c.credit.id)).toEqual([partial.id]);
+    expect(r[0].remaining).toBe(2833.07);
+  });
+
+  it("não oferece despesa com reembolso encerrado", () => {
+    const open = t({ accountId: 1, month: "2026-09", day: 1, amount: -1600, isReimbursable: true });
+    const closed = t({ accountId: 1, month: "2026-09", day: 2, amount: -1200, isReimbursable: true, reimbursedAmount: 900, reimburseClosed: true });
+    const credit = t({ accountId: 2, month: "2026-10", day: 7, amount: 2000, description: "Reembolso Seguro Saúde" });
+    const r = findReimbursementCandidates([open, closed, credit], "2026-08");
+    expect(r[0].expenses.map((e) => e.id)).toEqual([open.id]);
   });
 });
 

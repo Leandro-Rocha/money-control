@@ -663,7 +663,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
   // ───────────────────────── 7. Reembolsos pendentes ─────────────────────────
   if (includeReimbursements) {
     for (const t of input.transactions) {
-      if (!t.isReimbursable || t.amount >= 0) continue;
+      if (!t.isReimbursable || t.reimburseClosed || t.amount >= 0) continue;
       const pending = round2(Math.abs(t.amount) - t.reimbursedAmount);
       if (pending <= EPS) continue;
       const acc = accountById.get(t.accountId);

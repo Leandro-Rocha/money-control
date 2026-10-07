@@ -12,6 +12,7 @@ import {
   getReviewDataAction,
   linkReimbursementAction,
   recordBalanceSnapshotAction,
+  setReimbursementClosedAction,
   setTransactionReimbursableAction,
   type ReviewData,
 } from "@/lib/actions/forecast";
@@ -266,9 +267,15 @@ export function ReviewView({ state }: { state: DashboardState }) {
                   </span>
                   <span className="flex items-center gap-2">
                     falta <Money value={p.pending} />
-                    <Button size="sm" variant="ghost" onClick={() => run(null, () => setTransactionReimbursableAction(p.id, false))}>
-                      Não será reembolsado
-                    </Button>
+                    {p.received > 0 ? (
+                      <Button size="sm" variant="ghost" onClick={() => run(null, () => setReimbursementClosedAction(p.id, true))}>
+                        O restante não vem
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => run(null, () => setTransactionReimbursableAction(p.id, false))}>
+                        Não será reembolsado
+                      </Button>
+                    )}
                   </span>
                 </div>
               ))}
@@ -511,13 +518,32 @@ function ReimbursementCandidateRow({
 }) {
   const [expenseId, setExpenseId] = useState<string>(c.expenses[0] ? String(c.expenses[0].id) : "");
   const date = `${c.credit.month}-${String(c.credit.day).padStart(2, "0")}`;
+  const pending = c.expenses.find((e) => String(e.id) === expenseId)?.pending ?? 0;
+  const suggested = Math.min(pending, c.remaining);
+  const asInput = (n: number) => n.toFixed(2).replace(".", ",");
+  const [value, setValue] = useState(() => asInput(suggested));
+  const [close, setClose] = useState(true);
+  useEffect(() => setValue(asInput(suggested)), [suggested]);
+  const amount = Math.round((parseNumberInput(value) ?? NaN) * 100) / 100;
+  const validAmount = Number.isFinite(amount) && amount > 0 && amount <= suggested + 0.005;
+  // Reembolso parcial: o valor informado é menor que o que falta da despesa.
+  const partial = validAmount && amount < pending - 0.01;
+  // Só sai da lista quando o vínculo consome o crédito todo; senão continua para a próxima despesa.
+  const exhausts = validAmount && amount >= c.remaining - 0.01;
   return (
     <div className="flex flex-col gap-1 py-1.5 text-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate">
           {fmtDate(date)} · {accountName(c.credit.accountId)} · {c.credit.description}
         </span>
-        <Money value={c.credit.amount} sign />
+        <span className="flex shrink-0 items-baseline gap-1.5">
+          {c.remaining < c.credit.amount - 0.01 && (
+            <span className="text-2xs text-mut">
+              a abater <Money value={c.remaining} />
+            </span>
+          )}
+          <Money value={c.credit.amount} sign />
+        </span>
       </div>
       {c.expenses.length === 0 ? (
         <p className="text-2xs text-mut">
@@ -538,16 +564,31 @@ function ReimbursementCandidateRow({
               </option>
             ))}
           </select>
+          <Input
+            aria-label="Valor reembolsado"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="h-8 w-24 text-xs"
+          />
           <Button
             size="sm"
             variant="outline"
-            disabled={!expenseId}
+            disabled={!expenseId || !validAmount}
             onClick={() =>
-              run(`r:${c.credit.id}`, () => linkReimbursementAction({ expenseId: Number(expenseId), creditId: c.credit.id }))
+              run(exhausts ? `r:${c.credit.id}` : null, () =>
+                linkReimbursementAction({ expenseId: Number(expenseId), creditId: c.credit.id, amount, close: partial && close }),
+              )
             }
           >
             Vincular
           </Button>
+          {partial && (
+            <label className="flex w-full items-center gap-1.5 text-xs text-mut">
+              <input type="checkbox" checked={close} onChange={(e) => setClose(e.target.checked)} />
+              o restante ({asInput(pending - amount)}) não vem
+            </label>
+          )}
         </div>
       )}
     </div>

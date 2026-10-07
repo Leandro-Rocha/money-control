@@ -127,6 +127,21 @@ describe('findTransferCandidates', () => {
     expect(candidates[0].confidence).toBe('review');
     expect(candidates[0].reasons.some(r => r.includes('Sem confirmação direta'))).toBe(true);
   });
+
+  it('ignores reimbursement credits and pairs a pass-through account on both sides', async () => {
+    // Reembolso cai na A, A -> C (conta de passagem) -> B, tudo no mesmo dia e mesmo valor.
+    await testDb.insert(transactions).values([
+      { id: 1, accountId: 2, month: '2026-10', day: 7, description: 'Pix recebido Leandro Rocha', amount: 7183.07 },
+      { id: 2, accountId: 1, month: '2026-10', day: 7, description: 'Reembolso Seguro Saúde', originalDescription: 'REEMBOLSO SIN.SEG.SAUDE', amount: 7183.07 },
+      { id: 3, accountId: 1, month: '2026-10', day: 7, description: 'PIX ENVIADO - DES: Leandro Rocha', amount: -7183.07 },
+      { id: 4, accountId: 3, month: '2026-10', day: 7, description: 'Pix recebido LEANDRO ROCHA', amount: 7183.07, categoryId: 1 },
+      { id: 5, accountId: 3, month: '2026-10', day: 7, description: 'Pix enviado Leandro Rocha', amount: -7183.07, categoryId: 1 },
+    ]);
+
+    const candidates = await actions.findTransferCandidates('2026-10');
+    const pairs = candidates.map((c) => [c.tx1.id, c.tx2.id]).sort((a, b) => a[0] - b[0]);
+    expect(pairs).toEqual([[3, 4], [5, 1]]);
+  });
 });
 
 describe('autoLinkTransfersAction', () => {

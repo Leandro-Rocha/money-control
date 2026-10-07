@@ -5,18 +5,22 @@ import { TransactionWithCategory, Category } from "@/lib/types";
 import { updateTransaction } from "@/lib/actions/transactions";
 import { confirmProjectedRow, dismissProjection } from "@/lib/actions/projections";
 import { parseNumberInput } from "@/lib/format";
+import { parseAmountFilter } from "@/lib/amount-filter";
 
 export interface AccountColumnFilterOptions {
   filterText?: string;
   filterCategoryId?: number | "";
-  filterHighValue?: number | "";
+  /** Expressão de valor: ">500", "<=100", "799", "100-500". */
+  filterAmount?: string;
 }
 
 export function filterAccountTransactions(
   transactions: TransactionWithCategory[],
   filters: AccountColumnFilterOptions
 ): TransactionWithCategory[] {
-  const { filterText, filterCategoryId, filterHighValue } = filters;
+  const { filterText, filterCategoryId, filterAmount } = filters;
+
+  const amountMatches = parseAmountFilter(filterAmount ?? "");
 
   return transactions.filter((tx) => {
     if (filterText && !tx.description.toLowerCase().includes(filterText.toLowerCase())) {
@@ -33,10 +37,7 @@ export function filterAccountTransactions(
       }
     }
 
-    if (filterHighValue !== undefined && filterHighValue !== "") {
-      const absAmount = Math.abs(tx.amount);
-      if (absAmount <= Number(filterHighValue)) return false;
-    }
+    if (amountMatches && !amountMatches(tx.amount)) return false;
 
     return true;
   });
@@ -317,7 +318,7 @@ export function useAccountColumnState<TField extends string>({
   const hasActiveFilter = Boolean(
     filters.filterText ||
     filters.filterCategoryId !== "" ||
-    filters.filterHighValue !== ""
+    parseAmountFilter(filters.filterAmount ?? "") != null
   );
   const hasZeroFilterMatches = hasActiveFilter && filteredTransactions.length === 0;
   const effectiveExpanded = hasZeroFilterMatches ? false : isExpanded;

@@ -56,6 +56,19 @@ describe("AccountColumn banco", () => {
     expect(days[1].textContent).toContain("650,00");
   });
 
+  it("destaca o grupo do dia atual com selo Hoje", () => {
+    render(<AccountColumn variant="bank" data={bank} {...base} today="2026-10-05" />);
+    const marked = document.querySelectorAll("[data-today]");
+    expect(marked).toHaveLength(1);
+    expect(marked[0].textContent).toContain("Hoje");
+  });
+
+  it("sem selo Hoje quando o dia não tem lançamentos", () => {
+    render(<AccountColumn variant="bank" data={bank} {...base} />);
+    expect(document.querySelector("[data-today]")).toBeNull();
+    expect(screen.queryByText("Hoje")).toBeNull();
+  });
+
   it("previsto atrasado ganha etiqueta e ponto âmbar", () => {
     render(<AccountColumn variant="bank" data={bank} {...base} />);
     expect(screen.getByText("atrasado")).toBeInTheDocument();

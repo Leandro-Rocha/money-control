@@ -39,8 +39,8 @@ export function CashflowScreen({ state }: { state: DashboardState }) {
     setFilterText,
     filterCategoryId,
     setFilterCategoryId,
-    filterHighValue,
-    setFilterHighValue,
+    filterAmount,
+    setFilterAmount,
     tableDensity,
     setTableDensity,
     highlightedTxId,
@@ -49,11 +49,11 @@ export function CashflowScreen({ state }: { state: DashboardState }) {
   const activeFiltersCount =
     (filterText.trim() ? 1 : 0) +
     (filterCategoryId !== "" ? 1 : 0) +
-    (filterHighValue !== "" ? 1 : 0);
+    (filterAmount.trim() ? 1 : 0);
   const clearFilters = () => {
     setFilterText("");
     setFilterCategoryId("");
-    setFilterHighValue("");
+    setFilterAmount("");
   };
 
   const openColumns = openAccountIds
@@ -145,15 +145,12 @@ export function CashflowScreen({ state }: { state: DashboardState }) {
           />
 
           <Input
-            type="number"
-            min="0"
-            placeholder="> Valor (R$)"
-            aria-label="Valor mínimo"
-            value={filterHighValue}
-            onChange={(e) =>
-              setFilterHighValue(e.target.value ? Number(e.target.value) : "")
-            }
-            className="h-9 w-full font-mono text-xs sm:w-[140px]"
+            placeholder="Valor: >500, <100, 100-500"
+            aria-label="Filtrar por valor"
+            title="Compara pelo valor sem sinal: >500, >=500, <100, <=100, 799 (igual) ou 100-500 (faixa)"
+            value={filterAmount}
+            onChange={(e) => setFilterAmount(e.target.value)}
+            className="h-9 w-full font-mono text-xs sm:w-[200px]"
           />
 
           {activeFiltersCount > 0 && (
@@ -227,7 +224,7 @@ export function CashflowScreen({ state }: { state: DashboardState }) {
                   onOpenDuplicates={handleOpenDuplicates}
                   filterText={filterText}
                   filterCategoryId={filterCategoryId}
-                  filterHighValue={filterHighValue}
+                  filterAmount={filterAmount}
                   availableTags={allTags}
                   isExpanded
                   onToggleExpanded={() =>

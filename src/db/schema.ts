@@ -68,6 +68,7 @@ export const transactions = sqliteTable("transactions", {
   pluggyTransactionId: text("pluggy_transaction_id"),
   isReimbursable: integer("is_reimbursable").notNull().default(0),
   reimburseLagDays: integer("reimburse_lag_days"), // reembolsável: dias até o crédito cair (null = configuração da previsão)
+  reimburseClosed: integer("reimburse_closed").notNull().default(0), // reembolso parcial encerrado: o que falta não vem
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 

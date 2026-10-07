@@ -6,7 +6,9 @@ import {
   getReviewDataAction,
   linkReimbursementAction,
   recordBalanceSnapshotAction,
+  setReimbursementClosedAction,
   setTransactionReimbursableAction,
+  unlinkReimbursementAction,
 } from "./forecast";
 import { localToday } from "@/lib/forecast/dates";
 
@@ -47,6 +49,27 @@ describe("forecast actions", () => {
 
     await setTransactionReimbursableAction(1, false);
     expect(await testDb.select().from(transactionReimbursements)).toHaveLength(0);
+  });
+
+  it("vínculo com valor informado e resto encerrado; desfazer o vínculo reabre", async () => {
+    expect(await linkReimbursementAction({ expenseId: 1, creditId: 2, amount: 350, close: true })).toMatchObject({ success: true, amount: 350 });
+    const exp = async () => (await testDb.select().from(transactions)).find((t: any) => t.id === 1);
+    expect(await exp()).toMatchObject({ isReimbursable: 1, reimburseClosed: 1 });
+
+    const [link] = await testDb.select().from(transactionReimbursements);
+    await unlinkReimbursementAction(link.id);
+    expect((await exp()).reimburseClosed).toBe(0);
+
+    await setReimbursementClosedAction(1, true);
+    expect((await exp()).reimburseClosed).toBe(1);
+    await setTransactionReimbursableAction(1, false);
+    expect(await exp()).toMatchObject({ isReimbursable: 0, reimburseClosed: 0 });
+  });
+
+  it("vínculo que quita a despesa não marca como encerrado", async () => {
+    await testDb.insert(transactions).values({ id: 4, accountId: 1, month: "2026-01", day: 2, description: "Consulta", amount: -300 });
+    await linkReimbursementAction({ expenseId: 4, creditId: 2, close: true });
+    expect((await testDb.select().from(transactions)).find((t: any) => t.id === 4).reimburseClosed).toBe(0);
   });
 
   it("ajuste de saldo usa categoria de transferência fora do resumo", async () => {

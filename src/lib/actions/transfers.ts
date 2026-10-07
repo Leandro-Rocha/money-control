@@ -5,6 +5,7 @@ import { accounts, categories, transactions } from "@/db/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { addMonths } from "../date-helpers";
+import { isReimbursementText } from "../forecast/review";
 
 export interface TransferCandidate {
   tx1: {
@@ -290,7 +291,10 @@ export async function findTransferCandidates(month: string): Promise<TransferCan
   const transferCatId = catTransfer?.id;
 
   const outflows = txs.filter((t) => t.amount < 0);
-  const inflows = txs.filter((t) => t.amount > 0);
+  // Reembolso (ex.: seguro saúde) é entrada de fora, não transferência entre contas próprias.
+  const inflows = txs.filter(
+    (t) => t.amount > 0 && !isReimbursementText(`${t.description} ${t.originalDescription ?? ""}`)
+  );
 
   type CandidatePair = {
     tx1: (typeof txs)[0];
@@ -346,12 +350,22 @@ export async function findTransferCandidates(month: string): Promise<TransferCan
     }
   }
 
+  // Quantos pares possíveis cada lançamento tem: no empate, quem tem menos alternativas casa primeiro,
+  // senão uma conta de passagem (entra e sai o mesmo valor no dia) perde o par para um vizinho guloso.
+  const options = new Map<number, number>();
+  for (const c of candidatePairs) {
+    options.set(c.tx1.id, (options.get(c.tx1.id) ?? 0) + 1);
+    options.set(c.tx2.id, (options.get(c.tx2.id) ?? 0) + 1);
+  }
+  const scarcity = (c: CandidatePair) => Math.min(options.get(c.tx1.id)!, options.get(c.tx2.id)!);
+
   candidatePairs.sort((a, b) => {
     if (a.confidence !== b.confidence) {
       return a.confidence === "high" ? -1 : 1;
     }
     if (a.dayDiff !== b.dayDiff) return a.dayDiff - b.dayDiff;
     if (a.preferredDirection !== b.preferredDirection) return a.preferredDirection ? -1 : 1;
+    if (scarcity(a) !== scarcity(b)) return scarcity(a) - scarcity(b);
     if (a.tx1.month !== b.tx1.month) return a.tx1.month.localeCompare(b.tx1.month);
     if (a.tx1.day !== b.tx1.day) return a.tx1.day - b.tx1.day;
     return a.tx1.id - b.tx1.id;

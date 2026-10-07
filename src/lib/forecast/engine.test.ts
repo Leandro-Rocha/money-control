@@ -321,6 +321,21 @@ describe("buildForecast — linha de base e faixas", () => {
     expect(r.events.find((e) => e.kind === "reimbursement")).toMatchObject({ date: "2026-10-21", amount: 300 });
   });
 
+  it("reembolso parcial encerrado não deixa a diferença prevista", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [
+          ...history(),
+          tx({ accountId: 1, month: "2026-10", day: 1, amount: -1200, isReimbursable: true, reimbursedAmount: 900, reimburseClosed: true }),
+        ],
+        settings: { cushion: 0, reimbursementLagDays: 10, overdueLookbackDays: 5 },
+        scenario: {},
+      }),
+    );
+    expect(r.events.some((e) => e.kind === "reimbursement")).toBe(false);
+  });
+
   it("despesa reembolsável e créditos de reembolso ficam fora da linha de base", () => {
     const r = buildForecast(
       base({

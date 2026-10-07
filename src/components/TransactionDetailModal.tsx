@@ -402,6 +402,7 @@ export function TransactionDetailModal({
             day={tx.day}
             initialReimbursable={tx.isReimbursable === 1}
             initialLagDays={tx.reimburseLagDays ?? null}
+            initialClosed={tx.reimburseClosed === 1}
           />
         )}
 

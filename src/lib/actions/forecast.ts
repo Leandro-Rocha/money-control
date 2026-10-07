@@ -72,7 +72,7 @@ export async function saveForecastSettingsAction(values: Partial<typeof DEFAULT_
 export interface ReviewData {
   overdue: ForecastEvent[];
   discrepancies: (AccountStart & { accountName: string })[];
-  pendingReimbursements: { id: number; accountId: number; date: string; description: string; amount: number; pending: number }[];
+  pendingReimbursements: { id: number; accountId: number; date: string; description: string; amount: number; received: number; pending: number }[];
   reimbursementCandidates: ReimbursementCandidate[];
   recurringSuggestions: RecurringSuggestion[];
   unpairedTransfers: ReviewTx[];
@@ -91,10 +91,10 @@ async function loadReviewTxs(fromMonth: string): Promise<ReviewTx[]> {
   ]);
   const cats = new Map(catRows.map((c) => [c.id, c]));
   const reimbursed = new Map<number, number>();
-  const credits = new Set<number>();
+  const creditUsed = new Map<number, number>();
   for (const r of reimbRows) {
     reimbursed.set(r.expenseTransactionId, (reimbursed.get(r.expenseTransactionId) ?? 0) + r.amount);
-    credits.add(r.creditTransactionId);
+    creditUsed.set(r.creditTransactionId, (creditUsed.get(r.creditTransactionId) ?? 0) + r.amount);
   }
   return txRows
     .filter((t) => t.month >= fromMonth || t.isReimbursable === 1)
@@ -115,7 +115,9 @@ async function loadReviewTxs(fromMonth: string): Promise<ReviewTx[]> {
         linkedTransactionId: t.linkedTransactionId,
         isReimbursable: t.isReimbursable === 1,
         reimbursedAmount: reimbursed.get(t.id) ?? 0,
-        isReimbursementCredit: credits.has(t.id),
+        reimburseClosed: t.reimburseClosed === 1,
+        isReimbursementCredit: creditUsed.has(t.id),
+        reimbursementCreditUsed: creditUsed.get(t.id) ?? 0,
       };
     });
 }
@@ -133,13 +135,14 @@ export async function getReviewDataAction(): Promise<ReviewData> {
   const matchedIds = new Set(Object.keys(forecast.matches).map(Number));
 
   const pendingReimbursements = txs
-    .filter((t) => t.isReimbursable && t.amount < 0 && Math.abs(t.amount) - t.reimbursedAmount > 0.01)
+    .filter((t) => t.isReimbursable && !t.reimburseClosed && t.amount < 0 && Math.abs(t.amount) - t.reimbursedAmount > 0.01)
     .map((t) => ({
       id: t.id,
       accountId: t.accountId,
       date: `${t.month}-${String(t.day).padStart(2, "0")}`,
       description: t.description,
       amount: t.amount,
+      received: t.reimbursedAmount,
       pending: Math.round((Math.abs(t.amount) - t.reimbursedAmount) * 100) / 100,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -223,11 +226,18 @@ export async function recordBalanceSnapshotAction(data: { accountId: number; dat
 export async function setTransactionReimbursableAction(transactionId: number, reimbursable: boolean) {
   await db
     .update(transactions)
-    .set({ isReimbursable: reimbursable ? 1 : 0 })
+    .set({ isReimbursable: reimbursable ? 1 : 0, ...(reimbursable ? {} : { reimburseClosed: 0 }) })
     .where(eq(transactions.id, transactionId));
   if (!reimbursable) {
     await db.delete(transactionReimbursements).where(eq(transactionReimbursements.expenseTransactionId, transactionId));
   }
+  revalidatePath("/");
+  return { success: true };
+}
+
+/** Encerra (ou reabre) um reembolso parcial: encerrado, a previsão para de esperar o que falta. */
+export async function setReimbursementClosedAction(transactionId: number, closed: boolean) {
+  await db.update(transactions).set({ reimburseClosed: closed ? 1 : 0 }).where(eq(transactions.id, transactionId));
   revalidatePath("/");
   return { success: true };
 }
@@ -276,7 +286,8 @@ export async function getReimbursementLinksAction(transactionId: number): Promis
  * Abate um crédito de uma despesa reembolsável. O valor fica limitado ao que falta da despesa
  * e ao que sobra do crédito; a despesa é marcada como reembolsável se ainda não for.
  */
-export async function linkReimbursementAction(data: { expenseId: number; creditId: number; amount?: number }) {
+/** Abate o crédito da despesa; `amount` é o valor que o reembolso cobriu e `close` encerra o que faltar. */
+export async function linkReimbursementAction(data: { expenseId: number; creditId: number; amount?: number; close?: boolean }) {
   const [expense] = await db.select().from(transactions).where(eq(transactions.id, data.expenseId));
   const [credit] = await db.select().from(transactions).where(eq(transactions.id, data.creditId));
   if (!expense || !credit || expense.amount >= 0 || credit.amount <= 0) return { success: false, error: "Par inválido" };
@@ -287,13 +298,22 @@ export async function linkReimbursementAction(data: { expenseId: number; creditI
   const amount = Math.round(Math.min(data.amount ?? max, max) * 100) / 100;
   if (amount <= 0) return { success: false, error: "Nada a abater" };
   await db.insert(transactionReimbursements).values({ expenseTransactionId: expense.id, creditTransactionId: credit.id, amount });
-  if (expense.isReimbursable !== 1) await db.update(transactions).set({ isReimbursable: 1 }).where(eq(transactions.id, expense.id));
+  const close = data.close === true && Math.abs(expense.amount) - usedExpense - amount > 0.01;
+  if (expense.isReimbursable !== 1 || close) {
+    await db
+      .update(transactions)
+      .set({ isReimbursable: 1, ...(close ? { reimburseClosed: 1 } : {}) })
+      .where(eq(transactions.id, expense.id));
+  }
   revalidatePath("/");
   return { success: true, amount };
 }
 
 export async function unlinkReimbursementAction(linkId: number) {
+  const [link] = await db.select().from(transactionReimbursements).where(eq(transactionReimbursements.id, linkId));
   await db.delete(transactionReimbursements).where(eq(transactionReimbursements.id, linkId));
+  // O encerramento valia para os valores vinculados; mudou o vínculo, a despesa volta a esperar.
+  if (link) await db.update(transactions).set({ reimburseClosed: 0 }).where(eq(transactions.id, link.expenseTransactionId));
   revalidatePath("/");
   return { success: true };
 }

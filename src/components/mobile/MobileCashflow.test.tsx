@@ -49,7 +49,7 @@ function state(over: Partial<DashboardState> = {}): DashboardState {
     setTriageOpen: vi.fn(),
     filterText: "",
     filterCategoryId: "",
-    filterHighValue: "",
+    filterAmount: "",
     tableDensity: "compact",
     ...over,
   } as unknown as DashboardState;

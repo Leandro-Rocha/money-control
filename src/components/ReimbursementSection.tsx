@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import {
   getDefaultReimbursementLagAction,
   getReimbursementLinksAction,
+  setReimbursementClosedAction,
   setTransactionReimburseLagAction,
   setTransactionReimbursableAction,
   unlinkReimbursementAction,
@@ -24,6 +25,7 @@ export function ReimbursementSection({
   day,
   initialReimbursable,
   initialLagDays,
+  initialClosed,
 }: {
   txId: number;
   amount: number;
@@ -31,8 +33,10 @@ export function ReimbursementSection({
   day: number;
   initialReimbursable: boolean;
   initialLagDays: number | null;
+  initialClosed: boolean;
 }) {
   const [reimbursable, setReimbursable] = useState(initialReimbursable);
+  const [closed, setClosed] = useState(initialClosed);
   const [lag, setLag] = useState(initialLagDays != null ? String(initialLagDays) : "");
   const [defaultLag, setDefaultLag] = useState<number | null>(null);
   const [links, setLinks] = useState<ReimbursementLink[]>([]);
@@ -40,9 +44,10 @@ export function ReimbursementSection({
 
   useEffect(() => {
     setReimbursable(initialReimbursable);
+    setClosed(initialClosed);
     setLag(initialLagDays != null ? String(initialLagDays) : "");
     getReimbursementLinksAction(txId).then(setLinks);
-  }, [txId, initialReimbursable, initialLagDays]);
+  }, [txId, initialReimbursable, initialLagDays, initialClosed]);
 
   useEffect(() => {
     getDefaultReimbursementLagAction().then(setDefaultLag);
@@ -52,6 +57,13 @@ export function ReimbursementSection({
   if (!isExpense && links.length === 0) return null;
 
   const reimbursed = links.filter((l) => l.expenseTransactionId === txId).reduce((s, l) => s + l.amount, 0);
+  const missing = Math.abs(amount) - reimbursed;
+  const toggleClosed = (v: boolean) => {
+    setClosed(v);
+    startTransition(async () => {
+      await setReimbursementClosedAction(txId, v);
+    });
+  };
   const lagNum = lag.trim() === "" ? null : Number(lag);
   const effectiveLag = lagNum != null && Number.isFinite(lagNum) && lagNum >= 0 ? Math.round(lagNum) : defaultLag;
   const expectedDate = effectiveLag != null ? addDays(dateOf(month, day), effectiveLag) : null;
@@ -75,6 +87,7 @@ export function ReimbursementSection({
             onChange={(e) => {
               const v = e.target.checked;
               setReimbursable(v);
+              if (!v) setClosed(false);
               startTransition(async () => {
                 await setTransactionReimbursableAction(txId, v);
                 if (!v) setLinks([]);
@@ -92,7 +105,23 @@ export function ReimbursementSection({
           </span>
         </label>
       )}
-      {isExpense && reimbursable && (
+      {isExpense && reimbursable && reimbursed > 0 && missing > 0.01 && (
+        <div className="flex flex-wrap items-center gap-2 pl-6 text-xs text-muted-foreground">
+          {closed ? (
+            <>
+              <span>Encerrado: o restante ({formatCurrency(missing)}) não será reembolsado.</span>
+              <button type="button" className="underline" disabled={isPending} onClick={() => toggleClosed(false)}>
+                Reabrir
+              </button>
+            </>
+          ) : (
+            <button type="button" className="underline" disabled={isPending} onClick={() => toggleClosed(true)}>
+              O restante ({formatCurrency(missing)}) não vem
+            </button>
+          )}
+        </div>
+      )}
+      {isExpense && reimbursable && !closed && (
         <div className="flex flex-wrap items-center gap-2 pl-6 text-sm">
           <label htmlFor={`reimb-lag-${txId}`} className="text-muted-foreground">
             Reembolso cai em
@@ -136,6 +165,7 @@ export function ReimbursementSection({
                   startTransition(async () => {
                     await unlinkReimbursementAction(l.id);
                     setLinks((ls) => ls.filter((x) => x.id !== l.id));
+                    if (l.expenseTransactionId === txId) setClosed(false);
                   })
                 }
               >

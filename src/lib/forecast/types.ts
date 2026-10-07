@@ -32,6 +32,8 @@ export interface FTransaction {
   reimburseLagDays?: number | null;
   /** Soma dos créditos já vinculados a esta despesa reembolsável (positivo). */
   reimbursedAmount: number;
+  /** Reembolso parcial encerrado: o que falta não vem mais. */
+  reimburseClosed?: boolean;
   /** true se esta transação é um crédito vinculado a uma despesa reembolsável. */
   isReimbursementCredit: boolean;
 }
