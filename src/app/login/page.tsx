@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
+import { Tile } from "@/components/ui/tile";
+import { BrandMark } from "@/components/ui/brand-mark";
 
 function LoginForm() {
   const router = useRouter();
@@ -22,77 +24,70 @@ function LoginForm() {
 
     setError(null);
     startTransition(async () => {
-      const res = await loginAction(password);
-      if (res.success) {
-        router.push(from);
-        router.refresh();
-      } else {
-        setError(res.error || "Senha incorreta. Tente novamente.");
+      try {
+        const res = await loginAction(password);
+        if (res.success) {
+          router.push(from);
+          router.refresh();
+        } else {
+          setError(res.error || "Senha incorreta. Tente novamente.");
+        }
+      } catch (err) {
+        console.error("Erro ao entrar:", err);
+        setError("Não foi possível entrar agora. Tente de novo.");
       }
     });
   };
 
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 space-y-6">
-      <div className="text-center space-y-2">
-        <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mx-auto shadow-xs">
-          <Lock className="w-6 h-6" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Money Control
-        </h1>
-        <p className="text-sm text-slate-500">
-          Digite sua senha para acessar suas finanças
-        </p>
+    <Tile as="div" flat className="w-full max-w-sm space-y-6 p-8">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <BrandMark className="size-10 rounded-xl after:inset-x-2.5 after:bottom-2.5 after:h-1" />
+        <h1 className="text-xl font-semibold tracking-tight">Money Control</h1>
+        <p className="text-sm text-mut">Digite sua senha para acessar suas finanças</p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
-          <span>{error}</span>
-        </div>
+        <p role="alert" className="flex items-center gap-2.5 rounded-lg bg-negative-soft p-3 text-sm text-negative">
+          <AlertCircle className="size-4 shrink-0" />
+          {error}
+        </p>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <Input
-            type="password"
-            placeholder="Sua senha de acesso"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isPending}
-            autoFocus
-            className="h-11 text-base px-4 rounded-xl border-slate-300 focus-visible:ring-primary"
-          />
-        </div>
-
-        <Button
-          type="submit"
-          className="w-full h-11 text-base font-semibold rounded-xl shadow-md gap-2"
-          disabled={isPending || !password}
-        >
+        <Input
+          type="password"
+          aria-label="Senha"
+          placeholder="Sua senha de acesso"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isPending}
+          autoFocus
+          className="h-11 rounded-lg px-4 text-base"
+        />
+        <Button type="submit" variant="accent" className="h-11 w-full gap-2 text-base font-semibold" disabled={isPending || !password}>
           {isPending ? (
             "Verificando..."
           ) : (
             <>
-              Entrar <ArrowRight className="w-4 h-4" />
+              Entrar <ArrowRight className="size-4" />
             </>
           )}
         </Button>
       </form>
 
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-        <ShieldCheck className="w-4 h-4 text-emerald-600" />
-        <span>Sessão segura de 90 dias neste dispositivo</span>
-      </div>
-    </div>
+      <p className="flex items-center justify-center gap-2 border-t border-line pt-3 text-xs text-mut">
+        <ShieldCheck className="size-4 text-accent" />
+        Sessão segura de 90 dias neste dispositivo
+      </p>
+    </Tile>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-slate-100 to-slate-200">
-      <Suspense fallback={<div className="text-slate-400 text-sm">Carregando...</div>}>
+    <main className="grid min-h-screen place-items-center bg-bg p-4">
+      <Suspense fallback={<p className="text-sm text-mut">Carregando...</p>}>
         <LoginForm />
       </Suspense>
     </main>
