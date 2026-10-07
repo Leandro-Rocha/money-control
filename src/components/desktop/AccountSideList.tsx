@@ -26,9 +26,10 @@ interface Props {
   month: string;
   openIds: number[];
   onSelect: (id: number, additive: boolean) => void;
+  className?: string;
 }
 
-export function AccountSideList({ banks, cards, allAccountsData, month, openIds, onSelect }: Props) {
+export function AccountSideList({ banks, cards, allAccountsData, month, openIds, onSelect, className }: Props) {
   const item = (ad: AccountData, body: React.ReactNode) => {
     const open = openIds.includes(ad.account.id);
     return (
@@ -50,7 +51,7 @@ export function AccountSideList({ banks, cards, allAccountsData, month, openIds,
   };
 
   return (
-    <nav aria-label="Contas e cartões" className="flex w-60 shrink-0 flex-col gap-4">
+    <nav aria-label="Contas e cartões" className={cn("flex w-60 shrink-0 flex-col gap-4", className)}>
       <div role="group" aria-label="Contas" className="flex flex-col gap-1">
         <div className="flex items-baseline justify-between px-2">
           <Eyebrow as="span">Contas</Eyebrow>

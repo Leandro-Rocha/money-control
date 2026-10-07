@@ -91,8 +91,8 @@ export function DesktopView(state: DashboardState) {
 
       {/* Global Loading Spinner Indicator */}
       {isPending && (
-        <div className="fixed bottom-4 right-4 bg-slate-900/90 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-xs font-medium z-50 animate-pulse">
-          <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-ink/90 px-3 py-2 text-xs font-medium text-tile shadow-tile-up">
+          <Loader2 className="size-4 animate-spin" />
           <span>Atualizando...</span>
         </div>
       )}
