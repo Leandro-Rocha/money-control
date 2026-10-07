@@ -9,6 +9,7 @@ import { resetCountUp, useCountUp } from "./useCountUp";
 beforeEach(() => {
   resetCountUp();
   document.documentElement.classList.remove("motion-off");
+  document.documentElement.classList.remove("countup-off");
   vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame", "performance"] });
 });
 afterEach(() => {
@@ -36,6 +37,12 @@ describe("useCountUp", () => {
 
   it("movimento desligado mostra o valor final direto", () => {
     document.documentElement.classList.add("motion-off");
+    const { result } = renderHook(() => useCountUp(1000));
+    expect(result.current).toBe(1000);
+  });
+
+  it("contagem desligada nas Configurações mostra o valor final direto", () => {
+    document.documentElement.classList.add("countup-off");
     const { result } = renderHook(() => useCountUp(1000));
     expect(result.current).toBe(1000);
   });

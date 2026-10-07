@@ -4,7 +4,7 @@ import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { cookies } from "next/headers";
-import { ACCENT_COOKIE, MOTION_COOKIE, parseAccent, parseMotion } from "@/lib/appearance";
+import { ACCENT_COOKIE, COUNTUP_COOKIE, MOTION_COOKIE, parseAccent, parseCountUp, parseMotion } from "@/lib/appearance";
 import { AppProviders } from "@/components/AppProviders";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
@@ -24,6 +24,7 @@ export default async function RootLayout({
   const isPrivate = cookieStore.get("money_control_privacy_active")?.value === "true";
   const accent = parseAccent(cookieStore.get(ACCENT_COOKIE)?.value);
   const motion = parseMotion(cookieStore.get(MOTION_COOKIE)?.value);
+  const countUp = parseCountUp(cookieStore.get(COUNTUP_COOKIE)?.value);
 
   return (
     <html
@@ -35,6 +36,7 @@ export default async function RootLayout({
         "font-sans",
         isPrivate && "privacy-active",
         motion === "off" && "motion-off",
+        countUp === "off" && "countup-off",
       )}
       suppressHydrationWarning
     >

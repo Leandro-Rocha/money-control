@@ -4,6 +4,7 @@ import {
   DEFAULT_ACCENT,
   contrastRatio,
   parseAccent,
+  parseCountUp,
   parseMotion,
 } from "./appearance";
 
@@ -45,5 +46,15 @@ describe("presets de acento", () => {
 describe("contrastRatio", () => {
   it("preto no branco é 21", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 1);
+  });
+});
+
+describe("parseCountUp", () => {
+  it("só 'off' desliga", () => {
+    expect(parseCountUp("off")).toBe("off");
+    expect(parseCountUp("on")).toBe("on");
+    expect(parseCountUp(undefined)).toBe("on");
+    expect(parseCountUp("")).toBe("on");
+    expect(parseCountUp("false")).toBe("on");
   });
 });

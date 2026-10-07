@@ -12,6 +12,7 @@ export function resetCountUp() {
 function motionAllowed(): boolean {
   if (typeof window === "undefined") return false;
   if (document.documentElement.classList.contains("motion-off")) return false;
+  if (document.documentElement.classList.contains("countup-off")) return false;
   return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 

@@ -3,6 +3,7 @@
 
 export const ACCENT_COOKIE = "money_control_accent";
 export const MOTION_COOKIE = "money_control_motion";
+export const COUNTUP_COOKIE = "money_control_countup";
 
 export type AccentId = "teal" | "verde" | "cobalto" | "grafite" | "violeta" | "terracota";
 
@@ -28,12 +29,17 @@ export const ACCENT_PRESETS: readonly AccentPreset[] = [
 export const DEFAULT_ACCENT: AccentId = "teal";
 
 export type MotionPref = "on" | "off";
+export type CountUpPref = "on" | "off";
 
 export function parseAccent(v: string | null | undefined): AccentId {
   return ACCENT_PRESETS.find((p) => p.id === v)?.id ?? DEFAULT_ACCENT;
 }
 
 export function parseMotion(v: string | null | undefined): MotionPref {
+  return v === "off" ? "off" : "on";
+}
+
+export function parseCountUp(v: string | null | undefined): CountUpPref {
   return v === "off" ? "off" : "on";
 }
 
@@ -69,4 +75,9 @@ export function applyAccent(id: AccentId) {
 export function applyMotion(pref: MotionPref) {
   writeCookie(MOTION_COOKIE, pref);
   document.documentElement.classList.toggle("motion-off", pref === "off");
+}
+
+export function applyCountUp(pref: CountUpPref) {
+  writeCookie(COUNTUP_COOKIE, pref);
+  document.documentElement.classList.toggle("countup-off", pref === "off");
 }
