@@ -154,3 +154,19 @@ export function findReimbursementCandidates(txs: ReviewTx[], fromMonth: string):
   }
   return out;
 }
+
+/** Categorias mais usadas (só "regular"), por sinal do valor; base dos chips do Revisar. */
+export function topCategoryIds(
+  txs: Pick<ReviewTx, "categoryId" | "categoryKind" | "amount">[],
+  n = 4,
+): { expense: number[]; income: number[] } {
+  const count = { expense: new Map<number, number>(), income: new Map<number, number>() };
+  for (const t of txs) {
+    if (t.categoryId == null || (t.categoryKind != null && t.categoryKind !== "regular")) continue;
+    const m = t.amount < 0 ? count.expense : count.income;
+    m.set(t.categoryId, (m.get(t.categoryId) ?? 0) + 1);
+  }
+  const top = (m: Map<number, number>) =>
+    [...m.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, n).map(([id]) => id);
+  return { expense: top(count.expense), income: top(count.income) };
+}

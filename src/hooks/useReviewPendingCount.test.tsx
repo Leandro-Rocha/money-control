@@ -40,4 +40,18 @@ describe("useReviewPendingCount", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(result.current).toBeNull();
   });
+
+  it("sugestão escondida baixa o contador sem buscar de novo", async () => {
+    getReviewDataAction.mockResolvedValueOnce({
+      ...data(1),
+      recurringSuggestions: [{ accountId: 1, description: "Netflix" }],
+    });
+    const { result, rerender } = renderHook(({ h }) => useReviewPendingCount(0, h), {
+      initialProps: { h: new Set<string>() as ReadonlySet<string> },
+    });
+    await waitFor(() => expect(result.current).toBe(2));
+    rerender({ h: new Set(["1|Netflix"]) });
+    expect(result.current).toBe(1);
+    expect(getReviewDataAction).toHaveBeenCalledTimes(1);
+  });
 });

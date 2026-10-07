@@ -32,7 +32,9 @@ export function useDashboard(
   // Incrementa a cada alteração de dados: telas que carregam sozinhas (Revisar) recarregam.
   const [dataVersion, setDataVersion] = useState(0);
   const [isPending, startTransition] = useTransition();
-  const reviewCount = useReviewPendingCount(dataVersion);
+  const [hiddenSuggestions, setHiddenSuggestions] = useState<ReadonlySet<string>>(() => new Set());
+  const hideSuggestion = (key: string) => setHiddenSuggestions((h) => new Set(h).add(key));
+  const reviewCount = useReviewPendingCount(dataVersion, hiddenSuggestions);
 
   const [importOpen, setImportOpen] = useState(false);
   const [importInitialAccountId, setImportInitialAccountId] = useState<number | undefined>(undefined);
@@ -406,6 +408,8 @@ export function useDashboard(
     setViewMode,
     changeViewMode,
     reviewCount,
+    hiddenSuggestions,
+    hideSuggestion,
     isSyncing,
     setIsSyncing,
     lastSyncAt,

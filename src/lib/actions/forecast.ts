@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { upsertBalanceSnapshot } from "@/lib/forecast/snapshots";
-import { and, eq, isNull, gte } from "drizzle-orm";
+import { and, desc, eq, isNull, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   accounts,
@@ -20,6 +20,7 @@ import {
   findReimbursementCandidates,
   findUnpairedTransfers,
   suggestRecurring,
+  topCategoryIds,
   type RecurringSuggestion,
   type ReimbursementCandidate,
   type ReviewTx,
@@ -76,6 +77,8 @@ export interface ReviewData {
   recurringSuggestions: RecurringSuggestion[];
   unpairedTransfers: ReviewTx[];
   uncategorizedCount: number;
+  uncategorized: { id: number; accountId: number; date: string; description: string; amount: number }[];
+  topCategories: { expense: number[]; income: number[] };
   accountsWithoutSnapshot: { id: number; name: string }[];
   warnings: string[];
 }
@@ -142,9 +145,17 @@ export async function getReviewDataAction(): Promise<ReviewData> {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const uncategorizedRows = await db
-    .select({ id: transactions.id })
+    .select({
+      id: transactions.id,
+      accountId: transactions.accountId,
+      month: transactions.month,
+      day: transactions.day,
+      description: transactions.description,
+      amount: transactions.amount,
+    })
     .from(transactions)
-    .where(and(isNull(transactions.categoryId), gte(transactions.month, addMonths(current, -3))));
+    .where(and(isNull(transactions.categoryId), gte(transactions.month, addMonths(current, -3))))
+    .orderBy(desc(transactions.month), desc(transactions.day), desc(transactions.id));
 
   const snapshotAccounts = new Set(input.snapshots.map((s) => s.accountId));
 
@@ -158,6 +169,14 @@ export async function getReviewDataAction(): Promise<ReviewData> {
     recurringSuggestions: suggestRecurring(txs, input.recurring, matchedIds, current),
     unpairedTransfers: findUnpairedTransfers(txs, activeIds, addMonths(current, -2)).map((u) => u.transaction),
     uncategorizedCount: uncategorizedRows.length,
+    uncategorized: uncategorizedRows.slice(0, 30).map((t) => ({
+      id: t.id,
+      accountId: t.accountId,
+      date: `${t.month}-${String(t.day).padStart(2, "0")}`,
+      description: t.description,
+      amount: t.amount,
+    })),
+    topCategories: topCategoryIds(txs),
     accountsWithoutSnapshot: accs
       .filter((a) => a.type === "bank_account" && !snapshotAccounts.has(a.id))
       .map((a) => ({ id: a.id, name: a.name })),

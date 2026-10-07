@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findReimbursementCandidates, findUnpairedTransfers, suggestRecurring, type ReviewTx } from "./review";
+import { findReimbursementCandidates, findUnpairedTransfers, suggestRecurring, topCategoryIds, type ReviewTx } from "./review";
 import type { FRecurring } from "./types";
 
 let id = 1;
@@ -68,5 +68,24 @@ describe("findReimbursementCandidates", () => {
     const r = findReimbursementCandidates([e1, e2, credit, other], "2026-08");
     expect(r).toHaveLength(1);
     expect(r[0].expenses.map((e) => e.id)).toEqual([e2.id, e1.id]);
+  });
+});
+
+describe("topCategoryIds", () => {
+  it("ordena por uso, separa despesa de entrada e ignora transferências e sem categoria", () => {
+    const txs = [
+      t({ accountId: 1, month: "2026-09", day: 1, amount: -10, categoryId: 7, categoryKind: "regular" }),
+      t({ accountId: 1, month: "2026-09", day: 2, amount: -10, categoryId: 8, categoryKind: "regular" }),
+      t({ accountId: 1, month: "2026-09", day: 3, amount: -10, categoryId: 8, categoryKind: "regular" }),
+      t({ accountId: 1, month: "2026-09", day: 4, amount: -10, categoryId: 9, categoryKind: "transfer" }),
+      t({ accountId: 1, month: "2026-09", day: 5, amount: -10, categoryId: null }),
+      t({ accountId: 1, month: "2026-09", day: 6, amount: 3000, categoryId: 2, categoryKind: null }),
+    ];
+    expect(topCategoryIds(txs)).toEqual({ expense: [8, 7], income: [2] });
+  });
+
+  it("corta em n", () => {
+    const txs = [1, 2, 3, 4, 5].map((c) => t({ accountId: 1, month: "2026-09", day: c, amount: -1, categoryId: c, categoryKind: "regular" }));
+    expect(topCategoryIds(txs, 2).expense).toHaveLength(2);
   });
 });

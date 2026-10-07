@@ -8,6 +8,7 @@ import {
   recordBalanceSnapshotAction,
   setTransactionReimbursableAction,
 } from "./forecast";
+import { localToday } from "@/lib/forecast/dates";
 
 let testDb: any;
 
@@ -73,5 +74,22 @@ describe("forecast actions", () => {
     const r = await getReviewDataAction();
     expect(r.accountsWithoutSnapshot.map((a) => a.id)).toEqual([1, 2]);
     expect(Array.isArray(r.overdue)).toBe(true);
+  });
+
+  it("revisão traz os sem categoria recentes e as categorias mais usadas", async () => {
+    const month = localToday().slice(0, 7);
+    await testDb.insert(categories).values([
+      { id: 10, name: "Mercado", type: "expense", kind: "regular" },
+      { id: 11, name: "Salário", type: "income", kind: "regular" },
+    ]);
+    await testDb.insert(transactions).values([
+      { id: 20, accountId: 1, month, day: 2, description: "Pão", amount: -12, categoryId: 10 },
+      { id: 21, accountId: 1, month, day: 3, description: "Feira", amount: -40, categoryId: 10 },
+      { id: 22, accountId: 1, month, day: 4, description: "Salário", amount: 3000, categoryId: 11 },
+      { id: 23, accountId: 1, month, day: 5, description: "PIX XYZ", amount: -55 },
+    ]);
+    const r = await getReviewDataAction();
+    expect(r.uncategorized).toEqual([{ id: 23, accountId: 1, date: `${month}-05`, description: "PIX XYZ", amount: -55 }]);
+    expect(r.topCategories).toEqual({ expense: [10], income: [11] });
   });
 });

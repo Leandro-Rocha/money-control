@@ -2,24 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { getReviewDataAction } from "@/lib/actions/forecast";
-import { countReviewPending } from "@/lib/forecast/review-count";
+import { countReviewPending, type ReviewCountable } from "@/lib/forecast/review-count";
 
-/** Número de pendências do Revisar; null enquanto carrega ou se falhar. Recarrega quando `version` muda. */
-export function useReviewPendingCount(version: number): number | null {
-  const [count, setCount] = useState<number | null>(null);
+const NONE: ReadonlySet<string> = new Set();
+
+/**
+ * Número de pendências do Revisar; null enquanto carrega ou se falhar. Recarrega quando `version` muda;
+ * `hidden` (sugestões ignoradas) só recalcula, sem nova busca.
+ */
+export function useReviewPendingCount(version: number, hidden: ReadonlySet<string> = NONE): number | null {
+  const [data, setData] = useState<ReviewCountable | null>(null);
   useEffect(() => {
     let alive = true;
     getReviewDataAction().then(
       (d) => {
-        if (alive) setCount(countReviewPending(d));
+        if (alive) setData(d);
       },
       () => {
-        if (alive) setCount(null);
+        if (alive) setData(null);
       },
     );
     return () => {
       alive = false;
     };
   }, [version]);
-  return count;
+  return data ? countReviewPending(data, hidden) : null;
 }
