@@ -5,6 +5,7 @@ import { accounts, transactions } from "@/db/schema";
 import { eq, inArray, and, lte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { Account } from "@/lib/types";
+import { investmentCategoryId } from "@/lib/repositories/categories";
 
 export interface WealthInvestmentItem {
   account: Account;
@@ -268,6 +269,7 @@ export async function adjustInvestmentBalance(
       month: currentMonth,
       day: Math.min(now.getDate(), 28),
       description: desc,
+      categoryId: await investmentCategoryId(),
       amount: diff,
     });
   }

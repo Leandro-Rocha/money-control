@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, GripVertical } from "lucide-react";
+import { ChevronRight, GripVertical, X } from "lucide-react";
 import { Fragment, createContext, use, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,8 @@ type Run = (key: string | null, fn: () => Promise<unknown>) => void;
 export function ReviewView({ state }: { state: DashboardState }) {
   const [data, setData] = useState<ReviewData | null>(null);
   const [leaving, setLeaving] = useState<ReadonlySet<string>>(() => new Set());
+  /** Última categoria escolhida na revisão: um clique por engano tem volta. */
+  const [lastPick, setLastPick] = useState<{ id: number; description: string; categoryName: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const load = useCallback(() => {
@@ -161,6 +163,34 @@ export function ReviewView({ state }: { state: DashboardState }) {
           </Button>
         }
       >
+        {lastPick && (
+          <div role="status" className="flex items-center justify-between gap-2 rounded-md bg-hover px-2 py-1 text-xs">
+            <span className="min-w-0 truncate">
+              {lastPick.description} → {lastPick.categoryName}
+            </span>
+            <span className="flex shrink-0 items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const id = lastPick.id;
+                  setLastPick(null);
+                  run(null, () => updateTransaction(id, { categoryId: null }));
+                }}
+              >
+                Desfazer
+              </Button>
+              <button
+                type="button"
+                aria-label="Fechar"
+                onClick={() => setLastPick(null)}
+                className="rounded p-0.5 text-mut hover:bg-hover hover:text-ink"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </span>
+          </div>
+        )}
         {data.uncategorized.length > 0 && (
           <ul className="flex flex-col">
             {data.uncategorized.map((t) => (
@@ -169,7 +199,11 @@ export function ReviewView({ state }: { state: DashboardState }) {
                   tx={t}
                   accountName={accountName}
                   chips={chipCategories(t.amount, data.topCategories, state.allCategories)}
-                  onPick={(categoryId) => run(`u:${t.id}`, () => updateTransaction(t.id, { categoryId }))}
+                  onPick={(categoryId) => {
+                    const categoryName = state.allCategories.find((c) => c.id === categoryId)?.name ?? "";
+                    setLastPick({ id: t.id, description: t.description, categoryName });
+                    run(`u:${t.id}`, () => updateTransaction(t.id, { categoryId }));
+                  }}
                   onMore={() => state.setTriageOpen(true)}
                 />
               </Item>
@@ -708,6 +742,14 @@ function ReimbursementCandidateRow({
             </span>
           )}
           <Money value={c.credit.amount} sign />
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Não abater de nenhuma despesa; desfaz no detalhe do lançamento"
+            onClick={() => run(`r:${c.credit.id}`, () => setReimbursementClosedAction(c.credit.id, true))}
+          >
+            Ignorar
+          </Button>
         </span>
       </div>
       {c.expenses.length === 0 ? (

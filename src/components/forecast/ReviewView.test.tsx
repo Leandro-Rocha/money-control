@@ -8,13 +8,14 @@ import type { DashboardState } from "@/hooks/useDashboard";
 
 const getReviewDataAction = vi.fn();
 const linkReimbursementAction = vi.fn();
+const setReimbursementClosedAction = vi.fn();
 vi.mock("@/lib/actions/forecast", () => ({
   getReviewDataAction: () => getReviewDataAction(),
   createBalanceAdjustmentAction: vi.fn(),
   createRecurringFromSuggestionAction: vi.fn(),
   linkReimbursementAction: (a: unknown) => linkReimbursementAction(a),
   recordBalanceSnapshotAction: vi.fn(),
-  setReimbursementClosedAction: vi.fn(),
+  setReimbursementClosedAction: (...a: unknown[]) => setReimbursementClosedAction(...a),
   setTransactionReimbursableAction: vi.fn(),
 }));
 const confirmProjectedRow = vi.fn();
@@ -112,6 +113,16 @@ describe("ReviewView", () => {
     expect(within(box).getByText(/Reembolso Seguro Saúde/)).toBeInTheDocument();
   });
 
+  it("ignorar crédito de reembolso: encerra o crédito e tira da lista", async () => {
+    const credit = { id: 51, accountId: 1, month: "2026-10", day: 7, amount: 300, description: "Reembolso avulso" };
+    getReviewDataAction.mockResolvedValue(review({ reimbursementCandidates: [{ credit, remaining: 300, expenses: [] }] }));
+    setReimbursementClosedAction.mockResolvedValue({ success: true });
+    render(<ReviewView state={state()} />);
+    const box = await screen.findByRole("region", { name: "Reembolsos" });
+    fireEvent.click(within(box).getByRole("button", { name: "Ignorar" }));
+    expect(setReimbursementClosedAction).toHaveBeenCalledWith(51, true);
+  });
+
   it("mostra os 7 grupos com contadores; vazio mostra ✓", async () => {
     getReviewDataAction.mockResolvedValue(review());
     render(<ReviewView state={state()} />);
@@ -147,6 +158,19 @@ describe("ReviewView", () => {
     expect(item).toHaveAttribute("data-leaving");
     expect(counter("Lançamentos sem categoria")).toHaveTextContent("1");
     await waitFor(() => expect(st.refreshCurrentMonth).toHaveBeenCalled());
+  });
+
+  it("categoria escolhida por engano pode ser desfeita", async () => {
+    getReviewDataAction.mockResolvedValue(review());
+    render(<ReviewView state={state()} />);
+    const box = await screen.findByRole("region", { name: "Lançamentos sem categoria" });
+    const item = within(box).getByText("PIX XYZ").closest("li")!;
+    fireEvent.click(within(item).getByRole("button", { name: "Mercado" }));
+    const status = await within(box).findByRole("status");
+    expect(status).toHaveTextContent("PIX XYZ → Mercado");
+    fireEvent.click(within(status).getByRole("button", { name: "Desfazer" }));
+    expect(updateTransaction).toHaveBeenLastCalledWith(31, { categoryId: null });
+    await waitFor(() => expect(within(box).queryByRole("status")).toBeNull());
   });
 
   it("entrada sem categoria usa categorias de entrada quando não há mais usadas", async () => {

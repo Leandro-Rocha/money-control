@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { accounts, transactions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { investmentCategoryId } from "@/lib/repositories/categories";
 
 export async function createAccount(data: {
   name: string;
@@ -47,6 +48,7 @@ export async function createAccount(data: {
       month: currentMonth,
       day: 1,
       description: "Posição Inicial em Custódia",
+      categoryId: await investmentCategoryId(),
       amount: data.initialInvestmentBalance,
     });
   }

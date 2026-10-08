@@ -166,6 +166,25 @@ describe('wealth actions and calculations', () => {
     expect(wealth.investments[0].gainLossPercent).toBe(4.5);
   });
 
+  it('categorizes custody reconciliation under the investment-kind category', async () => {
+    const { adjustInvestmentBalance } = await import('./wealth');
+    testDb.insert(accounts).values({ id: 21, name: 'XP', type: 'investment', color: '#000' }).run();
+    testDb.insert(transactions).values({ accountId: 21, month: '2026-09', day: 1, description: 'Aporte', amount: 100 }).run();
+
+    // Sem categoria de investimento: cria uma
+    await adjustInvestmentBalance(21, 110);
+    const [created] = testDb.select().from(categories).where(eq(categories.kind, 'investment')).all();
+    expect(created.name).toBe('Variação Patrimonial');
+    let rec = testDb.select().from(transactions).where(eq(transactions.description, 'Reconciliação de Custódia')).all();
+    expect(rec.map((t: any) => t.categoryId)).toEqual([created.id]);
+
+    // Com categoria existente: reaproveita
+    await adjustInvestmentBalance(21, 115);
+    rec = testDb.select().from(transactions).where(eq(transactions.description, 'Reconciliação de Custódia')).all();
+    expect(rec.map((t: any) => t.categoryId)).toEqual([created.id, created.id]);
+    expect(testDb.select().from(categories).where(eq(categories.kind, 'investment')).all()).toHaveLength(1);
+  });
+
   it('calculates totalReceivables and includes it in netWorth', async () => {
     // Investment
     testDb.insert(accounts).values({
