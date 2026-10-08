@@ -19,7 +19,7 @@ import type { CategoryKind, FInstallment, FRecurring, FTransaction, ForecastInpu
 
 export const DEFAULT_SETTINGS: ForecastSettings & { horizonDays: number } = {
   cushion: 500,
-  reimbursementLagDays: 30,
+  reimbursementLagDays: 7,
   overdueLookbackDays: 15,
   horizonDays: 120,
 };
@@ -114,6 +114,7 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
       sourceType: t.sourceType,
       sourceId: t.sourceId,
       installmentTotal: t.installmentTotal,
+      installmentCurrent: t.installmentCurrent,
       isReimbursable: reimbursable,
       reimburseLagDays: t.reimburseLagDays,
       reimbursedAmount: reimbursedByExpense.get(t.id) ?? 0,

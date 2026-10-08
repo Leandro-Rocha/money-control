@@ -54,7 +54,7 @@ export function ReimbursementSection({
   }, []);
 
   const isExpense = amount < 0;
-  if (!isExpense && links.length === 0) return null;
+  if (!isExpense && links.length === 0 && !closed) return null;
 
   const reimbursed = links.filter((l) => l.expenseTransactionId === txId).reduce((s, l) => s + l.amount, 0);
   const missing = Math.abs(amount) - reimbursed;
@@ -119,6 +119,14 @@ export function ReimbursementSection({
               O restante ({formatCurrency(missing)}) não vem
             </button>
           )}
+        </div>
+      )}
+      {!isExpense && closed && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>Ignorado no Revisar: não abate nenhuma despesa.</span>
+          <button type="button" className="underline" disabled={isPending} onClick={() => toggleClosed(false)}>
+            Desfazer
+          </button>
         </div>
       )}
       {isExpense && reimbursable && !closed && (

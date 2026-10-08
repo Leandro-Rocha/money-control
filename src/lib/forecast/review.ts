@@ -19,7 +19,7 @@ export interface ReviewTx {
   linkedTransactionId: number | null;
   isReimbursable: boolean;
   reimbursedAmount: number;
-  /** Reembolso parcial encerrado: o que falta não vem mais. */
+  /** Despesa: reembolso parcial encerrado, o que falta não vem mais. Crédito: ignorado, não abate nada. */
   reimburseClosed: boolean;
   isReimbursementCredit: boolean;
   /** Quanto deste crédito já foi abatido de despesas reembolsáveis. */
@@ -148,7 +148,7 @@ export function findReimbursementCandidates(txs: ReviewTx[], fromMonth: string):
     }));
   const out: ReimbursementCandidate[] = [];
   for (const c of txs) {
-    if (c.month < fromMonth || c.amount <= 0 || !looksLikeReimbursement(c)) continue;
+    if (c.month < fromMonth || c.amount <= 0 || c.reimburseClosed || !looksLikeReimbursement(c)) continue;
     const remaining = round2(c.amount - c.reimbursementCreditUsed);
     if (remaining <= 0.01) continue;
     const cd = dateOf(c.month, c.day);

@@ -308,8 +308,8 @@ export default function AccountColumn({
   const billPaid = bill?.label === "paga";
   const rowH = density === "compact" ? "min-h-8 py-0.5" : "min-h-10 py-1.5";
   const cols = isCard
-    ? "grid-cols-[1fr_3.5rem_6.5rem_5.5rem]"
-    : "grid-cols-[1.5rem_1fr_6.5rem_5.5rem]";
+    ? "grid-cols-[minmax(0,1fr)_3.5rem_6.5rem_5.5rem] max-sm:grid-cols-[minmax(0,1fr)_3rem_4.5rem_5.5rem]"
+    : "grid-cols-[1.5rem_minmax(0,1fr)_6.5rem_5.5rem] max-sm:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem_5.5rem]";
   const inputH = density === "compact" ? "h-7 text-xs" : "h-8 text-sm";
 
   const rowShell = (tx: TransactionWithCategory, children: React.ReactNode) => (
@@ -349,7 +349,7 @@ export default function AccountColumn({
     return (
       <div
         className={cn(
-          "flex min-w-0 items-center gap-1.5",
+          "@container flex min-w-0 items-center gap-1.5 overflow-hidden",
           !isEditing && !isInstallmentShadow && "cursor-pointer",
         )}
         onClick={() =>
@@ -392,7 +392,7 @@ export default function AccountColumn({
             {status !== "realized" && (
               <Tag
                 variant={status === "overdue" ? "overdue" : "projected"}
-                className="shrink-0"
+                className="shrink-0 @max-[16rem]:hidden"
               >
                 {STATUS_LABEL[status]}
               </Tag>
@@ -409,27 +409,29 @@ export default function AccountColumn({
             {isRecurringProjected && (
               <span
                 title="Gasto recorrente projetado"
-                className="shrink-0 text-faint"
+                className="shrink-0 text-faint @max-[16rem]:hidden"
               >
                 <Repeat className="size-3" />
               </span>
             )}
             {tx.linkedTransactionId && (
               <Tag
-                className="shrink-0"
+                className="min-w-0 shrink"
                 title={
                   tx.linkedAccountName
                     ? `Transferência ${tx.amount < 0 ? "para" : "de"} ${tx.linkedAccountName}`
                     : "Transferência vinculada"
                 }
               >
-                {tx.linkedAccountName
-                  ? tx.amount < 0
-                    ? `→ ${tx.linkedAccountName}`
-                    : `← ${tx.linkedAccountName}`
-                  : tx.amount < 0
-                    ? "→"
-                    : "←"}
+                <span className="truncate">
+                  {tx.linkedAccountName
+                    ? tx.amount < 0
+                      ? `→ ${tx.linkedAccountName}`
+                      : `← ${tx.linkedAccountName}`
+                    : tx.amount < 0
+                      ? "→"
+                      : "←"}
+                </span>
               </Tag>
             )}
             {extra}
@@ -464,6 +466,7 @@ export default function AccountColumn({
           onKeyDown={(e) => isEditing && handleCellKeyDown(e, tx, "category")}
           disabled={isCard && isInstallmentShadow}
           tabIndex={isEditing ? 0 : -1}
+          className="max-w-full"
         />
       </div>
     );
@@ -585,7 +588,7 @@ export default function AccountColumn({
                   className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent-soft px-1.5 py-px text-2xs font-semibold text-accent-ink transition-colors hover:bg-accent/20"
                 >
                   <Check className="size-2.5" />
-                  Confirmar
+                  <span className="@max-[16rem]:sr-only">Confirmar</span>
                 </button>
               )}
           </>,

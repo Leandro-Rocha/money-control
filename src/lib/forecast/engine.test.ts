@@ -640,3 +640,43 @@ describe("buildForecast — estimativa reembolsável", () => {
     expect(reimb(r)).toEqual([]);
   });
 });
+
+describe("estimativas de cartão com a fatura fechada", () => {
+  // Vence em 20/10: pelo atalho (vencimento − 7) a fatura de outubro só fecha em 13/10.
+  const accounts = [bank(1), card(2, 20, 1)];
+  const recurring = [rec({ id: 1, accountId: 2, day: 1, amount: -500, categoryId: 7, isEstimate: true })];
+  const estOf = (r: ReturnType<typeof buildForecast>, month: string) =>
+    r.cardItems.filter((e) => e.kind === "estimate" && e.source.month === month).map((e) => e.amount);
+
+  it("mantém a estimativa enquanto a fatura está aberta", () => {
+    const r = buildForecast(base({ accounts, recurring }));
+    expect(estOf(r, "2026-10")).toEqual([-500]);
+  });
+
+  it("descarta a estimativa quando o cartão já tem lançamento na fatura seguinte", () => {
+    const r = buildForecast(
+      base({ accounts, recurring, transactions: [tx({ accountId: 2, month: "2026-11", day: 4, amount: -30 })] }),
+    );
+    expect(estOf(r, "2026-10")).toEqual([]);
+    expect(estOf(r, "2026-11")).toEqual([-500]);
+  });
+
+  it("ignora parcelas a partir da segunda e lançamentos gerados por projeção", () => {
+    const r = buildForecast(
+      base({
+        accounts,
+        recurring,
+        transactions: [
+          tx({ accountId: 2, month: "2026-11", day: 4, amount: -100, installmentCurrent: 2, installmentTotal: 5 }),
+          tx({ accountId: 2, month: "2026-11", day: 4, amount: -100, sourceType: "installment", sourceId: 9 }),
+        ],
+      }),
+    );
+    expect(estOf(r, "2026-10")).toEqual([-500]);
+  });
+
+  it("descarta a estimativa quando já passou do fechamento aproximado", () => {
+    const r = buildForecast(base({ accounts, recurring, today: "2026-10-15" }));
+    expect(estOf(r, "2026-10")).toEqual([]);
+  });
+});

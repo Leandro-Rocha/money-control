@@ -399,7 +399,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, CategoryPickerProps>
           }}
           title={tooltipText}
         >
-          {resolvedName || "Sem categoria"}
+          <span className="truncate">{resolvedName || "Sem categoria"}</span>
         </button>
       )}
 

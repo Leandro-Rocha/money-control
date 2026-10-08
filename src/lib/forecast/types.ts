@@ -27,6 +27,8 @@ export interface FTransaction {
   sourceType: SourceType | null;
   sourceId: number | null;
   installmentTotal: number | null;
+  /** Número da parcela (1 = compra nova); parcelas seguintes não indicam fatura fechada. */
+  installmentCurrent?: number | null;
   isReimbursable: boolean;
   /** Dias até o reembolso cair; sem valor usa settings.reimbursementLagDays. */
   reimburseLagDays?: number | null;

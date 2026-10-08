@@ -95,6 +95,13 @@ describe("findReimbursementCandidates", () => {
     const r = findReimbursementCandidates([open, closed, credit], "2026-08");
     expect(r[0].expenses.map((e) => e.id)).toEqual([open.id]);
   });
+
+  it("não lista crédito ignorado (encerrado sem abater tudo)", () => {
+    const ignored = t({ accountId: 2, month: "2026-10", day: 7, amount: 300, description: "Reembolso avulso", reimburseClosed: true });
+    const credit = t({ accountId: 2, month: "2026-10", day: 8, amount: 200, description: "Reembolso Seguro Saúde" });
+    const r = findReimbursementCandidates([ignored, credit], "2026-08");
+    expect(r.map((c) => c.credit.id)).toEqual([credit.id]);
+  });
 });
 
 describe("topCategoryIds", () => {

@@ -52,7 +52,7 @@ describe("forecast loader", () => {
     expect(r.starts[0]).toMatchObject({ balance: 1600, computedBalance: 1500, discrepancy: 100 });
     expect(r.kpis.reserves).toBe(1500);
     expect(r.cardBills.find((b) => b.month === "2026-10")).toMatchObject({ total: -300, status: "pending" });
-    expect(r.events.find((e) => e.kind === "reimbursement")).toMatchObject({ amount: 500, date: "2026-11-01" });
+    expect(r.events.find((e) => e.kind === "reimbursement")).toMatchObject({ amount: 500, date: "2026-10-09" });
     expect(r.events.find((e) => e.key.startsWith("rec:") && e.dueDate === "2026-10-10")).toMatchObject({ amount: -500 });
   });
 

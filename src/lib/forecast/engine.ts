@@ -339,6 +339,11 @@ export function buildForecast(input: ForecastInput): ForecastResult {
       if (due > horizonEnd) break;
       const closing = addDays(due, -CARD_CLOSING_OFFSET_DAYS);
       const isOpen = closing >= today;
+      // Compra nova já lançada na fatura seguinte: esta fechou, mesmo antes do fechamento aproximado.
+      const nextBillStarted = txOf(card.id, addMonths(m, 1)).some(
+        (t) => t.sourceType == null && (t.installmentCurrent ?? 1) <= 1,
+      );
+      const billClosed = !isOpen || nextBillStarted;
 
       const real = round2(txOf(card.id, m).reduce((s, t) => s + t.amount, 0));
       // Fatura já vencida: vale só o que foi lançado; itens previstos que não vieram não entram mais.
@@ -386,7 +391,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
           }
         }
         for (const e of estimateItems) {
-          if (e.r.accountId !== card.id || e.month !== m) continue;
+          if (billClosed || e.r.accountId !== card.id || e.month !== m) continue;
           projected += e.remaining;
           const d = dateOf(m, e.r.day);
           cardItems.push(
