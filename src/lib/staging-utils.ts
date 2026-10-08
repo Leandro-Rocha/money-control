@@ -137,9 +137,23 @@ export function isDbDuplicate(
       normDbDesc === normDesc ||
       (normOrigDesc !== "" && normDbDesc === normOrigDesc) ||
       (normDbOrig !== "" && normDbOrig === normDesc) ||
-      (normDbOrig !== "" && normOrigDesc !== "" && normDbOrig === normOrigDesc)
+      (normDbOrig !== "" && normOrigDesc !== "" && normDbOrig === normOrigDesc) ||
+      isTruncatedMatch(normDbOrig, normOrigDesc || normDesc)
     );
   });
+}
+
+/** Mínimo de caracteres para aceitar prefixo como mesma descrição (evita "uber" × "uber eats"). */
+const MIN_TRUNCATED_PREFIX = 10;
+
+/**
+ * Fatura em PDF corta a descrição original ("MERCADO VIOLETASAO PAUL"), o Pluggy traz inteira
+ * ("MERCADO VIOLETASAO PAULOBR"). Considera igual quando uma é prefixo longo da outra.
+ */
+function isTruncatedMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+  return shorter.length >= MIN_TRUNCATED_PREFIX && longer.startsWith(shorter);
 }
 
 

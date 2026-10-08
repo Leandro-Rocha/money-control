@@ -159,6 +159,32 @@ describe("isDbDuplicate (deduplication)", () => {
     expect(isDbDuplicate(row, dbTransactions)).toBe(false);
   });
 
+  it("marks as duplicate when the PDF-imported description is a truncated prefix of the Pluggy one", () => {
+    const pdfImported = [
+      {
+        month: "2026-09",
+        day: 13,
+        amount: -137.99,
+        description: "Mercado Violeta",
+        originalDescription: "MERCADO VIOLETASAO PAUL",
+      },
+    ];
+    const row = {
+      resolvedMonth: "2026-09",
+      day: 13,
+      amount: -137.99,
+      description: "MERCADO VIOLETASAO PAULOBR",
+      originalDescription: "MERCADO VIOLETASAO PAULOBR",
+    };
+    expect(isDbDuplicate(row, pdfImported)).toBe(true);
+  });
+
+  it("does NOT treat a short shared prefix as a duplicate", () => {
+    const db = [{ month: "2026-09", day: 5, amount: -20.0, description: "Uber", originalDescription: "UBER" }];
+    const row = { resolvedMonth: "2026-09", day: 5, amount: -20.0, description: "UBER EATS PEDIDO" };
+    expect(isDbDuplicate(row, db)).toBe(false);
+  });
+
   it("marks credit card transaction as duplicate when originalDescription or cleaned description matches with installments", () => {
     const ccTransactions = [
       {
