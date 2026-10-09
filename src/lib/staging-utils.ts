@@ -123,10 +123,25 @@ export function isDbDuplicate(
   row: { resolvedMonth: string; day: number; amount: number; description: string; originalDescription?: string },
   dbTransactions: { month: string; day: number; amount: number; description?: string; originalDescription?: string | null }[]
 ): boolean {
+  return findDbDuplicate(row, dbTransactions) !== null;
+}
+
+/**
+ * Mesma regra de isDbDuplicate, devolvendo a linha do banco casada. Linhas em `usedIds` ficam de fora:
+ * cada lançamento do banco cobre um só importado, então duas compras idênticas no mesmo dia não viram uma.
+ */
+export function findDbDuplicate<
+  T extends { id?: number; month: string; day: number; amount: number; description?: string; originalDescription?: string | null },
+>(
+  row: { resolvedMonth: string; day: number; amount: number; description: string; originalDescription?: string },
+  dbTransactions: T[],
+  usedIds?: Set<number>,
+): T | null {
   const normDesc = normalizeDescription(row.description);
   const normOrigDesc = row.originalDescription ? normalizeDescription(row.originalDescription) : "";
 
-  return dbTransactions.some((t) => {
+  return dbTransactions.find((t) => {
+    if (usedIds && t.id != null && usedIds.has(t.id)) return false;
     if (t.month !== row.resolvedMonth || t.day !== row.day || Math.abs(t.amount - row.amount) >= 0.009) {
       return false;
     }
@@ -140,7 +155,7 @@ export function isDbDuplicate(
       (normDbOrig !== "" && normOrigDesc !== "" && normDbOrig === normOrigDesc) ||
       isTruncatedMatch(normDbOrig, normOrigDesc || normDesc)
     );
-  });
+  }) ?? null;
 }
 
 /** Mínimo de caracteres para aceitar prefixo como mesma descrição (evita "uber" × "uber eats"). */

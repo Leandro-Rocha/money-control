@@ -22,6 +22,7 @@ import {
 import {
   applyTransactionRules,
   isDbDuplicate,
+  findDbDuplicate,
   findManualCounterpart,
   isAutoInvestSweepDescription,
   isInvoicePaymentDescription,
@@ -591,6 +592,12 @@ export async function fetchPluggyTransactionsForMonth(
   const stagingRows: PluggyStagingRow[] = [];
   const seenInBatch = new Set<string>();
   const matchedManualIds = new Set<number>();
+  // Linhas do banco já casadas: primeiro as do próprio ID, para a heurística não entregá-las a outro lançamento
+  const matchedDbIds = new Set<number>();
+  const incomingIds = new Set(pluggyTxs.map((pt) => pt.id).filter(Boolean));
+  for (const t of existingDbTxs) {
+    if (t.pluggyTransactionId && incomingIds.has(t.pluggyTransactionId)) matchedDbIds.add(t.id);
+  }
 
   for (const pt of pluggyTxs) {
     const rawDate = pt.date ? pt.date.slice(0, 10) : from;
@@ -683,9 +690,9 @@ export async function fetchPluggyTransactionsForMonth(
       pt.id && existingDbTxs.some((t) => t.pluggyTransactionId === pt.id)
     );
 
-    let existsInDb =
-      existsById ||
-      isDbDuplicate(
+    let existsInDb = existsById;
+    if (!existsInDb) {
+      const dbMatch = findDbDuplicate(
         {
           resolvedMonth,
           day,
@@ -693,8 +700,14 @@ export async function fetchPluggyTransactionsForMonth(
           description,
           originalDescription,
         },
-        existingDbTxs
+        existingDbTxs,
+        matchedDbIds
       );
+      if (dbMatch) {
+        matchedDbIds.add(dbMatch.id);
+        existsInDb = true;
+      }
+    }
     // Recorrência ou fatura já lançada à mão com outra descrição (ex.: "Eletropaulo" × "DA ELETROPAULO")
     if (!existsInDb) {
       const manual = findManualCounterpart({ resolvedMonth, day, amount }, existingDbTxs, matchedManualIds);
@@ -705,7 +718,8 @@ export async function fetchPluggyTransactionsForMonth(
     }
 
     const normDesc = normalizeDescription(description);
-    const batchKey = `${resolvedMonth}_${day}_${amount}_${normDesc}`;
+    // Com ID do Pluggy, só o mesmo ID repetido é duplicata: compras idênticas no mesmo dia são reais
+    const batchKey = pt.id ? `id_${pt.id}` : `${resolvedMonth}_${day}_${amount}_${normDesc}`;
     const duplicateInBatch = seenInBatch.has(batchKey);
     seenInBatch.add(batchKey);
 

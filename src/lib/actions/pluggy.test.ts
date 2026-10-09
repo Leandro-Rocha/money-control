@@ -280,6 +280,78 @@ describe("fetchPluggyTransactionsForMonth Server Action", () => {
       expect(freshTx?.pluggyTransactionId).toBe("pt-uuid-67890");
     });
 
+    it("mantém duas compras idênticas no mesmo dia quando os IDs do Pluggy são diferentes", async () => {
+      await testDb.insert(accounts).values({
+        id: 22,
+        name: "Conta Gêmeas",
+        type: "bank_account",
+        color: "orange",
+        pluggyAccountId: "pluggy-acc-gemeas",
+      });
+      // Primeira compra de 30/09 já veio num sync anterior
+      await testDb.insert(transactions).values({
+        id: 400,
+        accountId: 22,
+        month: "2026-09",
+        day: 30,
+        amount: -13.73,
+        description: "SUPERFRETERIO DE JANEIRBR",
+        originalDescription: "SUPERFRETERIO DE JANEIRBR",
+        pluggyTransactionId: "frete-30-a",
+      });
+
+      vi.spyOn(pluggyIntegration, "fetchPluggyTransactions").mockResolvedValue([
+        // A nova chega antes da já importada: não pode "roubar" a linha do banco
+        { id: "frete-30-b", description: "SUPERFRETERIO DE JANEIRBR", amount: -13.73, date: "2026-09-30T10:00:00.000Z", status: "POSTED" },
+        { id: "frete-30-a", description: "SUPERFRETERIO DE JANEIRBR", amount: -13.73, date: "2026-09-30T10:00:00.000Z", status: "POSTED" },
+        // Par idêntico chegando no mesmo sync
+        { id: "frete-25-a", description: "SUPERFRETERIO DE JANEIRBR", amount: -9.77, date: "2026-09-25T10:00:00.000Z", status: "POSTED" },
+        { id: "frete-25-b", description: "SUPERFRETERIO DE JANEIRBR", amount: -9.77, date: "2026-09-25T10:00:00.000Z", status: "POSTED" },
+      ]);
+
+      const res = await fetchPluggyTransactionsForMonth(22, "2026-09");
+      expect(res.success).toBe(true);
+      if (!res.success) return;
+
+      const byId = (id: string) => res.transactions.find((t) => t.id === `pluggy-${id}`);
+      expect(byId("frete-30-a")?.isDuplicate).toBe(true);
+      expect(byId("frete-30-b")?.isDuplicate).toBe(false);
+      expect(byId("frete-25-a")?.isDuplicate).toBe(false);
+      expect(byId("frete-25-b")?.isDuplicate).toBe(false);
+    });
+
+    it("ainda reconhece lançamento já importado quando o Pluggy troca o ID, um para um", async () => {
+      await testDb.insert(accounts).values({
+        id: 23,
+        name: "Conta ID trocado",
+        type: "bank_account",
+        color: "orange",
+        pluggyAccountId: "pluggy-acc-reid",
+      });
+      await testDb.insert(transactions).values({
+        id: 410,
+        accountId: 23,
+        month: "2026-09",
+        day: 25,
+        amount: -9.77,
+        description: "SUPERFRETERIO DE JANEIRBR",
+        originalDescription: "SUPERFRETERIO DE JANEIRBR",
+        pluggyTransactionId: "id-antigo",
+      });
+
+      vi.spyOn(pluggyIntegration, "fetchPluggyTransactions").mockResolvedValue([
+        { id: "id-novo-1", description: "SUPERFRETERIO DE JANEIRBR", amount: -9.77, date: "2026-09-25T10:00:00.000Z", status: "POSTED" },
+        { id: "id-novo-2", description: "SUPERFRETERIO DE JANEIRBR", amount: -9.77, date: "2026-09-25T10:00:00.000Z", status: "POSTED" },
+      ]);
+
+      const res = await fetchPluggyTransactionsForMonth(23, "2026-09");
+      expect(res.success).toBe(true);
+      if (!res.success) return;
+
+      const dups = res.transactions.filter((t) => t.id.startsWith("pluggy-id-novo") && t.isDuplicate);
+      expect(dups).toHaveLength(1);
+    });
+
     it("reconhece recorrência e fatura lançadas à mão com outra descrição", async () => {
       await testDb.insert(accounts).values({
         id: 21,
