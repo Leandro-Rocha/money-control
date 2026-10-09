@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parcelas · B marcos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ["Geist","ui-sans-serif","system-ui"], mono: ["Geist Mono","ui-monospace"] },
+  colors: { bg:"#eef1f4", tile:"#ffffff", ink:"#111827", mut:"#6b7280", faint:"#9ca3af", line:"#f0f2f4", edge:"#e3e6ea", hover:"#f7f8fa",
+    accent:"#0d9488", "accent-soft":"#e6f7f5", "accent-ink":"#0f766e", caution:"#c76a00", "caution-soft":"#fff4e5" },
+  boxShadow: { tile: "0 1px 2px rgb(0 0 0 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.035)" }
+}}}
+</script>
+<style>body{font-family:'Geist',sans-serif}.num{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums}
+.bar:hover .tip{opacity:1}.tip{opacity:0;transition:opacity .15s}</style>
+</head>
+<body class="bg-bg text-ink">
+<main class="max-w-6xl mx-auto p-8 flex flex-col gap-5">
+<nav class="flex items-center gap-1 text-sm">
+  <span class="rounded-md px-3 py-1.5 text-mut">Hoje</span>
+  <span class="rounded-md px-3 py-1.5 text-mut">Revisar</span>
+  <span class="rounded-md px-3 py-1.5 text-mut">Planejar</span>
+  <span class="rounded-md bg-tile px-3 py-1.5 font-medium shadow-tile">Parcelas</span>
+</nav>
+
+<div class="grid grid-cols-[1fr_360px] gap-5 items-start">
+<section class="rounded-xl bg-tile p-5 shadow-tile flex flex-col gap-1">
+  <h2 class="text-sm font-semibold">Quando sobra mais dinheiro</h2>
+  <p class="text-xs text-mut mb-2">Cada marco é o primeiro mês sem aquela parcela na fatura.</p>
+  <ol class="divide-y divide-line"><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">dez/26</p><p class="text-[11px] text-mut">última fatura nov/26</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Terminam 3 compras · <span class="num font-semibold text-accent-ink">libera R$ 580,65/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#6366f1"></span>Passagens Lisboa <span class="num text-mut">R$ 318,40</span></span><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Tênis corrida <span class="num text-mut">R$ 89,95</span></span><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Pneus <span class="num text-mut">R$ 172,30</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 2.248,05<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:21%"></div></div><p class="text-[10px] text-mut">21% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">jan/27</p><p class="text-[11px] text-mut">última fatura dez/26</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Termina 1 compra · <span class="num font-semibold text-accent-ink">libera R$ 98,00/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#6366f1"></span>Óculos <span class="num text-mut">R$ 98,00</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 2.150,05<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:24%"></div></div><p class="text-[10px] text-mut">24% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">fev/27</p><p class="text-[11px] text-mut">última fatura jan/27</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Terminam 2 compras · <span class="num font-semibold text-accent-ink">libera R$ 416,00/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Sofá retrátil <span class="num text-mut">R$ 266,00</span></span><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Curso de inglês <span class="num text-mut">R$ 150,00</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 1.734,05<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:39%"></div></div><p class="text-[10px] text-mut">39% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">mai/27</p><p class="text-[11px] text-mut">última fatura abr/27</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Termina 1 compra · <span class="num font-semibold text-accent-ink">libera R$ 389,90/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Geladeira <span class="num text-mut">R$ 389,90</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 1.344,15<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:52%"></div></div><p class="text-[10px] text-mut">52% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">ago/27</p><p class="text-[11px] text-mut">última fatura jul/27</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Terminam 2 compras · <span class="num font-semibold text-accent-ink">libera R$ 623,25/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#6366f1"></span>iPhone 15 <span class="num text-mut">R$ 412,50</span></span><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#6366f1"></span>Ar-condicionado <span class="num text-mut">R$ 210,75</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 720,90<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:75%"></div></div><p class="text-[10px] text-mut">75% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">out/27</p><p class="text-[11px] text-mut">última fatura set/27</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Termina 1 compra · <span class="num font-semibold text-accent-ink">libera R$ 145,90/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Colchão <span class="num text-mut">R$ 145,90</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 575,00<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:80%"></div></div><p class="text-[10px] text-mut">80% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">jan/28</p><p class="text-[11px] text-mut">última fatura dez/27</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Termina 1 compra · <span class="num font-semibold text-accent-ink">libera R$ 455,00/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#6366f1"></span>Notebook <span class="num text-mut">R$ 455,00</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 120,00<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:96%"></div></div><p class="text-[10px] text-mut">96% mais leve que hoje</p></div>
+</li><li class="relative grid grid-cols-[88px_1fr_170px] items-start gap-4 py-3">
+  <div><p class="text-sm font-semibold">fev/28</p><p class="text-[11px] text-mut">última fatura jan/28</p></div>
+  <div class="flex flex-col gap-1.5"><p class="text-sm">Termina 1 compra · <span class="num font-semibold text-accent-ink">libera R$ 120,00/mês</span></p><div class="flex flex-wrap gap-1.5"><span class="inline-flex items-center gap-1.5 rounded-md border border-edge px-2 py-0.5 text-xs"><span class="size-1.5 rounded-full" style="background:#0d9488"></span>Bicicleta <span class="num text-mut">R$ 120,00</span></span></div></div>
+  <div class="flex flex-col gap-1 text-right"><p class="num text-sm">R$ 0,00<span class="text-xs text-mut">/mês depois</span></p><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full bg-accent" style="width:100%"></div></div><p class="text-[10px] text-mut">100% mais leve que hoje</p></div>
+</li></ol>
+</section>
+<aside class="flex flex-col gap-4 sticky top-6">
+  <div class="rounded-xl bg-tile p-5 shadow-tile">
+    <p class="text-xs text-mut">Parcelas em outubro</p><p class="num text-3xl font-semibold mt-1">R$ 2.828,70</p>
+    <p class="text-xs text-mut mt-3">Ainda a pagar</p><p class="num text-lg font-medium">R$ 22.576,90</p>
+    <p class="text-xs text-mut mt-3">Tudo quitado em</p><p class="text-lg font-medium">jan/28</p>
+  </div>
+  <div class="rounded-xl bg-tile p-5 shadow-tile flex flex-col gap-3">
+    <div class="flex items-center justify-between"><h3 class="text-xs font-semibold">Escada</h3><div class="flex gap-4 text-xs text-mut"><span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background:#0d9488"></span>Nubank</span><span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background:#6366f1"></span>Itaú</span></div></div>
+    <div class="pt-5"><div class="relative flex gap-0.5"><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:63.4px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:56.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">out/26 · R$ 2.828,70<br>Nubank: R$ 1.334,05<br>Itaú: R$ 1.494,65</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] font-semibold text-ink">out/26</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:63.4px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:56.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">nov/26 · R$ 2.828,70<br>Nubank: R$ 1.334,05<br>Itaú: R$ 1.494,65</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:49.9px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:45.5px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">dez/26 · R$ 2.248,05<br>Nubank: R$ 1.071,80<br>Itaú: R$ 1.176,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:45.5px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jan/27 · R$ 2.150,05<br>Nubank: R$ 1.071,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jan/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:27.8px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">fev/27 · R$ 1.734,05<br>Nubank: R$ 655,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:27.8px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">mar/27 · R$ 1.734,05<br>Nubank: R$ 655,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:27.8px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">abr/27 · R$ 1.734,05<br>Nubank: R$ 655,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">abr/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:11.3px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">mai/27 · R$ 1.344,15<br>Nubank: R$ 265,90<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:11.3px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jun/27 · R$ 1.344,15<br>Nubank: R$ 265,90<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:45.7px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:11.3px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jul/27 · R$ 1.344,15<br>Nubank: R$ 265,90<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jul/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:19.3px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:11.3px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">ago/27 · R$ 720,90<br>Nubank: R$ 265,90<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:19.3px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:11.3px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">set/27 · R$ 720,90<br>Nubank: R$ 265,90<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:19.3px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:5.1px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">out/27 · R$ 575,00<br>Nubank: R$ 120,00<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">out/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:19.3px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:5.1px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">nov/27 · R$ 575,00<br>Nubank: R$ 120,00<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:19.3px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:5.1px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">dez/27 · R$ 575,00<br>Nubank: R$ 120,00<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">&nbsp;</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:120px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:0.0px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:5.1px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jan/28 · R$ 120,00<br>Nubank: R$ 120,00<br>Itaú: R$ 0,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jan/28</span>
+</div></div></div>
+  </div>
+</aside>
+</div></main>
+</body>
+</html>

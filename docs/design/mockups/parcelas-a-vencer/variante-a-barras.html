@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parcelas · A barras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ["Geist","ui-sans-serif","system-ui"], mono: ["Geist Mono","ui-monospace"] },
+  colors: { bg:"#eef1f4", tile:"#ffffff", ink:"#111827", mut:"#6b7280", faint:"#9ca3af", line:"#f0f2f4", edge:"#e3e6ea", hover:"#f7f8fa",
+    accent:"#0d9488", "accent-soft":"#e6f7f5", "accent-ink":"#0f766e", caution:"#c76a00", "caution-soft":"#fff4e5" },
+  boxShadow: { tile: "0 1px 2px rgb(0 0 0 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.035)" }
+}}}
+</script>
+<style>body{font-family:'Geist',sans-serif}.num{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums}
+.bar:hover .tip{opacity:1}.tip{opacity:0;transition:opacity .15s}</style>
+</head>
+<body class="bg-bg text-ink">
+<main class="max-w-6xl mx-auto p-8 flex flex-col gap-5">
+<nav class="flex items-center gap-1 text-sm">
+  <span class="rounded-md px-3 py-1.5 text-mut">Hoje</span>
+  <span class="rounded-md px-3 py-1.5 text-mut">Revisar</span>
+  <span class="rounded-md px-3 py-1.5 text-mut">Planejar</span>
+  <span class="rounded-md bg-tile px-3 py-1.5 font-medium shadow-tile">Parcelas</span>
+</nav>
+<div class="grid grid-cols-4 gap-4">
+  <div class="rounded-xl bg-tile p-4 shadow-tile"><p class="text-xs text-mut">Parcelas em outubro</p><p class="num mt-1 text-2xl font-semibold">R$ 2.828,70</p><p class="text-xs text-mut mt-1">12 compras · 2 cartões</p></div>
+  <div class="rounded-xl bg-tile p-4 shadow-tile"><p class="text-xs text-mut">Ainda a pagar</p><p class="num mt-1 text-2xl font-semibold">R$ 22.576,90</p><p class="text-xs text-mut mt-1">soma de todas as parcelas futuras</p></div>
+  <div class="rounded-xl bg-tile p-4 shadow-tile"><p class="text-xs text-mut">Folga a mais em dezembro</p><p class="num mt-1 text-2xl font-semibold text-accent-ink">+R$ 580,65/mês</p><p class="text-xs text-mut mt-1">R$ 2.248,05 em dez/26</p></div>
+  <div class="rounded-xl bg-tile p-4 shadow-tile"><p class="text-xs text-mut">Tudo quitado em</p><p class="mt-1 text-2xl font-semibold">jan/28</p><p class="text-xs text-mut mt-1">última: Bicicleta 18/18</p></div>
+</div>
+<section class="rounded-xl bg-tile p-5 shadow-tile flex flex-col gap-4">
+  <div class="flex items-end justify-between">
+    <div><h2 class="text-sm font-semibold">Parcelas por mês</h2><p class="text-xs text-mut">Só compras já feitas. Passe o mouse para ver por cartão.</p></div>
+    <div class="flex gap-4 text-xs text-mut"><span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background:#0d9488"></span>Nubank</span><span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm" style="background:#6366f1"></span>Itaú</span></div>
+  </div>
+  <div class="pt-4"><div class="relative ml-12 flex gap-1"><div class="absolute inset-x-0 border-t border-dashed border-edge" style="bottom:60px"><span class="num absolute -top-2 -left-12 w-10 text-right text-[10px] text-faint">0.5k</span></div><div class="absolute inset-x-0 border-t border-dashed border-edge" style="bottom:103px"><span class="num absolute -top-2 -left-12 w-10 text-right text-[10px] text-faint">1.0k</span></div><div class="absolute inset-x-0 border-t border-dashed border-edge" style="bottom:145px"><span class="num absolute -top-2 -left-12 w-10 text-right text-[10px] text-faint">1.5k</span></div><div class="absolute inset-x-0 border-t border-dashed border-edge" style="bottom:188px"><span class="num absolute -top-2 -left-12 w-10 text-right text-[10px] text-faint">2.0k</span></div><div class="absolute inset-x-0 border-t border-dashed border-edge" style="bottom:230px"><span class="num absolute -top-2 -left-12 w-10 text-right text-[10px] text-faint">2.5k</span></div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:126.8px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:113.2px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">out/26 · R$ 2.828,70<br>Nubank: R$ 1.334,05<br>Itaú: R$ 1.494,65</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] font-semibold text-ink">out/26</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:126.8px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:113.2px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">nov/26 · R$ 2.828,70<br>Nubank: R$ 1.334,05<br>Itaú: R$ 1.494,65</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">nov/26</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:99.8px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:90.9px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">dez/26 · R$ 2.248,05<br>Nubank: R$ 1.071,80<br>Itaú: R$ 1.176,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">dez/26</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:90.9px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jan/27 · R$ 2.150,05<br>Nubank: R$ 1.071,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jan/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:55.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">fev/27 · R$ 1.734,05<br>Nubank: R$ 655,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">fev/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:55.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">mar/27 · R$ 1.734,05<br>Nubank: R$ 655,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">mar/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:55.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">abr/27 · R$ 1.734,05<br>Nubank: R$ 655,80<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">abr/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:22.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">mai/27 · R$ 1.344,15<br>Nubank: R$ 265,90<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">mai/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:22.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jun/27 · R$ 1.344,15<br>Nubank: R$ 265,90<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jun/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:91.5px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:22.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jul/27 · R$ 1.344,15<br>Nubank: R$ 265,90<br>Itaú: R$ 1.078,25</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jul/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:38.6px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:22.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">ago/27 · R$ 720,90<br>Nubank: R$ 265,90<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">ago/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:38.6px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:22.6px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">set/27 · R$ 720,90<br>Nubank: R$ 265,90<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">set/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:38.6px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:10.2px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">out/27 · R$ 575,00<br>Nubank: R$ 120,00<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">out/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:38.6px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:10.2px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">nov/27 · R$ 575,00<br>Nubank: R$ 120,00<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">nov/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:38.6px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:10.2px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">dez/27 · R$ 575,00<br>Nubank: R$ 120,00<br>Itaú: R$ 455,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">dez/27</span>
+</div><div class="bar relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5">
+  <div class="relative flex w-full flex-col justify-end" style="height:240px">
+    <div class="mx-auto flex w-[70%] flex-col justify-end"><div style="height:0.0px;background:#6366f1" class="rounded-t-[3px]"></div><div style="height:10.2px;background:#0d9488" class=""></div></div>
+    <div class="tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-white num">jan/28 · R$ 120,00<br>Nubank: R$ 120,00<br>Itaú: R$ 0,00</div>
+  </div>
+  <span class="whitespace-nowrap text-[10px] text-mut">jan/28</span>
+</div></div></div>
+</section>
+<section class="rounded-xl bg-tile p-5 shadow-tile">
+  <h2 class="text-sm font-semibold mb-3">Compras parceladas</h2>
+  <table class="w-full text-sm">
+    <thead class="text-xs text-mut"><tr><th class="py-1 text-left font-medium">Compra</th><th class="text-left font-medium">Cartão</th><th class="text-right font-medium">Parcela</th><th class="text-right font-medium">Por mês</th><th class="text-right font-medium">Restante</th><th class="text-right font-medium">Termina</th></tr></thead>
+    <tbody><tr class="border-t border-line hover:bg-hover"><td class="py-2">Passagens Lisboa</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#6366f1"></span>Itaú</span></td><td class="num text-right text-mut">5/6</td><td class="num text-right">R$ 318,40</td><td class="num text-right text-mut">R$ 636,80</td><td class="text-right">nov/26</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Tênis corrida</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">2/3</td><td class="num text-right">R$ 89,95</td><td class="num text-right text-mut">R$ 179,90</td><td class="text-right">nov/26</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Pneus</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">3/4</td><td class="num text-right">R$ 172,30</td><td class="num text-right text-mut">R$ 344,60</td><td class="text-right">nov/26</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Óculos</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#6366f1"></span>Itaú</span></td><td class="num text-right text-mut">6/8</td><td class="num text-right">R$ 98,00</td><td class="num text-right text-mut">R$ 294,00</td><td class="text-right">dez/26</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Sofá retrátil</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">7/10</td><td class="num text-right">R$ 266,00</td><td class="num text-right text-mut">R$ 1.064,00</td><td class="text-right">jan/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Curso de inglês</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">9/12</td><td class="num text-right">R$ 150,00</td><td class="num text-right text-mut">R$ 600,00</td><td class="text-right">jan/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Geladeira</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">4/10</td><td class="num text-right">R$ 389,90</td><td class="num text-right text-mut">R$ 2.729,30</td><td class="text-right">abr/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">iPhone 15</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#6366f1"></span>Itaú</span></td><td class="num text-right text-mut">3/12</td><td class="num text-right">R$ 412,50</td><td class="num text-right text-mut">R$ 4.125,00</td><td class="text-right">jul/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Ar-condicionado</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#6366f1"></span>Itaú</span></td><td class="num text-right text-mut">1/10</td><td class="num text-right">R$ 210,75</td><td class="num text-right text-mut">R$ 2.107,50</td><td class="text-right">jul/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Colchão</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">1/12</td><td class="num text-right">R$ 145,90</td><td class="num text-right text-mut">R$ 1.750,80</td><td class="text-right">set/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Notebook</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#6366f1"></span>Itaú</span></td><td class="num text-right text-mut">2/16</td><td class="num text-right">R$ 455,00</td><td class="num text-right text-mut">R$ 6.825,00</td><td class="text-right">dez/27</td></tr><tr class="border-t border-line hover:bg-hover"><td class="py-2">Bicicleta</td><td><span class="inline-flex items-center gap-1.5 text-mut"><span class="size-2 rounded-full" style="background:#0d9488"></span>Nubank</span></td><td class="num text-right text-mut">3/18</td><td class="num text-right">R$ 120,00</td><td class="num text-right text-mut">R$ 1.920,00</td><td class="text-right">jan/28</td></tr></tbody></table></section></main>
+</body>
+</html>

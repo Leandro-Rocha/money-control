@@ -26,6 +26,7 @@ import {
 import type { ForecastKpis, MonthSummary } from "@/lib/forecast/types";
 import { planVerdict } from "@/lib/forecast/verdict";
 import { cn } from "@/lib/utils";
+import { InstallmentsCard } from "./InstallmentsCard";
 import { LoadingCard, accountNamer, fmtDate, fmtDateWeekday } from "./shared";
 
 /** Espera depois da última digitação antes de recalcular a previsão. */
@@ -284,6 +285,8 @@ function PlanContent({ payload }: { payload: ForecastPayload }) {
             currentMonth={base.today.slice(0, 7)}
           />
         </Tile>
+
+        <InstallmentsCard accounts={accounts} />
       </div>
     </div>
   );

@@ -7,7 +7,10 @@ import "@testing-library/jest-dom/vitest";
 import type { DashboardState } from "@/hooks/useDashboard";
 
 const getForecastAction = vi.fn();
-vi.mock("@/lib/actions/forecast", () => ({ getForecastAction: (a: unknown) => getForecastAction(a) }));
+vi.mock("@/lib/actions/forecast", () => ({
+  getForecastAction: (a: unknown) => getForecastAction(a),
+  getInstallmentScheduleAction: async () => ({ months: [], purchases: [], milestones: [], remaining: 0 }),
+}));
 
 import { PlanView } from "./PlanView";
 import { SCENARIOS_KEY } from "@/lib/forecast/scenarios";

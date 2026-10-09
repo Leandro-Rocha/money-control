@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { upsertBalanceSnapshot } from "@/lib/forecast/snapshots";
-import { and, desc, eq, isNull, gte } from "drizzle-orm";
+import { and, desc, eq, isNull, isNotNull, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   accounts,
@@ -16,6 +16,9 @@ import { addMonths } from "../date-helpers";
 import { dayOf, localToday, monthOf } from "../forecast/dates";
 import { computeForecast, getForecastSettings, loadForecastInput, saveForecastSettings, DEFAULT_SETTINGS } from "../forecast/loader";
 import { buildForecast } from "../forecast/engine";
+import { buildInstallmentSchedule, type InstallmentEntry, type InstallmentSchedule } from "../forecast/installment-schedule";
+import { isSameInstallmentSeries } from "../installments-helpers";
+import { getProjectedInstallments } from "../repositories/projections";
 import {
   findReimbursementCandidates,
   findUnpairedTransfers,
@@ -55,6 +58,67 @@ export async function getForecastAction(opts: { scenario?: Scenario; horizonDays
     getForecastSettings(),
   ]);
   return { forecast, accounts: accs, settings };
+}
+
+/** Limite de meses à frente na busca de parcelas projetadas (proteção contra dado errado). */
+const INSTALLMENT_SCAN_MONTHS = 60;
+
+/** Parcelas em aberto (lançadas e projetadas) do mês atual em diante, nas contas ativas. */
+export async function getInstallmentScheduleAction(): Promise<InstallmentSchedule> {
+  const fromMonth = monthOf(localToday());
+  const activeIds = new Set((await activeAccounts()).map((a) => a.id));
+
+  const realRows = (
+    await db
+      .select()
+      .from(transactions)
+      .where(
+        and(gte(transactions.month, fromMonth), isNotNull(transactions.installmentCurrent), isNotNull(transactions.installmentTotal)),
+      )
+  ).filter((t) => activeIds.has(t.accountId));
+
+  // Parcelas já lançadas da mesma compra recebem a chave da mais adiantada: é ela que vira fonte das projeções.
+  realRows.sort((a, b) => (b.installmentCurrent ?? 0) - (a.installmentCurrent ?? 0) || b.id - a.id);
+  const heads: (typeof realRows)[number][] = [];
+  const entries: InstallmentEntry[] = [];
+  for (const t of realRows) {
+    const head = heads.find((h) => isSameInstallmentSeries(h, t)) ?? t;
+    if (head === t) heads.push(t);
+    entries.push({
+      key: head.id,
+      accountId: t.accountId,
+      month: t.month,
+      amount: t.amount,
+      description: head.description,
+      current: t.installmentCurrent,
+      total: t.installmentTotal,
+    });
+  }
+
+  // Mês vazio pode ser só uma projeção dispensada: para depois de alguns seguidos.
+  const lastReal = realRows.reduce((m, t) => (t.month > m ? t.month : m), fromMonth);
+  let emptyStreak = 0;
+  for (let i = 0, m = fromMonth; i < INSTALLMENT_SCAN_MONTHS; i++, m = addMonths(m, 1)) {
+    const rows = await getProjectedInstallments(m, addMonths(m, -24), addMonths(m, -1));
+    let found = false;
+    for (const r of rows) {
+      if (!activeIds.has(r.accountId)) continue;
+      found = true;
+      entries.push({
+        key: r.projectionSourceId ?? r.id,
+        accountId: r.accountId,
+        month: r.month,
+        amount: r.amount,
+        description: r.description,
+        current: r.projectedInstallmentCurrent ?? null,
+        total: r.projectedInstallmentTotal ?? null,
+      });
+    }
+    emptyStreak = found ? 0 : emptyStreak + 1;
+    if (emptyStreak >= 3 && m > lastReal) break;
+  }
+
+  return buildInstallmentSchedule(entries, fromMonth);
 }
 
 export async function getForecastSettingsAction() {
