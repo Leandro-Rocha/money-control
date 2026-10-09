@@ -319,6 +319,8 @@ export function buildForecast(input: ForecastInput): ForecastResult {
   const cardItems: ForecastEvent[] = [];
   const baselines: Baseline[] = [];
   const billPaymentTxIds = new Set<number>();
+  // Fatura prevista herda a categoria do último pagamento conciliado do cartão; sem histórico, a de pagamento de cartão.
+  const cardPaymentCategoryId = input.transactions.find((t) => t.categoryKind === "card_payment")?.categoryId ?? null;
 
   for (const card of cards) {
     const cardBase = baselineFor(card.id);
@@ -333,6 +335,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
     }
     const cardTokens = significantTokens(card.name, 2);
     let firstOpenSeen = false;
+    let billCategoryId = cardPaymentCategoryId;
 
     for (const m of months) {
       const due = cardDueDate(card, m);
@@ -491,11 +494,12 @@ export function buildForecast(input: ForecastInput): ForecastResult {
         });
       }
 
+      if (payment?.categoryId != null) billCategoryId = payment.categoryId;
       if (!payId || !bankSet.has(payId)) continue;
       const base = {
         dueDate: due,
         accountId: payId,
-        categoryId: null,
+        categoryId: status === "realized" ? payment?.categoryId ?? null : billCategoryId,
         cardAccountId: card.id,
         source: { type: "credit_card_bill" as const, id: card.id, month: m },
       };
@@ -687,7 +691,7 @@ export function buildForecast(input: ForecastInput): ForecastResult {
         kind: "reimbursement",
         status: expected < today ? "overdue" : "pending",
         band: "uncertainIn",
-        categoryId: null,
+        categoryId: t.reimburseCreditCategoryId ?? t.categoryId,
         source: { type: "reimbursement", id: t.id, month: monthOf(expected) },
       });
     }
@@ -759,7 +763,8 @@ export function buildForecast(input: ForecastInput): ForecastResult {
         kind: "reimbursement",
         status: it.expected < today ? "overdue" : "pending",
         band: "uncertainIn",
-        categoryId: it.r.categoryId,
+        // A primeira é a da própria estimativa; a seguinte, a "Reembolso" ao lado dela, onde o crédito costuma cair.
+        categoryId: it.r.reimburseCreditCategoryIds?.[1] ?? it.r.categoryId,
         source: { type: "reimbursement", id: null, month: it.month },
       });
     }

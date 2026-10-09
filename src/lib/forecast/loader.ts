@@ -119,6 +119,7 @@ export async function loadForecastInput(opts: LoadOptions = {}): Promise<Forecas
       reimburseLagDays: t.reimburseLagDays,
       reimbursedAmount: reimbursedByExpense.get(t.id) ?? 0,
       reimburseClosed: t.reimburseClosed === 1,
+      reimburseCreditCategoryId: reimbursable ? reimburseCreditCategories(t.categoryId, catRows)[1] ?? null : null,
       isReimbursementCredit: creditIds.has(t.id),
     });
   }

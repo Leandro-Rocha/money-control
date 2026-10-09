@@ -36,6 +36,8 @@ export interface FTransaction {
   reimbursedAmount: number;
   /** Reembolso parcial encerrado: o que falta não vem mais. */
   reimburseClosed?: boolean;
+  /** Categoria em que o crédito do reembolso deve cair (a "Reembolso" ao lado da despesa); sem valor usa a da despesa. */
+  reimburseCreditCategoryId?: number | null;
   /** true se esta transação é um crédito vinculado a uma despesa reembolsável. */
   isReimbursementCredit: boolean;
 }

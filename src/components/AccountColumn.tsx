@@ -447,6 +447,19 @@ export default function AccountColumn({
       isProjected && tx.projectionSourceType === "installment";
     const isEditing =
       editingCell?.txId === tx.id && editingCell.field === "category";
+    // Reserva de gasto típico soma várias categorias: não tem uma só para mostrar nem para escolher.
+    if (isProjected && tx.forecastKind === "baseline") {
+      return (
+        <div className="min-w-0">
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded text-2xs uppercase font-semibold bg-line text-faint"
+            title="Reserva para gastos que saem sem aviso, somando várias categorias"
+          >
+            Diversos
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="min-w-0">
         <CategoryPicker

@@ -254,6 +254,33 @@ describe("buildForecast — faturas", () => {
     expect(oct.find((e) => e.kind === "recurring")).toMatchObject({ amount: -40, status: "pending" });
   });
 
+  it("fatura prevista herda a categoria do último pagamento do cartão", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1), card(2, 3, 1)],
+        transactions: [
+          tx({ accountId: 2, month: "2026-10", day: 1, amount: -500 }),
+          tx({ accountId: 1, month: "2026-10", day: 2, amount: -500, description: "PAGTO FATURA", categoryId: 90, categoryKind: "card_payment" }),
+          tx({ accountId: 2, month: "2026-11", day: 1, amount: -300 }),
+        ],
+      }),
+    );
+    expect(r.events.find((e) => e.key === "bill:2:2026-11")).toMatchObject({ status: "pending", categoryId: 90 });
+  });
+
+  it("sem pagamento anterior, fatura prevista usa a categoria de pagamento de cartão", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1), card(2, 16, 1), card(3, 16, 1)],
+        transactions: [
+          tx({ accountId: 2, month: "2026-10", day: 1, amount: -500 }),
+          tx({ accountId: 1, month: "2026-09", day: 16, amount: -80, categoryId: 90, categoryKind: "card_payment" }),
+        ],
+      }),
+    );
+    expect(r.events.find((e) => e.key === "bill:2:2026-10")).toMatchObject({ status: "pending", categoryId: 90 });
+  });
+
   it("descobre a fatura que recebe uma compra pela data de fechamento", () => {
     const c = card(2, 16, 1);
     expect(invoiceMonthFor(c, "2026-10-05")).toBe("2026-10");
@@ -319,6 +346,21 @@ describe("buildForecast — linha de base e faixas", () => {
       }),
     );
     expect(r.events.find((e) => e.kind === "reimbursement")).toMatchObject({ date: "2026-10-21", amount: 300 });
+  });
+
+  it("reembolso previsto cai na categoria de crédito do reembolso, ou na da despesa", () => {
+    const r = buildForecast(
+      base({
+        accounts: [bank(1)],
+        transactions: [
+          tx({ id: 901, accountId: 1, month: "2026-10", day: 1, amount: -300, isReimbursable: true, categoryId: 105, reimburseCreditCategoryId: 104 }),
+          tx({ id: 902, accountId: 1, month: "2026-10", day: 1, amount: -100, isReimbursable: true, categoryId: 106 }),
+        ],
+        scenario: {},
+      }),
+    );
+    expect(r.events.find((e) => e.key === "reimb:901")?.categoryId).toBe(104);
+    expect(r.events.find((e) => e.key === "reimb:902")?.categoryId).toBe(106);
   });
 
   it("reembolso parcial encerrado não deixa a diferença prevista", () => {
@@ -568,6 +610,12 @@ describe("buildForecast — estimativa reembolsável", () => {
       ["2026-10-30", 800, "pending"],
       ["2026-11-30", 800, "pending"],
     ]);
+  });
+
+  it("reembolso previsto da estimativa cai na categoria \"Reembolso\" ao lado dela", () => {
+    const r = buildForecast(base({ accounts: [bank(1)], recurring: [est({ reimburseCreditCategoryIds: [50, 51] })] }));
+    const evs = r.events.filter((e) => e.kind === "reimbursement");
+    expect(evs.map((e) => e.categoryId)).toEqual([51, 51]);
   });
 
   it("usa o gasto real quando passa da estimativa, desconta as despesas já marcadas e quita com entradas da categoria", () => {
