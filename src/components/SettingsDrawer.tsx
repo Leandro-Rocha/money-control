@@ -84,7 +84,7 @@ export function SettingsDrawer({
         <header className="border-b border-line px-5 pb-3 pt-5">
           <SheetTitle className="text-base">Configurações</SheetTitle>
           <SheetDescription className="text-xs">Aparência, contas, categorias, recorrências e segurança.</SheetDescription>
-          <div role="tablist" aria-label="Seções" className="mt-4 flex flex-wrap gap-1">
+          <div role="tablist" aria-label="Seções" className="-mx-5 mt-4 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -93,7 +93,7 @@ export function SettingsDrawer({
                 aria-selected={activeTab === id}
                 onClick={() => setActiveTab(id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors duration-(--dur-fast)",
+                  "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 text-xs transition-colors duration-(--dur-fast)",
                   activeTab === id ? "bg-accent-soft font-semibold text-accent-ink" : "text-mut hover:bg-hover hover:text-ink",
                 )}
               >

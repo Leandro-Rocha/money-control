@@ -31,6 +31,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface UncategorizedTriageModalProps {
   open: boolean;
@@ -72,6 +73,7 @@ export function UncategorizedTriageModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
   const [rows, setRows] = useState<TriageRow[]>([]);
   const [existingRules, setExistingRules] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
@@ -333,6 +335,176 @@ export function UncategorizedTriageModal({
     }
   };
 
+  const renderRowParts = (row: TriageRow) => {
+    const rowPattern = (row.rulePattern || row.originalDescription || "").trim().toLowerCase();
+    const ruleMatch = getRuleMatch(row, existingRules);
+    const existingRule = ruleMatch?.matchedRule;
+    const samePatternCount = rows.filter(
+      (r) => (r.rulePattern || r.originalDescription || "").trim().toLowerCase() === rowPattern
+    ).length;
+
+    return {
+      highlighted: row.categoryId !== null,
+      date: (
+          <div className="font-semibold text-foreground flex items-center gap-1">
+            {row.purchaseDate ? (
+              <span title={`Compra em ${row.purchaseDate}`}>
+                {row.purchaseDate.substring(0, 5)}
+              </span>
+            ) : (
+              <span>
+                {String(row.day).padStart(2, "0")}/{row.month.split("-")[1]}
+              </span>
+            )}
+            {scope === "all" && (
+              <span className="text-2xs text-muted-foreground font-normal">
+                ({row.month.split("-")[0]})
+              </span>
+            )}
+          </div>
+      ),
+      account: (
+          <span
+            className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded-sm font-medium border"
+            style={{
+              borderColor: `${row.accountColor}40`,
+              backgroundColor: `${row.accountColor}15`,
+              color: row.accountColor,
+            }}
+          >
+            {row.accountType === "credit_card" ? (
+              <CreditCard className="w-2.5 h-2.5" />
+            ) : (
+              <Building className="w-2.5 h-2.5" />
+            )}
+            <span className="truncate max-w-[85px]">{row.accountName}</span>
+          </span>
+      ),
+      description: (
+        <>
+          <input
+            type="text"
+            value={row.description}
+            onChange={(e) => updateRowDescription(row.id, e.target.value)}
+            className="w-full font-medium text-foreground bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 -mx-1 transition-colors outline-hidden text-xs"
+            placeholder="Descrição do lançamento..."
+          />
+          <div className="text-2xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
+            {row.originalDescription && (
+              <span className="font-mono text-muted-foreground/80 break-all" title="Descrição original no extrato">
+                {row.originalDescription}
+              </span>
+            )}
+
+            {existingRule && (
+              existingRule.categoryId === null ? (
+                <span
+                  className="text-2xs bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
+                  title={`Regra ativa: "${existingRule.pattern}" (apenas padronização de texto, sem categoria vinculada)`}
+                >
+                  <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
+                  Regra ativa (sem categoria): "{existingRule.pattern}"
+                </span>
+              ) : row.categoryId === existingRule.categoryId ? (
+                <span
+                  className="text-2xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+                  title={`Categoria preenchida pela regra ativa: "${existingRule.pattern}" → "${existingRule.targetDescription}"`}
+                >
+                  <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                  Regra aplicada: "{existingRule.pattern}"
+                </span>
+              ) : row.categoryId !== null ? (
+                <span
+                  className="text-2xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300"
+                  title={`Categoria alterada manualmente diferente da regra ativa: "${existingRule.pattern}"`}
+                >
+                  <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                  Regra ignorada ({existingRule.pattern})
+                </span>
+              ) : (
+                <span
+                  className="text-2xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300"
+                  title={`Regra ativa no sistema: "${existingRule.pattern}" → "${existingRule.targetDescription}". Clique em "Aplicar regras ativas" para preencher.`}
+                >
+                  <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+                  Regra ativa: "{existingRule.pattern}"
+                </span>
+              )
+            )}
+
+            {samePatternCount > 1 && (
+              <span
+                className="text-2xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border font-medium"
+                title={`Existem ${samePatternCount} transações com este mesmo texto nesta lista`}
+              >
+                {samePatternCount} no lote
+              </span>
+            )}
+
+            <label
+              className={cn(
+                "flex items-center gap-1 cursor-pointer transition-colors select-none",
+                existingRule
+                  ? "text-amber-700 hover:text-amber-800 font-semibold dark:text-amber-400"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <input
+                type="checkbox"
+                className="w-3 h-3 rounded-xs border-border text-primary focus:ring-primary/20 cursor-pointer"
+                checked={row.createRule}
+                onChange={(e) => handleToggleCreateRule(row.id, e.target.checked)}
+              />
+              {existingRule ? "Substituir regra existente" : "Salvar como regra"}
+            </label>
+          </div>
+
+          {row.createRule && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 p-1.5 rounded bg-indigo-50/50 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/40">
+              <span className="text-2xs font-bold uppercase text-indigo-500">Padrão de Match:</span>
+              <input
+                type="text"
+                value={row.rulePattern}
+                onChange={(e) => updateRowRulePattern(row.id, e.target.value)}
+                className="h-5 text-2xs px-1.5 py-0 w-40 border border-indigo-200 dark:border-indigo-800 rounded text-indigo-700 dark:text-indigo-300 bg-background outline-hidden font-mono"
+                title="Padrão de texto procurado na descrição original para aplicar a regra automaticamente"
+              />
+              {existingRule ? (
+                <span className="text-2xs text-amber-700 dark:text-amber-400 font-medium">
+                  Substituirá a regra "{existingRule.pattern}" ({existingRule.targetDescription})
+                </span>
+              ) : (
+                <span className="text-2xs text-muted-foreground italic">
+                  Regra aplicará em todas as compras com este padrão
+                </span>
+              )}
+            </div>
+          )}
+        </>
+      ),
+      amount: (
+        <span
+          className={cn(
+            "font-semibold whitespace-nowrap tabular-nums",
+            row.amount > 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400"
+          )}
+        >
+          {row.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+        </span>
+      ),
+      picker: (
+        <CategoryPicker
+          categories={categories}
+          value={row.categoryId}
+          onSelect={(catId) => updateRowCategory(row.id, catId)}
+          placeholder="Selecione a categoria..."
+        />
+      ),
+    };
+  };
+
   if (!open) return null;
 
   return (
@@ -361,7 +533,7 @@ export function UncategorizedTriageModal({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <Button variant="outline" size="sm" onClick={onClose} disabled={isSubmitting}>
+            <Button variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="flex-1 sm:flex-none">
               Cancelar
             </Button>
             <Button
@@ -369,7 +541,7 @@ export function UncategorizedTriageModal({
               size="sm"
               onClick={handleSave}
               disabled={isSubmitting || categorizedCount === 0}
-              className="gap-1.5"
+              className="gap-1.5 flex-1 sm:flex-none"
             >
               {isSubmitting ? (
                 <>
@@ -450,7 +622,7 @@ export function UncategorizedTriageModal({
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -536,6 +708,32 @@ export function UncategorizedTriageModal({
             compact
           />
         ) : (
+          isMobile ? (
+          <div className="space-y-2">
+            {filteredRows.map((row) => {
+              const parts = renderRowParts(row);
+              return (
+                <div
+                  key={row.id}
+                  className={cn(
+                    "rounded-xl border border-border bg-card p-3 space-y-2 shadow-xs",
+                    parts.highlighted && "bg-emerald-50/30 dark:bg-emerald-950/10"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0 text-xs">
+                      {parts.date}
+                      {parts.account}
+                    </div>
+                    <div className="text-sm shrink-0">{parts.amount}</div>
+                  </div>
+                  <div className="text-xs min-w-0">{parts.description}</div>
+                  {parts.picker}
+                </div>
+              );
+            })}
+          </div>
+          ) : (
           <div className="border border-border rounded-xl overflow-x-auto bg-card shadow-xs">
             <table className="w-full text-xs text-left border-collapse">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground font-medium">
@@ -548,187 +746,29 @@ export function UncategorizedTriageModal({
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredRows.map((row) => {
-                  const rowPattern = (row.rulePattern || row.originalDescription || "").trim().toLowerCase();
-                  const ruleMatch = getRuleMatch(row, existingRules);
-                  const existingRule = ruleMatch?.matchedRule;
-                  const samePatternCount = rows.filter(
-                    (r) => (r.rulePattern || r.originalDescription || "").trim().toLowerCase() === rowPattern
-                  ).length;
-
+                  const parts = renderRowParts(row);
                   return (
                     <tr
                       key={row.id}
                       className={cn(
                         "transition-colors hover:bg-muted/30",
-                        row.categoryId !== null && "bg-emerald-50/20 dark:bg-emerald-950/10"
+                        parts.highlighted && "bg-emerald-50/20 dark:bg-emerald-950/10"
                       )}
                     >
-                      {/* Coluna 1: Data e Conta */}
                       <td className="px-3 py-2 align-top whitespace-nowrap">
-                        <div className="font-semibold text-foreground flex items-center gap-1">
-                          {row.purchaseDate ? (
-                            <span title={`Compra em ${row.purchaseDate}`}>
-                              {row.purchaseDate.substring(0, 5)}
-                            </span>
-                          ) : (
-                            <span>
-                              {String(row.day).padStart(2, "0")}/{row.month.split("-")[1]}
-                            </span>
-                          )}
-                          {scope === "all" && (
-                            <span className="text-2xs text-muted-foreground font-normal">
-                              ({row.month.split("-")[0]})
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1 flex items-center gap-1">
-                          <span
-                            className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded-sm font-medium border"
-                            style={{
-                              borderColor: `${row.accountColor}40`,
-                              backgroundColor: `${row.accountColor}15`,
-                              color: row.accountColor,
-                            }}
-                          >
-                            {row.accountType === "credit_card" ? (
-                              <CreditCard className="w-2.5 h-2.5" />
-                            ) : (
-                              <Building className="w-2.5 h-2.5" />
-                            )}
-                            <span className="truncate max-w-[85px]">{row.accountName}</span>
-                          </span>
-                        </div>
+                        {parts.date}
+                        <div className="mt-1 flex items-center gap-1">{parts.account}</div>
                       </td>
-
-                      {/* Coluna 2: Descrição e Regras */}
-                      <td className="px-3 py-2 align-top">
-                        <input
-                          type="text"
-                          value={row.description}
-                          onChange={(e) => updateRowDescription(row.id, e.target.value)}
-                          className="w-full font-medium text-foreground bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 -mx-1 transition-colors outline-hidden text-xs"
-                          placeholder="Descrição do lançamento..."
-                        />
-                        <div className="text-2xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
-                          {row.originalDescription && (
-                            <span className="font-mono text-muted-foreground/80" title="Descrição original no extrato">
-                              {row.originalDescription}
-                            </span>
-                          )}
-
-                          {existingRule && (
-                            existingRule.categoryId === null ? (
-                              <span
-                                className="text-2xs bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
-                                title={`Regra ativa: "${existingRule.pattern}" (apenas padronização de texto, sem categoria vinculada)`}
-                              >
-                                <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
-                                Regra ativa (sem categoria): "{existingRule.pattern}"
-                              </span>
-                            ) : row.categoryId === existingRule.categoryId ? (
-                              <span
-                                className="text-2xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
-                                title={`Categoria preenchida pela regra ativa: "${existingRule.pattern}" → "${existingRule.targetDescription}"`}
-                              >
-                                <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
-                                Regra aplicada: "{existingRule.pattern}"
-                              </span>
-                            ) : row.categoryId !== null ? (
-                              <span
-                                className="text-2xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300"
-                                title={`Categoria alterada manualmente diferente da regra ativa: "${existingRule.pattern}"`}
-                              >
-                                <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                                Regra ignorada ({existingRule.pattern})
-                              </span>
-                            ) : (
-                              <span
-                                className="text-2xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300"
-                                title={`Regra ativa no sistema: "${existingRule.pattern}" → "${existingRule.targetDescription}". Clique em "Aplicar regras ativas" para preencher.`}
-                              >
-                                <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
-                                Regra ativa: "{existingRule.pattern}"
-                              </span>
-                            )
-                          )}
-
-                          {samePatternCount > 1 && (
-                            <span
-                              className="text-2xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border font-medium"
-                              title={`Existem ${samePatternCount} transações com este mesmo texto nesta lista`}
-                            >
-                              {samePatternCount} no lote
-                            </span>
-                          )}
-
-                          <label
-                            className={cn(
-                              "flex items-center gap-1 cursor-pointer transition-colors select-none",
-                              existingRule
-                                ? "text-amber-700 hover:text-amber-800 font-semibold dark:text-amber-400"
-                                : "text-muted-foreground hover:text-foreground"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              className="w-3 h-3 rounded-xs border-border text-primary focus:ring-primary/20 cursor-pointer"
-                              checked={row.createRule}
-                              onChange={(e) => handleToggleCreateRule(row.id, e.target.checked)}
-                            />
-                            {existingRule ? "Substituir regra existente" : "Salvar como regra"}
-                          </label>
-                        </div>
-
-                        {row.createRule && (
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2 p-1.5 rounded bg-indigo-50/50 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/40">
-                            <span className="text-2xs font-bold uppercase text-indigo-500">Padrão de Match:</span>
-                            <input
-                              type="text"
-                              value={row.rulePattern}
-                              onChange={(e) => updateRowRulePattern(row.id, e.target.value)}
-                              className="h-5 text-2xs px-1.5 py-0 w-40 border border-indigo-200 dark:border-indigo-800 rounded text-indigo-700 dark:text-indigo-300 bg-background outline-hidden font-mono"
-                              title="Padrão de texto procurado na descrição original para aplicar a regra automaticamente"
-                            />
-                            {existingRule ? (
-                              <span className="text-2xs text-amber-700 dark:text-amber-400 font-medium">
-                                Substituirá a regra "{existingRule.pattern}" ({existingRule.targetDescription})
-                              </span>
-                            ) : (
-                              <span className="text-2xs text-muted-foreground italic">
-                                Regra aplicará em todas as compras com este padrão
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Coluna 3: Valor */}
-                      <td
-                        className={cn(
-                          "px-3 py-2 text-right font-semibold align-top whitespace-nowrap tabular-nums",
-                          row.amount > 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-rose-600 dark:text-rose-400"
-                        )}
-                      >
-                        {row.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      </td>
-
-                      {/* Coluna 4: CategoryPicker */}
-                      <td className="px-3 py-2 align-top w-64 min-w-[200px]">
-                        <CategoryPicker
-                          categories={categories}
-                          value={row.categoryId}
-                          onSelect={(catId) => updateRowCategory(row.id, catId)}
-                          placeholder="Selecione a categoria..."
-                        />
-                      </td>
+                      <td className="px-3 py-2 align-top">{parts.description}</td>
+                      <td className="px-3 py-2 text-right align-top">{parts.amount}</td>
+                      <td className="px-3 py-2 align-top w-64 min-w-[200px]">{parts.picker}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          )
         )}
       </div>
     </ModalShell>

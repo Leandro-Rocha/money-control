@@ -64,10 +64,10 @@ export function ModalShell({
         <DialogOverlay />
         {/* Centraliza por flex, sem transform no conteúdo: popups em portal dentro
             dele (CategoryPicker) usam position: fixed relativo à tela. */}
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center sm:p-4">
         <DialogPrimitive.Content
           className={cn(
-            "pointer-events-auto relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-tile bg-tile text-ink shadow-tile-up",
+            "pointer-events-auto relative flex h-dvh w-full flex-col overflow-hidden bg-tile text-ink shadow-tile-up sm:h-auto sm:max-h-[90vh] sm:rounded-tile",
             "duration-(--dur) data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
             maxWidth,
           )}
@@ -77,8 +77,8 @@ export function ModalShell({
           onInteractOutside={(e) => e.preventDefault()}
           {...(subtitle ? {} : { "aria-describedby": undefined })}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-line px-6 py-4">
-            <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-start justify-between gap-2 border-b border-line px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:px-6 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2">
               {onBack && (
                 <Button
                   variant="ghost"
@@ -90,25 +90,25 @@ export function ModalShell({
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
               )}
-              <div>
-                <DialogPrimitive.Title className={cn("flex items-center gap-2 text-lg font-semibold tracking-tight", titleColor)}>
+              <div className="min-w-0">
+                <DialogPrimitive.Title className={cn("flex items-center gap-2 text-base font-semibold leading-tight tracking-tight sm:text-lg", titleColor)}>
                   {renderedIcon}
                   {title}
                 </DialogPrimitive.Title>
                 {subtitle && (
-                  <DialogPrimitive.Description className="mt-0.5 text-sm text-mut">{subtitle}</DialogPrimitive.Description>
+                  <DialogPrimitive.Description className="mt-0.5 text-xs text-mut sm:text-sm">{subtitle}</DialogPrimitive.Description>
                 )}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full" aria-label="Fechar">
+            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 rounded-full" aria-label="Fechar">
               <X className="w-5 h-5" />
             </Button>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-bg/50 p-6">{children}</div>
+          <div className="flex-1 overflow-y-auto bg-bg/50 p-3 sm:p-6">{children}</div>
 
           {footer && (
-            <div className="flex shrink-0 items-center justify-between border-t border-line px-6 py-4">{footer}</div>
+            <div className="flex shrink-0 items-center justify-between border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">{footer}</div>
           )}
         </DialogPrimitive.Content>
         </div>

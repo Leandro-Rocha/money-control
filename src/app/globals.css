@@ -214,10 +214,15 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+  html {
+    overflow-y: scroll;
+  }
   body {
     background: var(--bg);
     color: var(--ink);
-    overflow-y: scroll;
+    /* Nada pode alargar a página no celular: o Chrome Android amplia o viewport e os sheets
+       fixos ficam cortados à esquerda. `clip` (no body, não no html) corta sem criar rolagem. */
+    overflow-x: clip;
   }
   :focus-visible {
     outline: 2px solid var(--accent);

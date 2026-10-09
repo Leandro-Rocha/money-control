@@ -236,7 +236,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
           return (
             <div key={parent.id} className="border rounded-lg bg-card overflow-hidden shadow-xs">
               {/* Linha da Categoria Pai */}
-              <div className={`flex items-center justify-between p-3 transition-colors ${parent.showInSummary === 0 ? "bg-muted/75 opacity-80" : "hover:bg-muted/50"}`}>
+              <div className={`flex flex-wrap items-center justify-between gap-2 p-3 transition-colors ${parent.showInSummary === 0 ? "bg-muted/75 opacity-80" : "hover:bg-muted/50"}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: parentEffectiveColor }} />
                   <div
@@ -297,7 +297,7 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <Button
                     variant="outline"
                     size="sm"
@@ -353,13 +353,13 @@ export function CategoriesTab({ categories, onRefresh }: CategoriesTabProps) {
 
               {/* Formulário Inline para Adicionar Subcategoria */}
               {isAddingSub && (
-                <div className="bg-muted/40 border-t border-b p-3 pl-8 flex items-center gap-2">
-                  <CornerDownRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                <div className="bg-muted/40 border-t border-b p-3 sm:pl-8 flex flex-wrap items-center gap-2">
+                  <CornerDownRight className="hidden sm:block w-4 h-4 text-muted-foreground shrink-0" />
                   <Input
                     value={newSubName}
                     onChange={(e) => setNewSubName(e.target.value)}
                     placeholder={`Nova subcategoria para ${parent.name}...`}
-                    className="h-8 text-xs max-w-xs"
+                    className="h-9 basis-full sm:h-8 sm:basis-0 sm:flex-1 sm:max-w-xs sm:text-xs"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
