@@ -2,6 +2,7 @@
 
 import { ChevronRight, GripVertical, X } from "lucide-react";
 import { Fragment, createContext, use, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { CategoryPicker } from "@/components/CategoryPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Money } from "@/components/ui/money";
@@ -198,13 +199,12 @@ export function ReviewView({ state }: { state: DashboardState }) {
                 <UncategorizedRow
                   tx={t}
                   accountName={accountName}
-                  chips={chipCategories(t.amount, data.topCategories, state.allCategories)}
+                  options={categoryOptions(t.amount, state.allCategories)}
                   onPick={(categoryId) => {
                     const categoryName = state.allCategories.find((c) => c.id === categoryId)?.name ?? "";
                     setLastPick({ id: t.id, description: t.description, categoryName });
                     run(`u:${t.id}`, () => updateTransaction(t.id, { categoryId }));
                   }}
-                  onMore={() => state.setTriageOpen(true)}
                 />
               </Item>
             ))}
@@ -399,12 +399,12 @@ function Board({ cards, collapsedByDefault }: { cards: Record<ReviewGroupKey, Re
 
   return (
     <BoardContext value={ctx}>
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
         {layout.columns.map((keys, c) => (
           <div
             key={c}
             className={cn(
-              "flex min-h-24 flex-col gap-5 rounded-tile transition-colors duration-(--dur)",
+              "flex min-h-24 min-w-0 flex-col gap-5 rounded-tile transition-colors duration-(--dur)",
               dragging && keys.length === 0 && drop?.col === c && "bg-hover",
             )}
             onDragOver={(e) => {
@@ -465,7 +465,7 @@ function Group({
         board.dragOver(group.key, e.clientY < r.top + r.height / 2);
       }}
     >
-      <header className="flex items-center gap-2">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <button
           type="button"
           draggable
@@ -490,7 +490,7 @@ function Group({
         >
           <GripVertical className="size-3.5" aria-hidden />
         </button>
-        <h2 id={id} className="min-w-0 flex-1 text-sm font-semibold">
+        <h2 id={id} className="min-w-0 flex-auto text-sm font-semibold">
           <button
             type="button"
             aria-expanded={!collapsed}
@@ -505,7 +505,7 @@ function Group({
             <span className="truncate">{group.title}</span>
           </button>
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {right}
           <span
             data-counter
@@ -554,28 +554,25 @@ function Item({ leaving, children }: { leaving: boolean; children: React.ReactNo
   );
 }
 
-function chipCategories(amount: number, top: ReviewData["topCategories"], all: Category[]): Category[] {
-  const ids = amount < 0 ? top.expense : top.income;
-  const byId = new Map(all.map((c) => [c.id, c]));
-  const fromTop = ids.map((id) => byId.get(id)).filter((c): c is Category => c != null);
-  if (fromTop.length > 0) return fromTop;
+/** Categorias do mesmo sentido do lançamento (saída → despesa, entrada → receita). */
+function categoryOptions(amount: number, all: Category[]): Category[] {
   const wanted = amount < 0 ? "expense" : "income";
-  return all.filter((c) => (c.type === wanted || c.type === "both") && (c.kind == null || c.kind === "regular")).slice(0, 4);
+  return all.filter((c) => c.type === wanted || c.type === "both");
 }
 
 function UncategorizedRow({
   tx,
   accountName,
-  chips,
+  options,
   onPick,
-  onMore,
 }: {
   tx: ReviewData["uncategorized"][number];
   accountName: (id: number) => string;
-  chips: Category[];
+  options: Category[];
   onPick: (categoryId: number) => void;
-  onMore: () => void;
 }) {
+  // Escolher só seleciona; gravar exige "Salvar" (evita categorizar com um toque acidental).
+  const [pick, setPick] = useState<number | null>(null);
   return (
     <div className="flex flex-col gap-1.5 py-1.5 text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -587,24 +584,20 @@ function UncategorizedRow({
         </div>
         <Money value={tx.amount} sign />
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {chips.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onPick(c.id)}
-            className="rounded-full border border-line px-2 py-0.5 text-xs text-ink transition-colors duration-(--dur-fast) hover:bg-hover"
-          >
-            {c.name}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={onMore}
-          className="rounded-full px-2 py-0.5 text-xs text-mut transition-colors duration-(--dur-fast) hover:bg-hover hover:text-ink"
-        >
-          Mais…
-        </button>
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1 [&>div]:w-full">
+          <CategoryPicker
+            mode="select"
+            categories={options}
+            value={pick}
+            onSelect={setPick}
+            showNullOption={false}
+            placeholder="Escolher categoria…"
+          />
+        </div>
+        <Button size="sm" disabled={pick == null} onClick={() => pick != null && onPick(pick)}>
+          Salvar
+        </Button>
       </div>
     </div>
   );
@@ -688,8 +681,8 @@ function BalanceInput({ accountId, name, run }: { accountId: number; name: strin
     });
   };
   return (
-    <div className="grid grid-cols-[1fr_7rem_8.5rem_auto] items-center gap-2 text-sm">
-      <span className="truncate">{name}</span>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 text-sm sm:grid-cols-[1fr_7rem_8.5rem_auto]">
+      <span className="col-span-3 truncate sm:col-span-1">{name}</span>
       <Input
         aria-label={`Saldo do banco em ${name}`}
         placeholder="Saldo"

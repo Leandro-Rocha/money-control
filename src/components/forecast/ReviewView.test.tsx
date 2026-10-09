@@ -146,14 +146,23 @@ describe("ReviewView", () => {
     expect(counter("Avisos da previsão").className).toContain("bg-hover");
   });
 
-  it("chip categoriza no próprio item, item sai e contador cai na hora", async () => {
+  const pickCategory = (item: HTMLElement, name: string) => {
+    fireEvent.click(within(item).getByRole("button", { name: /Escolher categoria/ }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(name) }));
+  };
+
+  it("escolher categoria não grava; Salvar categoriza, item sai e contador cai na hora", async () => {
     getReviewDataAction.mockResolvedValue(review());
     updateTransaction.mockResolvedValue({ success: true });
     const st = state();
     render(<ReviewView state={st} />);
     const box = await screen.findByRole("region", { name: "Lançamentos sem categoria" });
     const item = within(box).getByText("PIX XYZ").closest("li")!;
-    fireEvent.click(within(item).getByRole("button", { name: "Mercado" }));
+    const save = within(item).getByRole("button", { name: "Salvar" });
+    expect(save).toBeDisabled();
+    pickCategory(item, "Mercado");
+    expect(updateTransaction).not.toHaveBeenCalled();
+    fireEvent.click(save);
     expect(updateTransaction).toHaveBeenCalledWith(31, { categoryId: 10 });
     expect(item).toHaveAttribute("data-leaving");
     expect(counter("Lançamentos sem categoria")).toHaveTextContent("1");
@@ -165,7 +174,8 @@ describe("ReviewView", () => {
     render(<ReviewView state={state()} />);
     const box = await screen.findByRole("region", { name: "Lançamentos sem categoria" });
     const item = within(box).getByText("PIX XYZ").closest("li")!;
-    fireEvent.click(within(item).getByRole("button", { name: "Mercado" }));
+    pickCategory(item, "Mercado");
+    fireEvent.click(within(item).getByRole("button", { name: "Salvar" }));
     const status = await within(box).findByRole("status");
     expect(status).toHaveTextContent("PIX XYZ → Mercado");
     fireEvent.click(within(status).getByRole("button", { name: "Desfazer" }));
@@ -173,14 +183,14 @@ describe("ReviewView", () => {
     await waitFor(() => expect(within(box).queryByRole("status")).toBeNull());
   });
 
-  it("entrada sem categoria usa categorias de entrada quando não há mais usadas", async () => {
+  it("entrada sem categoria só oferece categorias de entrada (ou ambos)", async () => {
     getReviewDataAction.mockResolvedValue(review());
     render(<ReviewView state={state()} />);
     const box = await screen.findByRole("region", { name: "Lançamentos sem categoria" });
     const item = within(box).getByText("TED Recebida").closest("li")!;
-    expect(within(item).getByRole("button", { name: "Salário" })).toBeInTheDocument();
-    expect(within(item).queryByRole("button", { name: "Mercado" })).toBeNull();
-    expect(within(item).queryByRole("button", { name: "Transferência" })).toBeNull();
+    fireEvent.click(within(item).getByRole("button", { name: /Escolher categoria/ }));
+    expect(screen.getByRole("button", { name: /Salário/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mercado/ })).toBeNull();
   });
 
   it("Ignorar sugestão sobe para o painel (contador da aba)", async () => {
