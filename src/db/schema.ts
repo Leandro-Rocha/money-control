@@ -81,6 +81,21 @@ export const transactionReimbursements = sqliteTable("transaction_reimbursements
 });
 
 
+/** Dinheiro a devolver sem data definida: seu em trânsito entre contas (internal) ou devido a uma pessoa (third_party). */
+export const pendingReturns = sqliteTable("pending_returns", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  description: text("description").notNull(),
+  amount: real("amount").notNull(), // valor positivo a devolver
+  kind: text("kind", { enum: ["internal", "third_party"] }).notNull().default("internal"),
+  fromAccountId: integer("from_account_id").references(() => accounts.id, { onDelete: "set null" }), // de onde o dinheiro vai sair
+  toAccountId: integer("to_account_id").references(() => accounts.id, { onDelete: "set null" }), // para onde volta (internal)
+  counterpart: text("counterpart"), // pessoa a quem se deve (third_party)
+  originTransactionId: integer("origin_transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  settledAt: text("settled_at"), // null = em aberto
+  settledTransactionId: integer("settled_transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const transactionRules = sqliteTable("transaction_rules", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   pattern: text("pattern").notNull(),

@@ -1,6 +1,6 @@
 import type { ReviewData } from "@/lib/actions/forecast";
 
-export type ReviewGroupKey = "overdue" | "balances" | "uncategorized" | "suggestions" | "transfers" | "reimbursements" | "warnings";
+export type ReviewGroupKey = "overdue" | "balances" | "uncategorized" | "suggestions" | "transfers" | "reimbursements" | "returns" | "warnings";
 
 export interface ReviewGroup {
   key: ReviewGroupKey;
@@ -12,7 +12,7 @@ export interface ReviewGroup {
 
 export type ReviewGroupsInput = Pick<
   ReviewData,
-  "overdue" | "discrepancies" | "uncategorizedCount" | "recurringSuggestions" | "unpairedTransfers" | "reimbursementCandidates" | "warnings"
+  "overdue" | "discrepancies" | "uncategorizedCount" | "recurringSuggestions" | "unpairedTransfers" | "reimbursementCandidates" | "pendingReturns" | "warnings"
 >;
 
 export const suggestionKey = (s: { accountId: number; description: string }) => `${s.accountId}|${s.description}`;
@@ -31,6 +31,8 @@ export function reviewGroups(data: ReviewGroupsInput, hidden: ReadonlySet<string
     },
     { key: "transfers", title: "Transferências sem par", count: data.unpairedTransfers.length, needsAction: true },
     { key: "reimbursements", title: "Reembolsos", count: data.reimbursementCandidates.length, needsAction: true },
+    // Memória do que falta devolver: não afeta a previsão, então não entra no total de pendências.
+    { key: "returns", title: "A devolver", count: data.pendingReturns.length, needsAction: false },
     { key: "warnings", title: "Avisos da previsão", count: data.warnings.length, needsAction: false },
   ];
 }

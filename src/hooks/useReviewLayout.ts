@@ -16,7 +16,7 @@ export interface ReviewLayout {
 
 export const DEFAULT_COLUMNS: ReviewLayout["columns"] = [
   ["overdue", "uncategorized", "transfers", "warnings"],
-  ["balances", "suggestions", "reimbursements"],
+  ["balances", "suggestions", "reimbursements", "returns"],
 ];
 
 const ALL_KEYS = DEFAULT_COLUMNS.flat();

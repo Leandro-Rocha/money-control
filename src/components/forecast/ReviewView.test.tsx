@@ -18,6 +18,12 @@ vi.mock("@/lib/actions/forecast", () => ({
   setReimbursementClosedAction: (...a: unknown[]) => setReimbursementClosedAction(...a),
   setTransactionReimbursableAction: vi.fn(),
 }));
+const settlePendingReturnAction = vi.fn();
+vi.mock("@/lib/actions/pending-returns", () => ({
+  createPendingReturnAction: vi.fn(),
+  deletePendingReturnAction: vi.fn(),
+  settlePendingReturnAction: (...a: unknown[]) => settlePendingReturnAction(...a),
+}));
 const confirmProjectedRow = vi.fn();
 vi.mock("@/lib/actions/projections", () => ({
   confirmProjectedRow: (a: unknown) => confirmProjectedRow(a),
@@ -50,6 +56,7 @@ const review = (over = {}) => ({
   reimbursementCandidates: [],
   recurringSuggestions: [{ accountId: 1, description: "Netflix", day: 10, amount: -39.9, months: ["2026-08", "2026-09"] }],
   unpairedTransfers: [],
+  pendingReturns: [],
   uncategorizedCount: 2,
   uncategorized: [
     { id: 31, accountId: 1, date: "2026-10-05", description: "PIX XYZ", amount: -55 },
@@ -249,18 +256,59 @@ describe("ReviewView", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "Mover Avisos da previsão" }), { key: "ArrowUp", altKey: true });
 
     const saved = JSON.parse(localStorage.getItem("money_control_review_layout")!);
-    expect(saved.columns[1]).toEqual(["balances", "suggestions", "warnings", "reimbursements"]);
+    expect(saved.columns[1]).toEqual(["balances", "suggestions", "warnings", "reimbursements", "returns"]);
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Mover Avisos da previsão" })));
   });
 
   it("layout salvo define a ordem dos cartões", async () => {
     localStorage.setItem(
       "money_control_review_layout",
-      JSON.stringify({ columns: [["warnings"], ["overdue", "balances", "uncategorized", "suggestions", "transfers", "reimbursements"]] }),
+      JSON.stringify({ columns: [["warnings"], ["overdue", "balances", "uncategorized", "suggestions", "transfers", "reimbursements", "returns"]] }),
     );
     getReviewDataAction.mockResolvedValue(review());
     render(<ReviewView state={state()} />);
     await screen.findByRole("region", { name: "Avisos da previsão" });
     await waitFor(() => expect(screen.getAllByRole("region")[0]).toHaveAccessibleName("Avisos da previsão"));
+  });
+});
+
+describe("ReviewView A devolver", () => {
+  afterEach(() => {
+    cleanup();
+    settlePendingReturnAction.mockReset();
+  });
+
+  it("lista pendências com total, não conta nas pendências e quita com a saída sugerida", async () => {
+    getReviewDataAction.mockResolvedValue(
+      review({
+        overdue: [],
+        recurringSuggestions: [],
+        uncategorizedCount: 0,
+        uncategorized: [],
+        warnings: [],
+        pendingReturns: [
+          {
+            id: 7,
+            description: "Voltar 4.350 à reserva MP",
+            amount: 4350,
+            kind: "internal",
+            fromAccountId: 1,
+            toAccountId: null,
+            counterpart: null,
+            originDate: "2026-09-29",
+            openDays: 15,
+            candidates: [{ id: 99, accountId: 1, date: "2026-10-20", description: "Pix enviado", amount: -4350 }],
+          },
+        ],
+      }),
+    );
+    render(<ReviewView state={state()} />);
+    const region = await screen.findByRole("region", { name: "A devolver" });
+    expect(within(region).getByText("Voltar 4.350 à reserva MP")).toBeInTheDocument();
+    expect(within(region).getByText(/há 15 dia/)).toBeInTheDocument();
+    expect(screen.getByText(/Nada pendente\. A previsão/)).toBeInTheDocument();
+
+    fireEvent.click(within(region).getByRole("button", { name: "Quitar com esta saída" }));
+    await waitFor(() => expect(settlePendingReturnAction).toHaveBeenCalledWith({ id: 7, transactionId: 99 }));
   });
 });

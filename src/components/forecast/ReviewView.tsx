@@ -19,6 +19,11 @@ import {
   setTransactionReimbursableAction,
   type ReviewData,
 } from "@/lib/actions/forecast";
+import {
+  createPendingReturnAction,
+  deletePendingReturnAction,
+  settlePendingReturnAction,
+} from "@/lib/actions/pending-returns";
 import { confirmProjectedRow, dismissProjection, payCreditCardBillAction } from "@/lib/actions/projections";
 import { updateTransaction } from "@/lib/actions/transactions";
 import { dayOf, localToday } from "@/lib/forecast/dates";
@@ -80,6 +85,7 @@ export function ReviewView({ state }: { state: DashboardState }) {
       uncategorizedCount: Math.max(0, data.uncategorizedCount - gone("u:")),
       recurringSuggestions: data.recurringSuggestions.filter((s) => !leaving.has(`s:${suggestionKey(s)}`)),
       unpairedTransfers: data.unpairedTransfers,
+      pendingReturns: data.pendingReturns.filter((r) => !leaving.has(`p:${r.id}`)),
       reimbursementCandidates: data.reimbursementCandidates.filter((c) => !leaving.has(`r:${c.credit.id}`)),
       warnings: data.warnings,
     },
@@ -316,6 +322,29 @@ export function ReviewView({ state }: { state: DashboardState }) {
             ))}
           </div>
         )}
+      </Group>
+    ),
+    returns: (
+      <Group group={g.returns} empty={rawEmpty.has("returns")} keepBody>
+        <p className="text-xs text-mut">
+          Dinheiro que precisa voltar, sem data definida. Não entra na previsão; é só para não esquecer.
+        </p>
+        {data.pendingReturns.length > 0 && (
+          <>
+            <ul className="flex flex-col">
+              {data.pendingReturns.map((r) => (
+                <Item key={r.id} leaving={leaving.has(`p:${r.id}`)}>
+                  <PendingReturnRow r={r} accountName={accountName} run={run} />
+                </Item>
+              ))}
+            </ul>
+            <p className="flex items-baseline justify-between border-t border-line pt-2 text-sm">
+              <span className="text-mut">Total em aberto</span>
+              <Money value={data.pendingReturns.reduce((s, r) => s + r.amount, 0)} />
+            </p>
+          </>
+        )}
+        <AddPendingReturn accounts={state.allAccounts.filter((a) => a.isActive !== 0)} run={run} />
       </Group>
     ),
     warnings: (
@@ -791,6 +820,167 @@ function ReimbursementCandidateRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PendingReturnRow({
+  r,
+  accountName,
+  run,
+}: {
+  r: ReviewData["pendingReturns"][number];
+  accountName: (id: number) => string;
+  run: Run;
+}) {
+  const [txId, setTxId] = useState<string>(r.candidates[0] ? String(r.candidates[0].id) : "");
+  const route =
+    r.kind === "third_party"
+      ? `${r.fromAccountId != null ? `${accountName(r.fromAccountId)} → ` : ""}${r.counterpart ?? "terceiro"}`
+      : [r.fromAccountId, r.toAccountId].map((id) => (id != null ? accountName(id) : "?")).join(" → ");
+  return (
+    <div className="flex flex-col gap-1 py-1.5 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0">
+          <span className="block truncate">{r.description}</span>
+          <span className="text-2xs text-mut">
+            {r.kind === "third_party" ? "Devo a pessoa" : "Meu dinheiro em trânsito"} · {route}
+            {r.openDays > 0 && ` · há ${r.openDays} dia(s)`}
+          </span>
+        </span>
+        <Money value={r.amount} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {r.candidates.length > 0 && (
+          <>
+            <select
+              aria-label="Saída que devolveu"
+              className="h-8 max-w-full rounded-md border border-line bg-tile px-2 text-xs"
+              value={txId}
+              onChange={(e) => setTxId(e.target.value)}
+            >
+              {r.candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {fmtDate(c.date)} {accountName(c.accountId)} · {c.description}
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!txId}
+              onClick={() => run(`p:${r.id}`, () => settlePendingReturnAction({ id: r.id, transactionId: Number(txId) }))}
+            >
+              Quitar com esta saída
+            </Button>
+          </>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          title="Marca como devolvido sem ligar a uma transação"
+          onClick={() => run(`p:${r.id}`, () => settlePendingReturnAction({ id: r.id }))}
+        >
+          Já devolvi
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => run(`p:${r.id}`, () => deletePendingReturnAction(r.id))}>
+          Excluir
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AddPendingReturn({ accounts, run }: { accounts: { id: number; name: string }[]; run: Run }) {
+  const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState("");
+  const [value, setValue] = useState("");
+  const [kind, setKind] = useState<"internal" | "third_party">("internal");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [counterpart, setCounterpart] = useState("");
+  const amount = parseNumberInput(value);
+  const valid = description.trim() !== "" && amount != null && amount > 0;
+  const field = "h-8 rounded-md border border-line bg-tile px-2 text-xs";
+
+  if (!open) {
+    return (
+      <div>
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          Adicionar
+        </Button>
+      </div>
+    );
+  }
+  const reset = () => {
+    setDescription("");
+    setValue("");
+    setFrom("");
+    setTo("");
+    setCounterpart("");
+    setOpen(false);
+  };
+  return (
+    <div className="flex flex-col gap-2 border-t border-line pt-3 text-sm">
+      <Input aria-label="O que precisa voltar" placeholder="Ex.: Voltar à reserva do MP" value={description} onChange={(e) => setDescription(e.target.value)} className="h-8" />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Valor a devolver" placeholder="Valor" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} className="h-8 w-28 font-mono" />
+        <select aria-label="Tipo" className={field} value={kind} onChange={(e) => setKind(e.target.value as "internal" | "third_party")}>
+          <option value="internal">Meu dinheiro em trânsito</option>
+          <option value="third_party">Devo a uma pessoa</option>
+        </select>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-mut">sai de</span>
+        <select aria-label="Conta de saída" className={field} value={from} onChange={(e) => setFrom(e.target.value)}>
+          <option value="">qualquer conta</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        {kind === "internal" ? (
+          <>
+            <span className="text-xs text-mut">volta para</span>
+            <select aria-label="Conta de destino" className={field} value={to} onChange={(e) => setTo(e.target.value)}>
+              <option value="">não definida</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <Input aria-label="Quem recebe" placeholder="Pessoa" value={counterpart} onChange={(e) => setCounterpart(e.target.value)} className="h-8 w-40 text-xs" />
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!valid}
+          onClick={() => {
+            run(null, () =>
+              createPendingReturnAction({
+                description,
+                amount: amount!,
+                kind,
+                fromAccountId: from ? Number(from) : null,
+                toAccountId: to ? Number(to) : null,
+                counterpart,
+              }),
+            );
+            reset();
+          }}
+        >
+          Salvar
+        </Button>
+        <Button size="sm" variant="ghost" onClick={reset}>
+          Cancelar
+        </Button>
+      </div>
     </div>
   );
 }

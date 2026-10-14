@@ -28,6 +28,8 @@ import {
   type ReimbursementCandidate,
   type ReviewTx,
 } from "../forecast/review";
+import { getPendingReturnsAction } from "./pending-returns";
+import type { PendingReturnItem } from "../forecast/pending-returns";
 import type { AccountStart, CategoryKind, ForecastEvent, ForecastResult, Scenario } from "../forecast/types";
 
 export interface ForecastAccount {
@@ -140,6 +142,7 @@ export interface ReviewData {
   reimbursementCandidates: ReimbursementCandidate[];
   recurringSuggestions: RecurringSuggestion[];
   unpairedTransfers: ReviewTx[];
+  pendingReturns: PendingReturnItem[];
   uncategorizedCount: number;
   uncategorized: { id: number; accountId: number; date: string; description: string; amount: number }[];
   topCategories: { expense: number[]; income: number[] };
@@ -235,6 +238,7 @@ export async function getReviewDataAction(): Promise<ReviewData> {
     reimbursementCandidates: findReimbursementCandidates(txs, addMonths(current, -2)),
     recurringSuggestions: suggestRecurring(txs, input.recurring, matchedIds, current),
     unpairedTransfers: findUnpairedTransfers(txs, activeIds, addMonths(current, -2)).map((u) => u.transaction),
+    pendingReturns: await getPendingReturnsAction(today),
     uncategorizedCount: uncategorizedRows.length,
     uncategorized: uncategorizedRows.slice(0, 30).map((t) => ({
       id: t.id,

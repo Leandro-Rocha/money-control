@@ -10,12 +10,13 @@ const base = {
     { accountId: 2, description: "Academia" },
   ],
   unpairedTransfers: [],
+  pendingReturns: [{}, {}, {}],
   reimbursementCandidates: [{}],
   warnings: ["a", "b"],
 };
 
 describe("reviewGroups", () => {
-  it("lista os 7 grupos na ordem da tela com contadores", () => {
+  it("lista os 8 grupos na ordem da tela com contadores", () => {
     const g = reviewGroups(base as never);
     expect(g.map((x) => [x.key, x.title, x.count, x.needsAction])).toEqual([
       ["overdue", "Previstos que não apareceram", 2, true],
@@ -24,6 +25,7 @@ describe("reviewGroups", () => {
       ["suggestions", "Parecem contas fixas", 2, true],
       ["transfers", "Transferências sem par", 0, true],
       ["reimbursements", "Reembolsos", 1, true],
+      ["returns", "A devolver", 3, false],
       ["warnings", "Avisos da previsão", 2, false],
     ]);
   });

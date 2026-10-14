@@ -17,7 +17,7 @@ describe("parseLayout", () => {
       collapsed: { overdue: true, balances: "sim", nope: true },
     });
     const l = parseLayout(raw);
-    expect(l.columns[0]).toEqual(["warnings", "overdue", "reimbursements"]);
+    expect(l.columns[0]).toEqual(["warnings", "overdue", "reimbursements", "returns"]);
     expect(l.columns[1]).toEqual(["balances", "suggestions", "uncategorized", "transfers"]);
     expect(l.collapsed).toEqual({ overdue: true });
   });
