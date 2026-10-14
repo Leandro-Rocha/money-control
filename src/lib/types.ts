@@ -95,6 +95,8 @@ export interface AccountData {
   totalExpense: number;
   netBalance: number;
   finalBalance: number;
+  /** Saldo real agora (banco + lançamentos reais até hoje, sem previsão). Só contas bancárias. */
+  balanceNow?: number;
 }
 
 export interface CategorySummarySubItem {

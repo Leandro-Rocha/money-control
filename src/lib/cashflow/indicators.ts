@@ -24,8 +24,11 @@ export function cashflowIndicators({
   const todayDay = Number(today.slice(8, 10));
   const sum = (f: (a: AccountData) => number) => banks.reduce((s, a) => s + (f(a) || 0), 0);
 
-  const first: Indicator =
-    month === current
+  // Saldo real agora (âncora no banco, sem previsão); vale em qualquer mês exibido.
+  const hasNow = banks.some((a) => a.balanceNow != null);
+  const first: Indicator = hasNow
+    ? { label: "Saldo em contas agora", value: sum((a) => a.balanceNow ?? 0), tone: "balance" }
+    : month === current
       ? {
           label: "Saldo em contas hoje",
           value: sum((a) => a.initialBalance + a.transactions.filter((t) => !t.isProjected && t.day <= todayDay).reduce((s, t) => s + t.amount, 0)),

@@ -24,4 +24,11 @@ describe("cashflowIndicators", () => {
     expect(r[0].label).toBe("Saldo no início do mês");
     expect(r[3].label).toBe("Fim do mês previsto");
   });
+  it("com saldo real agora: usa o saldo ancorado no banco em qualquer mês", () => {
+    const b = { ...bank(1000, 400, [{ day: 6, amount: -300, isProjected: true }]), balanceNow: 777 } as AccountData;
+    for (const month of ["2026-09", "2026-10", "2026-11"]) {
+      const r = cashflowIndicators({ month, today: "2026-10-06", banks: [b], cards: [], income: 0 });
+      expect(r[0]).toMatchObject({ label: "Saldo em contas agora", value: 777 });
+    }
+  });
 });

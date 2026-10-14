@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { accounts, categories, transactions, recurringEntries, transactionRules, dismissedProjections, tags, transactionTags } from "@/db/schema";
+import { accounts, accountBalanceSnapshots, categories, transactions, recurringEntries, transactionRules, dismissedProjections, tags, transactionTags } from "@/db/schema";
 import { eq, and, asc, inArray, isNull, or, gte, lte } from "drizzle-orm";
 import { AccountData, CategorySummaryGroup, MonthData, ProjectionState, TransactionWithCategory, Tag } from "../types";
 import { formatMonthLabel } from "../format";
@@ -12,6 +12,7 @@ import { computeForecast, toFRecurring } from "../forecast/loader";
 import { occursInMonth } from "../forecast/matching";
 import { forecastRowsForMonth } from "../forecast/extrato";
 import { dateOf, diffDays, localToday } from "../forecast/dates";
+import { balanceNowByAccount } from "../forecast/balance-now";
 import { upsertTransactionRulesBatch } from "@/lib/transaction-rules-server";
 import { isSameInstallmentSeries } from "../installments-helpers";
 import { setTransactionTags } from "./tags";
@@ -130,6 +131,32 @@ export async function getMonthData(month: string): Promise<MonthData> {
     projectionState = rows.projectionState(allTx.length > 0);
   }
 
+  // 5.5 Saldo real agora por conta bancária (independe do mês exibido)
+  const bankIdsNow = accList.filter((a) => a.type === "bank_account").map((a) => a.id);
+  let balancesNow: Record<number, number> = {};
+  if (bankIdsNow.length > 0) {
+    const [snaps, txs] = await Promise.all([
+      db.select().from(accountBalanceSnapshots).where(inArray(accountBalanceSnapshots.accountId, bankIdsNow)),
+      db
+        .select({
+          accountId: transactions.accountId,
+          month: transactions.month,
+          day: transactions.day,
+          amount: transactions.amount,
+          description: transactions.description,
+          originalDescription: transactions.originalDescription,
+        })
+        .from(transactions)
+        .where(inArray(transactions.accountId, bankIdsNow)),
+    ]);
+    balancesNow = balanceNowByAccount({
+      accountIds: bankIdsNow,
+      today: localToday(),
+      snapshots: snaps,
+      transactions: txs.filter((t) => !isAutoInvestSweepDescription(t.originalDescription ?? t.description)),
+    });
+  }
+
   // 6. Build AccountData
   const accountsData: AccountData[] = await Promise.all(
     accList.map(async (acc) => {
@@ -244,6 +271,7 @@ export async function getMonthData(month: string): Promise<MonthData> {
         totalExpense,
         netBalance,
         finalBalance,
+        balanceNow: acc.type === "credit_card" ? undefined : balancesNow[acc.id],
       };
     })
   );

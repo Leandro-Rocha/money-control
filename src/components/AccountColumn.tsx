@@ -755,18 +755,28 @@ export default function AccountColumn({
             </div>
           </div>
           <div className="text-right">
-            <Eyebrow as="p">{isCard ? "Fatura" : "Saldo"}</Eyebrow>
+            <Eyebrow as="p">{isCard ? "Fatura" : data.balanceNow != null ? "Agora" : "Saldo"}</Eyebrow>
             {isCard ? (
               <Money
                 value={data.totalExpense}
                 className="text-base font-semibold"
               />
             ) : (
-              <Money
-                value={data.finalBalance}
-                tone="balance"
-                className="text-base font-semibold"
-              />
+              <>
+                <Money
+                  value={data.balanceNow ?? data.finalBalance}
+                  tone="balance"
+                  className="text-base font-semibold"
+                />
+                {data.balanceNow != null && (
+                  <p
+                    className="text-2xs text-mut"
+                    title="Saldo previsto ao fim do mês, com lançamentos previstos"
+                  >
+                    fim do mês <Money value={data.finalBalance} tone="balance" />
+                  </p>
+                )}
+              </>
             )}
           </div>
           {onToggleExpanded && (
@@ -894,7 +904,11 @@ export default function AccountColumn({
                 {groupHeader(
                   fmtDateWeekday(date),
                   <span data-day-balance className="text-2xs">
-                    <Money value={g.endBalance} tone="balance" />
+                    <Money
+                      value={g.endBalance}
+                      tone="balance"
+                      projected={g.txs.some((t) => t.isProjected)}
+                    />
                   </span>,
                   isToday,
                 )}

@@ -17,6 +17,7 @@ vi.mock("@/lib/actions/projections", () => ({
   confirmBillPaymentCandidateAction: vi.fn(),
 }));
 
+import { fetchPluggyTransactionsForMonth } from "@/lib/actions/pluggy";
 import { ImportStagingModal } from "./ImportStagingModal";
 import { ConfirmProvider } from "@/components/ui/confirm-provider";
 
@@ -24,22 +25,45 @@ afterEach(cleanup);
 
 const account: Account = { id: 1, name: "Banco", type: "bank_account", color: "#000", displayOrder: 0, isActive: 1 };
 
+const pluggyTx = (over: Record<string, unknown> = {}) => ({
+  id: "t1",
+  day: 5,
+  description: "Mercado",
+  originalDescription: "MERCADO",
+  amount: -50,
+  categoryId: null,
+  categoryNameExtracted: null,
+  isDuplicate: false,
+  ignored: false,
+  isPastMonth: false,
+  resolvedMonth: "2026-10",
+  purchaseDate: null,
+  ...over,
+});
+
+const renderModal = (onClose = vi.fn()) =>
+  render(
+    <ConfirmProvider>
+      <ImportStagingModal
+        month="2026-10"
+        accounts={[account]}
+        categories={[]}
+        existingTransactions={[]}
+        onClose={onClose}
+        onSuccess={vi.fn()}
+        autoFetch
+      />
+    </ConfirmProvider>,
+  );
+
 describe("ImportStagingModal", () => {
   it("na etapa 2, Esc pede confirmação e um segundo Esc só cancela a confirmação", async () => {
+    vi.mocked(fetchPluggyTransactionsForMonth).mockResolvedValueOnce({
+      success: true,
+      transactions: [pluggyTx()],
+    } as never);
     const onClose = vi.fn();
-    render(
-      <ConfirmProvider>
-        <ImportStagingModal
-          month="2026-10"
-          accounts={[account]}
-          categories={[]}
-          existingTransactions={[]}
-          onClose={onClose}
-          onSuccess={vi.fn()}
-          autoFetch
-        />
-      </ConfirmProvider>,
-    );
+    renderModal(onClose);
     await act(async () => {}); // autoFetch leva à etapa 2
     await act(async () => {
       fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
@@ -53,5 +77,21 @@ describe("ImportStagingModal", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("na etapa 2, Esc fecha direto quando não há nada a importar", async () => {
+    vi.mocked(fetchPluggyTransactionsForMonth).mockResolvedValueOnce({
+      success: true,
+      transactions: [pluggyTx({ ignored: true })],
+    } as never);
+    const onClose = vi.fn();
+    renderModal(onClose);
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    });
+    await act(async () => {});
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
