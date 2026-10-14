@@ -289,3 +289,19 @@ describe("findManualCounterpart", () => {
     expect(findManualCounterpart({ resolvedMonth: "2026-09", day: 10, amount: -377.68 }, db, new Set([1]))).toBeNull();
   });
 });
+
+import { isReserveMovementDescription } from "./staging-utils";
+
+describe("isReserveMovementDescription", () => {
+  it("reconhece reservar e retirar da reserva", () => {
+    for (const d of ["Dinheiro Reservado Reserva", "Dinheiro Retirado Reserva", "dinheiro retirado reserva mercado livre"]) {
+      expect(isReserveMovementDescription(d)).toBe(true);
+    }
+  });
+
+  it("mantém lançamentos comuns", () => {
+    for (const d of ["Transferência", "Pix recebido", "Rendimentos Reserva", ""]) {
+      expect(isReserveMovementDescription(d)).toBe(false);
+    }
+  });
+});

@@ -225,6 +225,14 @@ export function isAutoInvestSweepDescription(description: string): boolean {
   return /\b(APL|RES) APLIC AUT\b/i.test(description ?? "");
 }
 
+/**
+ * Movimento entre a conta e a reserva/cofrinho do Mercado Pago ("Dinheiro Reservado Reserva", "Dinheiro Retirado Reserva").
+ * A reserva é sub-conta que só sincroniza saldo, sem transações, então a outra ponta nunca existe.
+ */
+export function isReserveMovementDescription(description: string): boolean {
+  return /\bDinheiro (Reservado|Retirado)\b.*\bReserva\b/i.test(description ?? "");
+}
+
 export type StagingFilterMode = "all" | "unregistered" | "registered";
 
 /**

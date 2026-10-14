@@ -1,5 +1,6 @@
 // Detecções da tela "Revisar": funções puras sobre transações já carregadas.
 import { addMonths } from "../date-helpers";
+import { isReserveMovementDescription } from "../staging-utils";
 import { dateOf, diffDays } from "./dates";
 import { amountClose, descriptionsMatch, median, normalizeText, round2, significantTokens } from "./matching";
 import type { CategoryKind, FRecurring } from "./types";
@@ -104,12 +105,14 @@ export interface UnpairedTransfer {
 /**
  * Transferências (natureza "transfer") sem vínculo e sem contrapartida de valor oposto em outra conta (±3 dias).
  * Sem par, o dinheiro "some" de uma conta e o saldo consolidado fica errado.
+ * Crédito vinculado a uma despesa como reembolso já tem destino e não entra.
  */
 export function findUnpairedTransfers(txs: ReviewTx[], ownAccountIds: Set<number>, fromMonth: string): UnpairedTransfer[] {
   const candidates = txs.filter((t) => t.month >= fromMonth && ownAccountIds.has(t.accountId));
   const out: UnpairedTransfer[] = [];
   for (const t of candidates) {
     if (t.categoryKind !== "transfer" || t.linkedTransactionId != null) continue;
+    if (isReserveMovementDescription(t.description) || t.isReimbursementCredit) continue;
     const d = dateOf(t.month, t.day);
     const pair = candidates.some(
       (o) =>

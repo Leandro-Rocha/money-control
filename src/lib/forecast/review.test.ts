@@ -59,6 +59,17 @@ describe("findUnpairedTransfers", () => {
     const r = findUnpairedTransfers([out, inn, lonely], new Set([1, 2]), "2026-08");
     expect(r.map((x) => x.transaction.id)).toEqual([lonely.id]);
   });
+
+  it("ignora crédito já vinculado como reembolso de uma despesa", () => {
+    const pix = t({ accountId: 1, month: "2026-09", day: 25, amount: 1900, categoryKind: "transfer", isReimbursementCredit: true });
+    expect(findUnpairedTransfers([pix], new Set([1]), "2026-08")).toEqual([]);
+  });
+
+  it("ignora movimento da reserva do Mercado Pago, que não tem outra ponta", () => {
+    const guardou = t({ accountId: 1, month: "2026-09", day: 10, amount: -1000, categoryKind: "transfer", description: "Dinheiro Reservado Reserva" });
+    const retirou = t({ accountId: 1, month: "2026-09", day: 12, amount: 91.74, categoryKind: "transfer", description: "Dinheiro Retirado Reserva" });
+    expect(findUnpairedTransfers([guardou, retirou], new Set([1]), "2026-08")).toEqual([]);
+  });
 });
 
 describe("findReimbursementCandidates", () => {
