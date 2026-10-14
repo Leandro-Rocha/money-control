@@ -37,13 +37,15 @@ export function Money({
   let text = formatCurrency(v, sign);
   if (currency) text = negative ? `(R$ ${text.slice(1)}` : `R$ ${text}`;
 
-  const color = projected
-    ? "text-faint"
-    : tone === "balance" && negative
+  // Saldo negativo é alerta: vermelho mesmo quando previsto.
+  const color =
+    tone === "balance" && negative
       ? "text-negative"
-      : tone === "balance" && cushion != null && v < cushion
-        ? "text-caution"
-        : undefined;
+      : projected
+        ? "text-faint"
+        : tone === "balance" && cushion != null && v < cushion
+          ? "text-caution"
+          : undefined;
 
   return (
     <span className={cn(base, color, className)}>

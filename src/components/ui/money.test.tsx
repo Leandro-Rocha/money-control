@@ -57,6 +57,12 @@ describe("Money", () => {
     expect(el.className).toMatch(/text-faint/);
   });
 
+  it("saldo negativo previsto continua vermelho", () => {
+    const { container } = render(<Money value={-2543.93} tone="balance" projected />);
+    expect(container.firstElementChild!.className).toMatch(/text-negative/);
+    expect(container.firstElementChild!.className).not.toMatch(/text-faint/);
+  });
+
   it("moeda e sinal", () => {
     const a = render(<Money value={1234} currency />);
     expect(visible(a.container.firstElementChild as HTMLElement)).toBe("R$ 1.234,00");
