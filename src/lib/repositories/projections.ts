@@ -5,6 +5,7 @@ import { TransactionWithCategory } from "../types";
 import { monthDiff } from "../date-helpers";
 import {
   isSameInstallmentSeries,
+  isUntaggedInstallmentCharge,
   cleanInstallmentDescription,
   computeOriginMonth,
 } from "../installments-helpers";
@@ -114,6 +115,7 @@ export async function getProjectedInstallments(
       // Check if a real transaction is already recorded for this installment in targetMonth
       const isAlreadyRecorded = realTxnsInTarget.some((t_real) => {
         if (t_real.accountId !== latest.accountId) return false;
+        if (isUntaggedInstallmentCharge(latest as any, t_real as any)) return true;
         if (t_real.installmentTotal === latest.installmentTotal) {
           if (t_real.installmentCurrent === projectedCurrent) {
             if (isSameInstallmentSeries(latest as any, t_real as any)) return true;

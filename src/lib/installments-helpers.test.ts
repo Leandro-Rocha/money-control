@@ -114,6 +114,40 @@ describe("installments-helpers", () => {
       expect(isSameInstallmentSeries(d1, d2)).toBe(false);
     });
 
+    it("matches when the first installment absorbs the rounding (Autorama 104.11 then 104.02 in 12x)", () => {
+      const first = {
+        accountId: 8,
+        month: "2026-10",
+        day: 5,
+        description: "Autorama",
+        originalDescription: "MERCADOLIVRE*CARL",
+        amount: -104.11,
+        installmentCurrent: 1,
+        installmentTotal: 12,
+        purchaseDate: "05/10/2026",
+      };
+      const second = {
+        accountId: 8,
+        month: "2026-11",
+        day: 5,
+        description: "MERCADOLIVRE*CARL",
+        originalDescription: "MERCADOLIVRE*CARL",
+        amount: -104.02,
+        installmentCurrent: 2,
+        installmentTotal: 12,
+        purchaseDate: "05/10/2026",
+      };
+      expect(isSameInstallmentSeries(first, second)).toBe(true);
+    });
+
+    it("does not stretch the rounding tolerance beyond one cent per installment", () => {
+      const a = { accountId: 1, month: "2026-10", day: 5, description: "Loja", amount: -100.0, installmentCurrent: 1, installmentTotal: 3 };
+      const b = { accountId: 1, month: "2026-11", day: 5, description: "Loja", amount: -100.04, installmentCurrent: 2, installmentTotal: 3 };
+      const c = { ...b, amount: -100.06 };
+      expect(isSameInstallmentSeries(a, b)).toBe(true);
+      expect(isSameInstallmentSeries(a, c)).toBe(false);
+    });
+
     it("does not match different accounts", () => {
       const a = {
         accountId: 1,

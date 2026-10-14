@@ -43,7 +43,7 @@ export function cleanInstallmentDescription(str?: string | null): string {
  * 1. Same accountId.
  * 2. Same installmentTotal.
  * 3. Same computed originMonth.
- * 4. Installment amounts are within 5 cents (handles roundings like 101.11 vs 101.08).
+ * 4. Installment amounts are within the rounding tolerance (see installmentAmountTolerance).
  * 5. Corroborating match:
  *    - Same purchaseDate (if both present), OR
  *    - Matching cleaned originalDescription (e.g. raw bank statement descriptors), OR
@@ -62,24 +62,12 @@ export function isSameInstallmentSeries(
   const bOrigin = computeOriginMonth(b.month, b.installmentCurrent);
   if (aOrigin !== bOrigin) return false;
 
-  // If installment amounts differ by more than 5 cents, they are different purchases
-  if (Math.abs(Math.abs(a.amount) - Math.abs(b.amount)) > 0.05) {
+  // Amounts beyond the rounding tolerance are different purchases
+  if (Math.abs(Math.abs(a.amount) - Math.abs(b.amount)) > installmentAmountTolerance(a.installmentTotal)) {
     return false;
   }
 
-  const aOrig = cleanInstallmentDescription(a.originalDescription);
-  const bOrig = cleanInstallmentDescription(b.originalDescription);
-  const aDesc = cleanInstallmentDescription(a.description);
-  const bDesc = cleanInstallmentDescription(b.description);
-
-  // 1. If originalDescription (stripped of parcel counters) matches
-  if (aOrig && bOrig && aOrig === bOrig) return true;
-
-  // 2. If description matches
-  if (aDesc && bDesc && aDesc === bDesc) return true;
-
-  // 3. If one description matches the other's originalDescription (e.g. renamed in one month)
-  if ((aDesc && bOrig && aDesc === bOrig) || (aOrig && bDesc && aOrig === bDesc)) return true;
+  if (descriptionsMatch(a, b)) return true;
 
   // 4. If purchaseDate matches
   if (a.purchaseDate && b.purchaseDate && a.purchaseDate === b.purchaseDate) return true;
@@ -88,4 +76,44 @@ export function isSameInstallmentSeries(
   if (a.day === b.day && Math.abs(Math.abs(a.amount) - Math.abs(b.amount)) < 0.01) return true;
 
   return false;
+}
+
+/**
+ * Max difference between installments of the same purchase. The bank spreads the
+ * rounding remainder over one installment (e.g. 104.11 then 11x 104.02 in 12x),
+ * so it can reach one cent per installment; never less than 5 cents.
+ */
+export function installmentAmountTolerance(installmentTotal: number | null | undefined): number {
+  return Math.max(0.05, (installmentTotal ?? 0) * 0.01) + 1e-9;
+}
+
+/** Cleaned description, originalDescription or one against the other (e.g. renamed in one month). */
+function descriptionsMatch(
+  a: Pick<InstallmentMatchCandidate, "description" | "originalDescription">,
+  b: Pick<InstallmentMatchCandidate, "description" | "originalDescription">
+): boolean {
+  const aOrig = cleanInstallmentDescription(a.originalDescription);
+  const bOrig = cleanInstallmentDescription(b.originalDescription);
+  const aDesc = cleanInstallmentDescription(a.description);
+  const bDesc = cleanInstallmentDescription(b.description);
+  if (aOrig && bOrig && aOrig === bOrig) return true;
+  if (aDesc && bDesc && aDesc === bDesc) return true;
+  return Boolean((aDesc && bOrig && aDesc === bOrig) || (aOrig && bDesc && aOrig === bDesc));
+}
+
+/**
+ * Whether a real transaction without installment metadata is the charge of an installment series.
+ * Some cards (e.g. Mercado Pago) send the following installments as standalone purchases,
+ * with the counter only in the truncated name ("ALLIANZ SEGU*02 d").
+ */
+export function isUntaggedInstallmentCharge(
+  series: InstallmentMatchCandidate,
+  tx: InstallmentMatchCandidate
+): boolean {
+  if (tx.installmentCurrent != null || tx.installmentTotal != null) return false;
+  if (tx.accountId !== series.accountId) return false;
+  if (Math.abs(Math.abs(tx.amount) - Math.abs(series.amount)) > installmentAmountTolerance(series.installmentTotal)) {
+    return false;
+  }
+  return descriptionsMatch(series, tx);
 }

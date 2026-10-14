@@ -145,6 +145,42 @@ describe('projections repository', () => {
       expect(galaxy?.projectedInstallmentCurrent).toBe(2);
     });
 
+    it('should treat a real charge without installment metadata as the projected installment (Seguro MP)', async () => {
+      await testDb.insert(transactions).values([
+        { id: 40, accountId: 1, month: '2026-09', day: 10, description: 'Seguro Song Pro', originalDescription: 'ALLIANZ SEGU*1 de', amount: -397.27, installmentCurrent: 1, installmentTotal: 10, purchaseDate: '10/08/2026' },
+        // Pluggy traz as cobranças seguintes como compras avulsas, sem parcela
+        { id: 41, accountId: 1, month: '2026-10', day: 11, description: 'Seguro Song Pro', originalDescription: 'ALLIANZ SEGU*02 d', amount: -397.26, purchaseDate: '11/09/2026' },
+      ]);
+
+      const oct = await repo.getProjectedInstallments('2026-10', '2024-10', '2026-09');
+      expect(oct.find((r: any) => r.description === 'Seguro Song Pro')).toBeUndefined();
+
+      const nov = await repo.getProjectedInstallments('2026-11', '2024-11', '2026-10');
+      expect(nov.find((r: any) => r.description === 'Seguro Song Pro')).toMatchObject({ projectedInstallmentCurrent: 3 });
+    });
+
+    it('should not suppress a projection with an untagged charge of a different amount or description', async () => {
+      await testDb.insert(transactions).values([
+        { id: 50, accountId: 1, month: '2026-09', day: 10, description: 'Seguro Song Pro', amount: -397.27, installmentCurrent: 1, installmentTotal: 10 },
+        { id: 51, accountId: 1, month: '2026-10', day: 10, description: 'Seguro Song Pro', amount: -120.0 },
+        { id: 52, accountId: 1, month: '2026-10', day: 10, description: 'Mercado', amount: -397.27 },
+      ]);
+
+      const oct = await repo.getProjectedInstallments('2026-10', '2024-10', '2026-09');
+      expect(oct.find((r: any) => r.description === 'Seguro Song Pro')).toMatchObject({ projectedInstallmentCurrent: 2 });
+    });
+
+    it('should project a single series when the first installment absorbs the rounding (Autorama)', async () => {
+      await testDb.insert(transactions).values([
+        { id: 60, accountId: 1, month: '2026-10', day: 5, description: 'Autorama', originalDescription: 'MERCADOLIVRE*CARL', amount: -104.11, installmentCurrent: 1, installmentTotal: 12, purchaseDate: '05/10/2026' },
+        { id: 61, accountId: 1, month: '2026-11', day: 5, description: 'MERCADOLIVRE*CARL', originalDescription: 'MERCADOLIVRE*CARL', amount: -104.02, installmentCurrent: 2, installmentTotal: 12, purchaseDate: '05/10/2026' },
+      ]);
+
+      const dec = await repo.getProjectedInstallments('2026-12', '2024-12', '2026-11');
+      expect(dec).toHaveLength(1);
+      expect(dec[0]).toMatchObject({ projectedInstallmentCurrent: 3, amount: -104.02 });
+    });
+
     it('should suppress virtual projection when purchaseDate matches even if description varies', async () => {
       await testDb.insert(transactions).values([
         // Original transaction in 2024-04
