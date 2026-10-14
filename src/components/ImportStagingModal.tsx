@@ -94,6 +94,11 @@ export function ImportStagingModal({
       return;
     }
     if (step === 2) {
+      // Nada a importar (tudo ignorado/duplicado): fecha sem confirmação.
+      if (parsedRows.every((r) => r.ignored)) {
+        onClose();
+        return;
+      }
       if (
         await ask({
           title: "Fechar a importação?",
